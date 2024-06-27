@@ -412,6 +412,7 @@ func ValidateConfig(logger *zap.Logger, c Config) map[string]string {
 	}
 
 	c.GetSatori().Validate(logger)
+	c.GetCluster().Validate(logger)
 
 	return configWarnings
 }

@@ -12,6 +12,7 @@ import (
 
 	"github.com/doublemo/nakama-kit/kit"
 	"github.com/hashicorp/memberlist"
+	"go.uber.org/zap"
 )
 
 type (
@@ -35,7 +36,7 @@ type (
 	}
 )
 
-func (c *PeerConfig) Valid() error {
+func (c *PeerConfig) Validate(logger *zap.Logger) error {
 	if c.Etcd != nil {
 		if err := c.Etcd.Valid(); err != nil {
 			return err
@@ -112,7 +113,7 @@ func toMemberlistConfig(s Peer, name string, c *PeerConfig) *memberlist.Config {
 		cfg.SecretKey = []byte(c.SecretKey)
 	}
 
-	cfg.Logger = log.New(os.Stdout, "bombus[PEER]", 0)
+	cfg.Logger = log.New(os.Stdout, "peer", 0)
 	cfg.Name = name
 	cfg.Ping = s
 	cfg.Delegate = s

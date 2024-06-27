@@ -9,6 +9,7 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -65,7 +66,7 @@ func (c *EtcdClientv3Config) Valid() error {
 	}
 
 	if c.ServicePrefix == "" {
-		c.ServicePrefix = "/bombus/services/"
+		c.ServicePrefix = "/nakama-plus/services/"
 	}
 
 	return nil
@@ -94,7 +95,7 @@ func (c *EtcdClientv3Config) Clone() *EtcdClientv3Config {
 
 func NewEtcdClientv3Config() *EtcdClientv3Config {
 	return &EtcdClientv3Config{
-		ServicePrefix: "/nakama/services/",
+		ServicePrefix: "/nakama-plus/services/",
 	}
 }
 
@@ -151,7 +152,7 @@ func (c *EtcdClientV3) Update(name, value string) error {
 func (c *EtcdClientV3) Watch(ch chan struct{}) {
 	c.wctx, c.wcf = context.WithCancel(c.ctx)
 	c.watcher = clientv3.NewWatcher(c.cli)
-
+	fmt.Println("c.servicePrefix-->", c.servicePrefix)
 	wch := c.watcher.Watch(c.wctx, c.servicePrefix, clientv3.WithPrefix(), clientv3.WithRev(0))
 	ch <- struct{}{}
 	for wr := range wch {
