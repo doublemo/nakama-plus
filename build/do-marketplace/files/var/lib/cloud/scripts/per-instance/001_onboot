@@ -1,0 +1,18 @@
+#!/bin/bash
+
+# Protect the droplet
+ufw limit ssh
+ufw allow https
+ufw allow http
+ufw allow 7350
+ufw allow 7351
+ufw allow 7349
+ufw allow 7348
+ufw --force enable
+
+# Start Cockroach
+cockroach start --background --insecure --store=path='/root/cdb-store1/' --listen-addr=localhost
+nakama migrate up
+systemctl enable nakama
+systemctl start nakama
+
