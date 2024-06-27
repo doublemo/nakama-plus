@@ -36,7 +36,8 @@ type sayHello struct {
 }
 
 func (s *sayHello) Call(ctx context.Context, in *pb.Request) (*pb.ResponseWriter, error) {
-	s.logger.Info("收到请求CALL")
+	s.logger.Info("收到请求CALL", zap.Any("request", in))
+	fmt.Println("--d----", in.Context)
 	return &pb.ResponseWriter{
 		Context: map[string]string{
 			"test": "test",
@@ -45,7 +46,7 @@ func (s *sayHello) Call(ctx context.Context, in *pb.Request) (*pb.ResponseWriter
 }
 
 func (s *sayHello) NotifyMsg(conn kit.Connector, in *pb.Request) {
-	s.logger.Info("收到请求NotifyMsg", zap.String("name", conn.ID()), zap.String("role", conn.Role()))
+	s.logger.Info("收到请求NotifyMsg", zap.String("name", conn.ID()), zap.String("role", conn.Role()), zap.Any("request", in))
 
 	if err := conn.Write(&pb.ResponseWriter{
 		Context: map[string]string{"test": "test"},

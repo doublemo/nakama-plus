@@ -537,6 +537,8 @@ type Runtime struct {
 	shutdownFunction RuntimeShutdownFunction
 
 	fleetManager runtime.FleetManager
+
+	peer Peer
 }
 
 type MatchNamesListFunction func() []string
@@ -3437,4 +3439,12 @@ func (r *Runtime) EventSessionStart() RuntimeEventSessionStartFunction {
 
 func (r *Runtime) EventSessionEnd() RuntimeEventSessionEndFunction {
 	return r.eventFunctions.sessionEndFunction
+}
+
+func (r *Runtime) SetPeer(peer Peer) {
+	r.peer = peer
+}
+
+func (r *Runtime) GetPeer() Peer {
+	return r.peer
 }

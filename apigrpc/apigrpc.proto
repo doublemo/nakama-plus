@@ -746,4 +746,28 @@ service Nakama {
       }
     };
   }
+
+  // Any Call services
+  rpc Any (api.Request) returns (api.ResponseWriter) {
+    option (google.api.http) = {
+      post: "/v2/any/{name}/{cid}",
+      body: "*",
+      additional_bindings {
+        get: "/v2/any/{name}/{cid}"
+      }
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      // Either HTTP key in query param or Bearer authentication.
+      security: {
+        security_requirement: {
+          key: "HttpKeyAuth";
+          value: {};
+        }
+        security_requirement: {
+          key: "BearerJwt";
+          value: {};
+        }
+      }
+    };
+  }
 }

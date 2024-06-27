@@ -153,10 +153,9 @@ func StartApiServer(logger *zap.Logger, startupLogger *zap.Logger, db *sql.DB, p
 	grpcGateway := grpcgw.NewServeMux(
 		grpcgw.WithMetadata(func(ctx context.Context, r *http.Request) metadata.MD {
 			// For RPC GET operations pass through any custom query parameters.
-			if r.Method != "GET" || !strings.HasPrefix(r.URL.Path, "/v2/rpc/") {
+			if r.Method != "GET" || (!strings.HasPrefix(r.URL.Path, "/v2/rpc/") && !strings.HasPrefix(r.URL.Path, "/v2/any/")) {
 				return metadata.MD{}
 			}
-
 			q := r.URL.Query()
 			p := make(map[string][]string, len(q))
 			for k, vs := range q {
@@ -217,6 +216,7 @@ func StartApiServer(logger *zap.Logger, startupLogger *zap.Logger, db *sql.DB, p
 	// Another nested router to hijack RPC requests bound for GRPC Gateway.
 	grpcGatewayMux := mux.NewRouter()
 	grpcGatewayMux.HandleFunc("/v2/rpc/{id:.*}", s.RpcFuncHttp).Methods("GET", "POST")
+	//grpcGatewayMux.HandleFunc("/v2/any/{cid:.*}", s.AnyCall).Methods("GET", "POST")
 	grpcGatewayMux.NewRoute().Handler(grpcGateway)
 
 	// Enable stats recording on all request paths except:
@@ -371,7 +371,7 @@ func securityInterceptorFunc(logger *zap.Logger, config Config, sessionCache Ses
 			// Value of "authorization" or "grpc-authorization" username component did not match server key.
 			return nil, status.Error(codes.Unauthenticated, "Server key invalid")
 		}
-	case "/nakama.api.Nakama/RpcFunc":
+	case "/nakama.api.Nakama/Any":
 		// RPC allows full user authentication or HTTP key authentication.
 		md, ok := metadata.FromIncomingContext(ctx)
 		if !ok {
@@ -384,11 +384,63 @@ func securityInterceptorFunc(logger *zap.Logger, config Config, sessionCache Ses
 		}
 		if !ok {
 			// Neither "authorization" nor "grpc-authorization" were supplied. Try to validate HTTP key instead.
+			in, ok := req.(*api.Request)
+			if !ok {
+				logger.Error("Cannot extract Rpc from incoming request")
+				return nil, status.Error(codes.FailedPrecondition, "Auth token or HTTP key required")
+			}
+
+			httpKey := in.HttpKey
+			if m, ok := in.Query["http_key"]; ok && m != nil && len(m.Value) > 0 {
+				httpKey = m.Value[0]
+			}
+
+			if httpKey == "" {
+				// HTTP key not present.
+				return nil, status.Error(codes.Unauthenticated, "Auth token or HTTP key required")
+			}
+
+			if httpKey != config.GetRuntime().HTTPKey {
+				// Value of HTTP key username component did not match.
+				return nil, status.Error(codes.Unauthenticated, "HTTP key invalid")
+			}
+
+			return ctx, nil
+		}
+		if len(auth) != 1 {
+			// Value of "authorization" or "grpc-authorization" was empty or repeated.
+			return nil, status.Error(codes.Unauthenticated, "Auth token invalid")
+		}
+		userID, username, vars, exp, tokenId, ok := parseBearerAuth([]byte(config.GetSession().EncryptionKey), auth[0])
+		if !ok {
+			// Value of "authorization" or "grpc-authorization" was malformed or expired.
+			return nil, status.Error(codes.Unauthenticated, "Auth token invalid")
+		}
+		if !sessionCache.IsValidSession(userID, exp, tokenId) {
+			return nil, status.Error(codes.Unauthenticated, "Auth token invalid")
+		}
+		ctx = context.WithValue(context.WithValue(context.WithValue(context.WithValue(ctx, ctxUserIDKey{}, userID), ctxUsernameKey{}, username), ctxVarsKey{}, vars), ctxExpiryKey{}, exp)
+
+	case "/nakama.api.Nakama/RpcFunc":
+		// RPC allows full user authentication or HTTP key authentication.
+		md, ok := metadata.FromIncomingContext(ctx)
+		if !ok {
+			logger.Error("Cannot extract metadata from incoming context")
+			return nil, status.Error(codes.FailedPrecondition, "Cannot extract metadata from incoming context")
+		}
+		auth, ok := md["authorization"]
+		if !ok {
+			auth, ok = md["grpcgateway-authorization"]
+		}
+
+		if !ok {
+			// Neither "authorization" nor "grpc-authorization" were supplied. Try to validate HTTP key instead.
 			in, ok := req.(*api.Rpc)
 			if !ok {
 				logger.Error("Cannot extract Rpc from incoming request")
 				return nil, status.Error(codes.FailedPrecondition, "Auth token or HTTP key required")
 			}
+
 			if in.HttpKey == "" {
 				// HTTP key not present.
 				return nil, status.Error(codes.Unauthenticated, "Auth token or HTTP key required")

@@ -38,8 +38,10 @@ message Request {
   string cid = 1;
   map<string, string> header = 2;
   map<string, Query> query = 3;
+  string http_key = 4;
+  string name = 5;
   oneof body {
-    bytes bytes = 4;
+    bytes bytes = 6;
   }
 }
 
