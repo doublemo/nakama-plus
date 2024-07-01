@@ -21,6 +21,7 @@ import (
 	"github.com/doublemo/nakama-common/api"
 	"github.com/doublemo/nakama-common/rtapi"
 	"github.com/doublemo/nakama-common/runtime"
+	"github.com/doublemo/nakama-kit/pb"
 	"github.com/gofrs/uuid/v5"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
@@ -69,6 +70,7 @@ type SessionRegistry interface {
 	Disconnect(ctx context.Context, sessionID uuid.UUID, ban bool, reason ...runtime.PresenceReason) error
 	SingleSession(ctx context.Context, tracker Tracker, userID, sessionID uuid.UUID)
 	Range(fn func(session Session) bool)
+	SetPeer(peer Peer)
 }
 
 type LocalSessionRegistry struct {
@@ -76,6 +78,8 @@ type LocalSessionRegistry struct {
 
 	sessions     *MapOf[uuid.UUID, Session]
 	sessionCount *atomic.Int32
+
+	peer Peer
 }
 
 func NewLocalSessionRegistry(metrics Metrics) SessionRegistry {
@@ -84,6 +88,8 @@ func NewLocalSessionRegistry(metrics Metrics) SessionRegistry {
 
 		sessions:     &MapOf[uuid.UUID, Session]{},
 		sessionCount: atomic.NewInt32(0),
+
+		peer: nil,
 	}
 }
 
@@ -114,14 +120,14 @@ func (r *LocalSessionRegistry) Remove(sessionID uuid.UUID) {
 }
 
 func (r *LocalSessionRegistry) Disconnect(ctx context.Context, sessionID uuid.UUID, ban bool, reason ...runtime.PresenceReason) error {
+	// No need to remove the session from the map, session.Close() will do that.
+	reasonOverride := runtime.PresenceReasonDisconnect
+	if len(reason) > 0 {
+		reasonOverride = reason[0]
+	}
+
 	session, ok := r.sessions.Load(sessionID)
 	if ok {
-		// No need to remove the session from the map, session.Close() will do that.
-		reasonOverride := runtime.PresenceReasonDisconnect
-		if len(reason) > 0 {
-			reasonOverride = reason[0]
-		}
-
 		if ban {
 			session.Close("server-side session disconnect", runtime.PresenceReasonDisconnect,
 				&rtapi.Envelope{Message: &rtapi.Envelope_Notifications{
@@ -143,6 +149,19 @@ func (r *LocalSessionRegistry) Disconnect(ctx context.Context, sessionID uuid.UU
 			session.Close("server-side session disconnect", reasonOverride)
 		}
 	}
+
+	if r.peer == nil {
+		return nil
+	}
+
+	r.peer.Broadcast(&pb.Request{Payload: &pb.Request_Disconnect{
+		Disconnect: &pb.Disconnect{
+			SessionID: sessionID.String(),
+			Ban:       ban,
+			Reason:    uint32(reasonOverride),
+		},
+	},
+	}, true)
 	return nil
 }
 
@@ -174,10 +193,18 @@ func (r *LocalSessionRegistry) SingleSession(ctx context.Context, tracker Tracke
 				}})
 		}
 	}
+
+	if r.peer != nil {
+		r.peer.Broadcast(&pb.Request{Payload: &pb.Request_SingleSocket{SingleSocket: userID.String()}}, true)
+	}
 }
 
 func (r *LocalSessionRegistry) Range(fn func(Session) bool) {
 	r.sessions.Range(func(id uuid.UUID, session Session) bool {
 		return fn(session)
 	})
+}
+
+func (r *LocalSessionRegistry) SetPeer(peer Peer) {
+	r.peer = peer
 }
