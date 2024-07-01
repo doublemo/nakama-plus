@@ -128,12 +128,10 @@ func (r *LocalMessageRouter) SendToPresenceIDs(logger *zap.Logger, presenceIDs [
 		}
 
 		m := &pb.Request{
-			Payload: &pb.Request_ResponseWriter{
-				ResponseWriter: &pb.ResponseWriter{
-					Recipient: sessions,
-					Payload:   &pb.ResponseWriter_Envelope{Envelope: envelope},
-				},
-			},
+			Payload: &pb.Request_Out{Out: &pb.ResponseWriter{
+				Recipient: sessions,
+				Payload:   &pb.ResponseWriter_Envelope{Envelope: envelope},
+			}},
 		}
 
 		if err := r.peer.Send(endpoint, m, reliable); err != nil {
@@ -196,8 +194,8 @@ func (r *LocalMessageRouter) SendToAll(logger *zap.Logger, envelope *rtapi.Envel
 	}
 
 	r.peer.Broadcast(&pb.Request{
-		Payload: &pb.Request_ResponseWriter{
-			ResponseWriter: &pb.ResponseWriter{
+		Payload: &pb.Request_Out{
+			Out: &pb.ResponseWriter{
 				Recipient: make([]*pb.Recipienter, 0),
 				Payload:   &pb.ResponseWriter_Envelope{Envelope: envelope},
 			},

@@ -132,6 +132,8 @@ func (p *Pipeline) ProcessRequest(logger *zap.Logger, session Session, in *rtapi
 		pipelineFn = p.partyMatchmakerRemove
 	case *rtapi.Envelope_PartyDataSend:
 		pipelineFn = p.partyDataSend
+	case *rtapi.Envelope_Request:
+		pipelineFn = p.any
 	default:
 		// If we reached this point the envelope was valid but the contents are missing or unknown.
 		// Usually caused by a version mismatch, and should cause the session making this pipeline request to close.
@@ -146,8 +148,8 @@ func (p *Pipeline) ProcessRequest(logger *zap.Logger, session Session, in *rtapi
 	var messageName, messageNameID string
 
 	switch in.Message.(type) {
-	case *rtapi.Envelope_Rpc:
-		// No before/after hooks on RPC.
+	case *rtapi.Envelope_Rpc, *rtapi.Envelope_Request:
+		// No before/after hooks on RPC/Any.
 	default:
 		messageName = fmt.Sprintf("%T", in.Message)
 		messageNameID = strings.ToLower(messageName)

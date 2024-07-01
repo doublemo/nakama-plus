@@ -21,7 +21,8 @@
  
  import "google/protobuf/timestamp.proto";
  import "google/protobuf/wrappers.proto";
- import "github.com/doublemo/nakama-common/rtapi/realtime.proto";
+ import "api/api.proto";
+ import "rtapi/realtime.proto";
  
  option go_package = "github.com/doublemo/nakama-kit/pb";
  
@@ -39,11 +40,11 @@
 message Request {
     map<string, string> context = 1;
     oneof payload {
-        realtime.Envelope envelope = 2;
-        string ping = 3;
-        string singleSocket = 4;
-        Disconnect disconnect = 5;
-        ResponseWriter responseWriter = 6;
+        string ping = 2;
+        string singleSocket = 3;
+        Disconnect disconnect = 4;
+        ResponseWriter out = 5;
+        api.Request in = 6;
     }
 }
 

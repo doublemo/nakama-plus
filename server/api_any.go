@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/doublemo/nakama-common/api"
-	"github.com/doublemo/nakama-common/rtapi"
 	"github.com/doublemo/nakama-kit/pb"
 	"github.com/gofrs/uuid/v5"
 	"github.com/gorilla/mux"
@@ -163,9 +162,7 @@ func (s *ApiServer) AnyHTTP(w http.ResponseWriter, r *http.Request) {
 		in.Query[k] = &api.Query{Value: v}
 	}
 
-	request := &pb.Request{Context: make(map[string]string), Payload: &pb.Request_Envelope{Envelope: &rtapi.Envelope{
-		Message: &rtapi.Envelope_Request{Request: &in},
-	}}}
+	request := &pb.Request{Context: make(map[string]string), Payload: &pb.Request_In{In: &in}}
 	request.Context["client_ip"] = clientIP
 	request.Context["client_port"] = clientPort
 	request.Context["userId"] = uid
@@ -249,7 +246,7 @@ func (s *ApiServer) Any(ctx context.Context, in *api.Request) (*api.ResponseWrit
 
 	request := &pb.Request{
 		Context: make(map[string]string),
-		Payload: &pb.Request_Envelope{Envelope: &rtapi.Envelope{Message: &rtapi.Envelope_Request{Request: in}}},
+		Payload: &pb.Request_In{In: in},
 	}
 
 	for k, v := range s.config.GetRuntime().Environment {
@@ -292,12 +289,7 @@ func (s *ApiServer) Any(ctx context.Context, in *api.Request) (*api.ResponseWrit
 }
 
 func (s *ApiServer) internalRemoteCall(ctx context.Context, in *pb.Request) (*pb.ResponseWriter, error) {
-	envelope := in.GetEnvelope()
-	if envelope == nil {
-		return nil, status.Error(codes.InvalidArgument, "Invalid Argument")
-	}
-
-	req := envelope.GetRequest()
+	req := in.GetIn()
 	if req == nil || req.Name == "" {
 		return nil, status.Error(codes.InvalidArgument, "Invalid Argument")
 	}

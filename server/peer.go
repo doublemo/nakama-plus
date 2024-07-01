@@ -818,8 +818,8 @@ func (s *LocalPeer) onRequest(frame *pb.Frame) {
 		w(&pb.ResponseWriter{Payload: &pb.ResponseWriter_Pong{Pong: "PONG"}})
 		return
 
-	case *pb.Request_ResponseWriter:
-		s.toClient(request.GetResponseWriter())
+	case *pb.Request_Out:
+		s.handler(nil, request.GetOut())
 		return
 
 	case *pb.Request_SingleSocket:
