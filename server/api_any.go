@@ -6,10 +6,10 @@ import (
 	"io"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/doublemo/nakama-common/api"
+	"github.com/doublemo/nakama-common/rtapi"
 	"github.com/doublemo/nakama-kit/pb"
 	"github.com/gofrs/uuid/v5"
 	"github.com/gorilla/mux"
@@ -87,8 +87,9 @@ func (s *ApiServer) AnyHTTP(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	// Check the RPC function ID.
-	maybeID, ok := mux.Vars(r)["cid"]
-	if !ok || maybeID == "" {
+	maybeID := mux.Vars(r)["cid"]
+	maybeName, ok := mux.Vars(r)["name"]
+	if !ok || maybeName == "" {
 		// Missing RPC function ID.
 		w.Header().Set("content-type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
@@ -98,19 +99,12 @@ func (s *ApiServer) AnyHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	id = strings.ToLower(maybeID)
 
-	// Find the correct RPC function.
-	fn := s.runtime.Rpc(id)
-	if fn == nil {
-		// No function registered for this ID.
-		w.Header().Set("content-type", "application/json")
-		w.WriteHeader(http.StatusNotFound)
-		sentBytes, err = w.Write(rpcFunctionNotFoundBytes)
-		if err != nil {
-			s.logger.Debug("Error writing response to client", zap.Error(err))
-		}
-		return
+	in := api.Request{
+		Cid:    maybeID,
+		Name:   maybeName,
+		Header: make(map[string]string),
+		Query:  make(map[string]*api.Query),
 	}
 
 	// Check if we need to mimic existing GRPC Gateway behaviour or expect to receive/send unwrapped data.
@@ -119,7 +113,6 @@ func (s *ApiServer) AnyHTTP(w http.ResponseWriter, r *http.Request) {
 	_, unwrap := queryParams["unwrap"]
 
 	// Prepare input to function.
-	var payload string
 	if r.Method == "POST" {
 		b, err := io.ReadAll(r.Body)
 		if err != nil {
@@ -143,23 +136,9 @@ func (s *ApiServer) AnyHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 			return
 		}
-		recvBytes = len(b)
 
-		// Maybe attempt to decode to a JSON string to mimic existing GRPC Gateway behaviour.
-		if recvBytes > 0 && !unwrap {
-			err = json.Unmarshal(b, &payload)
-			if err != nil {
-				w.Header().Set("content-type", "application/json")
-				w.WriteHeader(http.StatusBadRequest)
-				sentBytes, err = w.Write(badJSONBytes)
-				if err != nil {
-					s.logger.Debug("Error writing response to client", zap.Error(err))
-				}
-				return
-			}
-		} else {
-			payload = string(b)
-		}
+		recvBytes = len(b)
+		in.Body = &api.Request_BytesValue{BytesValue: b}
 	}
 
 	queryParams.Del("http_key")
@@ -172,21 +151,40 @@ func (s *ApiServer) AnyHTTP(w http.ResponseWriter, r *http.Request) {
 	clientIP, clientPort := extractClientAddressFromRequest(s.logger, r)
 
 	// Extract http headers
-	headers := make(map[string][]string)
 	for k, v := range r.Header {
-		if k == "Grpc-Timeout" {
+		if k == "Grpc-Timeout" || len(v) < 1 {
 			continue
 		}
-		headers[k] = make([]string, 0, len(v))
-		headers[k] = append(headers[k], v...)
+
+		in.Header[k] = v[0]
 	}
 
-	// Execute the function.
-	result, fnErr, code := fn(r.Context(), headers, queryParams, uid, username, vars, expiry, "", clientIP, clientPort, "", payload)
-	if fnErr != nil {
-		response, _ := json.Marshal(map[string]interface{}{"error": fnErr, "message": fnErr.Error(), "code": code})
+	for k, v := range queryParams {
+		in.Query[k] = &api.Query{Value: v}
+	}
+
+	request := &pb.Request{Context: make(map[string]string), Payload: &pb.Request_Envelope{Envelope: &rtapi.Envelope{
+		Message: &rtapi.Envelope_Request{Request: &in},
+	}}}
+	request.Context["client_ip"] = clientIP
+	request.Context["client_port"] = clientPort
+	request.Context["userId"] = uid
+	request.Context["username"] = username
+	request.Context["expiry"] = strconv.FormatInt(expiry, 10)
+	for k, v := range vars {
+		request.Context["vars_"+k] = v
+	}
+
+	resp, err := s.internalRemoteCall(r.Context(), request)
+	if err != nil {
+		code, ok := status.FromError(err)
+		if !ok {
+			code = status.New(codes.Internal, err.Error())
+		}
+
+		response, _ := json.Marshal(map[string]interface{}{"error": err.Error(), "message": code.Message(), "code": code.Code()})
 		w.Header().Set("content-type", "application/json")
-		w.WriteHeader(grpcgw.HTTPStatusFromCode(code))
+		w.WriteHeader(grpcgw.HTTPStatusFromCode(code.Code()))
 		sentBytes, err = w.Write(response)
 		if err != nil {
 			s.logger.Debug("Error writing response to client", zap.Error(err))
@@ -194,12 +192,19 @@ func (s *ApiServer) AnyHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	result := make([]byte, 0)
+	if envelope := resp.GetEnvelope(); envelope != nil {
+		if w := envelope.GetResponseWriter(); w != nil {
+			result, _ = s.protojsonMarshaler.Marshal(w)
+		}
+	}
+
 	// Return the successful result.
 	var response []byte
 	if !unwrap {
 		// GRPC Gateway equivalent behaviour.
 		var err error
-		response, err = json.Marshal(map[string]interface{}{"payload": result})
+		response, err = json.Marshal(map[string]interface{}{"payload": string(result)})
 		if err != nil {
 			// Failed to encode the wrapped response.
 			s.logger.Error("Error marshaling wrapped response to client", zap.Error(err))
@@ -213,7 +218,7 @@ func (s *ApiServer) AnyHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		// "Unwrapped" response.
-		response = []byte(result)
+		response = result
 	}
 	if unwrap {
 		if contentType := r.Header["Content-Type"]; len(contentType) > 0 {
@@ -221,7 +226,7 @@ func (s *ApiServer) AnyHTTP(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("content-type", contentType[0])
 		} else {
 			// Don't know payload content-type.
-			w.Header().Set("content-type", "text/plain")
+			w.Header().Set("content-type", "application/json")
 		}
 	} else {
 		// Fall back to default response content type application/json.
@@ -242,13 +247,9 @@ func (s *ApiServer) Any(ctx context.Context, in *api.Request) (*api.ResponseWrit
 		return nil, status.Error(codes.InvalidArgument, "Name must be set")
 	}
 
-	peer := s.runtime.GetPeer()
-	if peer == nil {
-		return nil, status.Error(codes.Unavailable, "Service Unavailable")
-	}
-
 	request := &pb.Request{
 		Context: make(map[string]string),
+		Payload: &pb.Request_Envelope{Envelope: &rtapi.Envelope{Message: &rtapi.Envelope_Request{Request: in}}},
 	}
 
 	for k, v := range s.config.GetRuntime().Environment {
@@ -273,12 +274,7 @@ func (s *ApiServer) Any(ctx context.Context, in *api.Request) (*api.ResponseWrit
 		request.Context["expiry"] = strconv.FormatInt(e.(int64), 10)
 	}
 
-	endpoint, ok := peer.GetServiceRegistry().Get(in.Name)
-	if !ok {
-		return nil, status.Error(codes.Unavailable, "Service Unavailable")
-	}
-
-	resp, err := endpoint.Do(ctx, request)
+	resp, err := s.internalRemoteCall(ctx, request)
 	if err != nil {
 		return nil, err
 	}
@@ -293,4 +289,28 @@ func (s *ApiServer) Any(ctx context.Context, in *api.Request) (*api.ResponseWrit
 		return &api.ResponseWriter{}, nil
 	}
 	return writer, nil
+}
+
+func (s *ApiServer) internalRemoteCall(ctx context.Context, in *pb.Request) (*pb.ResponseWriter, error) {
+	envelope := in.GetEnvelope()
+	if envelope == nil {
+		return nil, status.Error(codes.InvalidArgument, "Invalid Argument")
+	}
+
+	req := envelope.GetRequest()
+	if req == nil || req.Name == "" {
+		return nil, status.Error(codes.InvalidArgument, "Invalid Argument")
+	}
+
+	peer := s.runtime.GetPeer()
+	if peer == nil {
+		return nil, status.Error(codes.Unavailable, "Service Unavailable")
+	}
+
+	endpoint, ok := peer.GetServiceRegistry().Get(req.Name)
+	if !ok {
+		return nil, status.Error(codes.Unavailable, "Service Unavailable")
+	}
+
+	return endpoint.Do(ctx, in)
 }

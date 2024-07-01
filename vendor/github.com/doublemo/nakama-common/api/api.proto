@@ -41,7 +41,8 @@ message Request {
   string http_key = 4;
   string name = 5;
   oneof body {
-    bytes bytes = 6;
+    bytes bytesValue = 6;
+    string stringValue = 7;
   }
 }
 
@@ -49,7 +50,8 @@ message ResponseWriter {
   string cid = 1;
   map<string, string> header = 2;
   oneof body {
-    bytes bytes = 4;
+    bytes bytesValue = 4;
+    string stringValue = 5;
   }
 }
 

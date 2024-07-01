@@ -83,6 +83,7 @@ type ApiServer struct {
 	runtime              *Runtime
 	grpcServer           *grpc.Server
 	grpcGatewayServer    *http.Server
+	protojsonMarshaler   *protojson.MarshalOptions
 }
 
 func StartApiServer(logger *zap.Logger, startupLogger *zap.Logger, db *sql.DB, protojsonMarshaler *protojson.MarshalOptions, protojsonUnmarshaler *protojson.UnmarshalOptions, config Config, version string, socialClient *social.Client, storageIndex StorageIndex, leaderboardCache LeaderboardCache, leaderboardRankCache LeaderboardRankCache, sessionRegistry SessionRegistry, sessionCache SessionCache, statusRegistry StatusRegistry, matchRegistry MatchRegistry, matchmaker Matchmaker, tracker Tracker, router MessageRouter, streamManager StreamManager, metrics Metrics, pipeline *Pipeline, runtime *Runtime) *ApiServer {
@@ -131,6 +132,7 @@ func StartApiServer(logger *zap.Logger, startupLogger *zap.Logger, db *sql.DB, p
 		metrics:              metrics,
 		runtime:              runtime,
 		grpcServer:           grpcServer,
+		protojsonMarshaler:   protojsonMarshaler,
 	}
 
 	// Register and start GRPC server.
@@ -216,7 +218,7 @@ func StartApiServer(logger *zap.Logger, startupLogger *zap.Logger, db *sql.DB, p
 	// Another nested router to hijack RPC requests bound for GRPC Gateway.
 	grpcGatewayMux := mux.NewRouter()
 	grpcGatewayMux.HandleFunc("/v2/rpc/{id:.*}", s.RpcFuncHttp).Methods("GET", "POST")
-	//grpcGatewayMux.HandleFunc("/v2/any/{cid:.*}", s.AnyCall).Methods("GET", "POST")
+	grpcGatewayMux.HandleFunc("/v2/any/{name}/{cid:.*}", s.AnyHTTP).Methods("GET", "POST")
 	grpcGatewayMux.NewRoute().Handler(grpcGateway)
 
 	// Enable stats recording on all request paths except:
@@ -386,7 +388,7 @@ func securityInterceptorFunc(logger *zap.Logger, config Config, sessionCache Ses
 			// Neither "authorization" nor "grpc-authorization" were supplied. Try to validate HTTP key instead.
 			in, ok := req.(*api.Request)
 			if !ok {
-				logger.Error("Cannot extract Rpc from incoming request")
+				logger.Error("Cannot extract Any from incoming request")
 				return nil, status.Error(codes.FailedPrecondition, "Auth token or HTTP key required")
 			}
 

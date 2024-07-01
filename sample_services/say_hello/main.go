@@ -9,6 +9,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/doublemo/nakama-common/api"
+	"github.com/doublemo/nakama-common/rtapi"
 	"github.com/doublemo/nakama-kit/kit"
 	"github.com/doublemo/nakama-kit/pb"
 	"github.com/doublemo/nakama-plus/v3/flags"
@@ -42,6 +44,13 @@ func (s *sayHello) Call(ctx context.Context, in *pb.Request) (*pb.ResponseWriter
 		Context: map[string]string{
 			"test": "test",
 		},
+		Payload: &pb.ResponseWriter_Envelope{
+			Envelope: &rtapi.Envelope{
+				Message: &rtapi.Envelope_ResponseWriter{
+					ResponseWriter: &api.ResponseWriter{
+						Header: map[string]string{"111": "333"},
+						Body:   &api.ResponseWriter_StringValue{StringValue: `{"name":"111"}`},
+					}}}},
 	}, nil
 }
 
