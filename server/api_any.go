@@ -163,6 +163,9 @@ func (s *ApiServer) AnyHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	request := &pb.Request{Context: make(map[string]string), Payload: &pb.Request_In{In: &in}}
+	for k, v := range s.config.GetRuntime().Environment {
+		request.Context[k] = v
+	}
 	request.Context["client_ip"] = clientIP
 	request.Context["client_port"] = clientPort
 	request.Context["userId"] = uid
