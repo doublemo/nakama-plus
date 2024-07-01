@@ -13,7 +13,7 @@ import (
 	"go.uber.org/zap"
 )
 
-const SERVICE_NAME = "bombus"
+const SERVICE_NAME = "nakama"
 
 type (
 	ServiceRegistry interface {

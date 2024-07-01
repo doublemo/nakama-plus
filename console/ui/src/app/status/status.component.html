@@ -41,6 +41,47 @@
   </tbody>
 </table>
 
+<table class="status-table table table-sm table-striped mb-4">
+  <thead class="thead-light">
+    <tr>
+      <th scope="col">Service name</th>
+      <th scope="col">Role</th>
+      <th scope="col">Address</th>
+      <th scope="col">Weight</th>
+      <th scope="col">Balancer</th>
+      <th scope="col">Allow Stream</th>
+    </tr>
+  </thead>
+  <tbody *ngIf="statusData">
+    <tr class="clickable" *ngFor="let nodeData of statusData.services">
+      <td>
+        <ng-container [ngSwitch]="nodeData.status">
+          <img *ngSwitchCase="0" class="mr-2" src="/static/svg/red-triangle.svg" alt="" width="15" height="" ngbTooltip="Stoped">
+          <img *ngSwitchCase="1" class="mr-2" src="/static/svg/green-tick.svg" alt="" width="15" height="" ngbTooltip="OK">
+          <img *ngSwitchCase="2" class="mr-2" src="/static/blue-spinner.svg" alt="" width="15" height="" ngbTooltip="Connecting">
+        </ng-container>
+        <span>{{nodeData.name}}</span>
+      </td>
+      <td>{{nodeData.role}}</td>
+      <td>{{nodeData.ip}}:{{nodeData.port}}</td>
+      <td>{{nodeData.weight}}</td>
+      <td>
+        <ng-template [ngIf]="nodeData.balancer === 0" [ngIfElse]="roundrobin">Random</ng-template>
+        <ng-template #roundrobin>
+          <ng-template [ngIf]="nodeData.balancer === 1" [ngIfElse]="hashring">RoundRobin</ng-template>
+        </ng-template>
+        <ng-template #hashring>
+          <ng-template [ngIf]="nodeData.balancer === 2">Hashring</ng-template>
+        </ng-template>
+      </td>
+      <td>
+        <span *ngIf="nodeData.allow_stream" class="text-center" style="color:green">Yes</span>
+        <span *ngIf="!nodeData.allow_stream" class="text-center" style="color:burlywood">No</span>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
 <form [formGroup]="rangeForm">
   <div class="row no-gutters justify-content-end">
     <div class="col-12 text-right">

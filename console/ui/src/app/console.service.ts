@@ -275,8 +275,22 @@ export enum StatusHealth {
 export interface StatusList {
   // List of nodes and their stats.
   nodes?:Array<StatusListStatus>
+  services?:Array<StatusListServiceStatus>
   // Timestamp
   timestamp?:string
+}
+
+export interface StatusListServiceStatus {
+  allow_stream?:boolean
+  balancer?:number
+  ip?:string
+  // Node name.
+  name?:string
+  port?:number
+  role?:string
+  status?:number
+  vars?:Map<string, string>
+  weight?:number
 }
 
 /** The status of a Nakama node. */

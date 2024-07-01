@@ -48,6 +48,7 @@ type (
 		Local() Endpoint
 		NumMembers() int
 		Member(name string) (Endpoint, bool)
+		Members() []Endpoint
 		Broadcast(msg *pb.Request, reliable bool)
 		BroadcastBinaryLog(b *pb.BinaryLog)
 		Send(endpoint Endpoint, msg *pb.Request, reliable bool) error
@@ -427,7 +428,7 @@ func (s *LocalPeer) Join(members ...string) (int, error) {
 		}
 
 		s.onServiceUpdate()
-		m, ok := s.serviceRegistry.Get("bombus")
+		m, ok := s.serviceRegistry.Get(kit.SERVICE_NAME)
 		if ok {
 			members = make([]string, 0)
 			for _, v := range m.GetClients() {
@@ -457,6 +458,15 @@ func (s *LocalPeer) NumMembers() int {
 func (s *LocalPeer) Member(name string) (Endpoint, bool) {
 	m, ok := s.members.Load(name)
 	return m, ok
+}
+
+func (s *LocalPeer) Members() []Endpoint {
+	endpoint := make([]Endpoint, 0)
+	s.members.Range(func(key string, value Endpoint) bool {
+		endpoint = append(endpoint, value)
+		return true
+	})
+	return endpoint
 }
 
 func (s *LocalPeer) GetServiceRegistry() kit.ServiceRegistry {

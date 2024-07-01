@@ -978,11 +978,26 @@ message StatusList {
     double avg_output_kbs = 10;
   }
 
+  message ServiceStatus {
+    // Node name.
+    string name = 1;
+    map<string, string> vars = 2;
+    string ip = 3;
+    uint32 port = 4;
+    string role = 5;
+    int32 status = 6;
+    int32 weight = 7;
+    int32 balancer = 8;
+    bool allow_stream = 9;
+  }
+
   // List of nodes and their stats.
   repeated Status nodes = 1;
 
   // Timestamp
   google.protobuf.Timestamp timestamp = 2;
+
+  repeated ServiceStatus services = 3;
 }
 
 // Runtime information

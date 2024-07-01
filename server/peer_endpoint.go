@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/doublemo/nakama-kit/kit"
 	"github.com/doublemo/nakama-kit/pb"
 	"github.com/hashicorp/memberlist"
 	"go.uber.org/atomic"
@@ -250,7 +251,7 @@ func (endpoint *PeerEndpoint) MarshalJSON() ([]byte, error) {
 	md := &pb.NodeMeta{
 		Name:        endpoint.Name(),
 		Vars:        make(map[string]string),
-		Role:        "bombus",
+		Role:        kit.SERVICE_NAME,
 		Status:      pb.NodeMeta_Status(endpoint.Status()),
 		Weight:      endpoint.Weight(),
 		Balancer:    pb.NodeMeta_Balancer(endpoint.Balancer()),
@@ -270,7 +271,7 @@ func (endpoint *PeerEndpoint) MarshalProtoBuffer() ([]byte, error) {
 	md := &pb.NodeMeta{
 		Name:        endpoint.Name(),
 		Vars:        make(map[string]string),
-		Role:        "bombus",
+		Role:        kit.SERVICE_NAME,
 		Status:      pb.NodeMeta_Status(endpoint.Status()),
 		Weight:      endpoint.Weight(),
 		Balancer:    pb.NodeMeta_Balancer(endpoint.Balancer()),

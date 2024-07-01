@@ -210,6 +210,7 @@ func main() {
 
 	peer := server.NewLocalPeer(logger, config.GetName(), make(map[string]string), metrics, sessionRegistry, tracker, router, jsonpbMarshaler, jsonpbUnmarshaler, config.GetCluster())
 	sessionRegistry.SetPeer(peer)
+	statusHandler.SetPeer(peer)
 	runtime.SetPeer(peer)
 	tracker.SetPeer(peer)
 	router.SetPeer(peer)

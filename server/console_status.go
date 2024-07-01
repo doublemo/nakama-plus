@@ -36,5 +36,6 @@ func (s *ConsoleServer) GetStatus(ctx context.Context, in *emptypb.Empty) (*cons
 	return &console.StatusList{
 		Nodes:     nodes,
 		Timestamp: &timestamppb.Timestamp{Seconds: time.Now().UTC().Unix()},
+		Services:  s.statusHandler.GetServices(ctx),
 	}, nil
 }
