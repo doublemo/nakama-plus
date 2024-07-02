@@ -1,11 +1,26 @@
+// Copyright 2018 The Nakama Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package server
 
 import (
 	"context"
+	"testing"
+
 	"github.com/doublemo/nakama-common/api"
 	"github.com/gofrs/uuid/v5"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestServer_ListFriendsOfFriends(t *testing.T) {
@@ -28,6 +43,16 @@ func TestServer_ListFriendsOfFriends(t *testing.T) {
 	uidB3 := uuid.Must(uuid.NewV4()) // friend of uid, B1
 
 	InsertUser(t, db, uid)
+
+	t.Run("returns empty list if the user has no friends", func(t *testing.T) {
+		fof, err := ListFriendsOfFriends(ctx, logger, db, statusRegistry, uid, 100, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		assert.Empty(t, fof.FriendsOfFriends)
+	})
+
 	InsertUser(t, db, uidA1)
 	InsertUser(t, db, uidA2)
 	InsertUser(t, db, uidA3)
