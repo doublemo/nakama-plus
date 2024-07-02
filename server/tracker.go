@@ -177,6 +177,8 @@ type Tracker interface {
 	ClearRemoteTrack()
 	SetPeer(peer Peer)
 	UntrackByModes(sessionID uuid.UUID, modes map[uint8]struct{}, skipStream PresenceStream)
+	// Fast lookup of local node + session IDs to use for message delivery.
+	ListLocalPresenceIDByStream(stream PresenceStream) []*PresenceID
 }
 
 type presenceCompact struct {

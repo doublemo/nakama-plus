@@ -311,6 +311,26 @@ func (t *LocalTracker) UntrackByModes(sessionID uuid.UUID, modes map[uint8]struc
 	t.UntrackPeer(sessionID, uuid.Nil, nil, wmodes, 0, &skipStream)
 }
 
+func (t *LocalTracker) ListLocalPresenceIDByStream(stream PresenceStream) []*PresenceID {
+	t.RLock()
+	byStream, anyTracked := t.presencesByStream[stream.Mode][stream]
+	if !anyTracked {
+		t.RUnlock()
+		return []*PresenceID{}
+	}
+	ps := make([]*PresenceID, 0, len(byStream))
+	for pc := range byStream {
+		if pc.ID.Node != t.name {
+			continue
+		}
+
+		pid := pc.ID
+		ps = append(ps, &pid)
+	}
+	t.RUnlock()
+	return ps
+}
+
 func presenceStream2PB(stream PresenceStream) *pb.PresenceStream {
 	return &pb.PresenceStream{
 		Mode:       uint32(stream.Mode),

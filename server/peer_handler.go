@@ -41,7 +41,8 @@ func (s *LocalPeer) toClient(w *pb.ResponseWriter) {
 	for _, recipient := range recipients {
 		switch recipient.Action {
 		case pb.Recipienter_USERID:
-			s.messageRouter.SendToStream(s.logger, PresenceStream{Mode: StreamModeNotifications, Subject: uuid.FromStringOrNil(recipient.GetToken())}, w.GetEnvelope(), true)
+			presenceIDs := s.tracker.ListLocalPresenceIDByStream(PresenceStream{Mode: StreamModeNotifications, Subject: uuid.FromStringOrNil(recipient.GetToken())})
+			s.messageRouter.SendToPresenceIDs(s.logger, presenceIDs, w.GetEnvelope(), true)
 
 		case pb.Recipienter_SESSIONID:
 			session := s.sessionRegistry.Get(uuid.FromStringOrNil(recipient.GetToken()))
@@ -52,7 +53,9 @@ func (s *LocalPeer) toClient(w *pb.ResponseWriter) {
 		case pb.Recipienter_CHANNEL:
 
 		case pb.Recipienter_STREAM:
-			s.messageRouter.SendToStream(s.logger, pb2PresenceStream(recipient.GetStream()), w.GetEnvelope(), true)
+			presenceIDs := s.tracker.ListLocalPresenceIDByStream(pb2PresenceStream(recipient.GetStream()))
+			s.messageRouter.SendToPresenceIDs(s.logger, presenceIDs, w.GetEnvelope(), true)
+
 		default:
 		}
 	}

@@ -300,6 +300,9 @@ func (s *testTracker) ClearRemoteTrack()                                        
 func (s *testTracker) SetPeer(peer Peer)                                                 {}
 func (s *testTracker) UntrackByModes(sessionID uuid.UUID, modes map[uint8]struct{}, skipStream PresenceStream) {
 }
+func (t *testTracker) ListLocalPresenceIDByStream(stream PresenceStream) []*PresenceID {
+	return nil
+}
 
 // testSessionRegistry implements SessionRegistry interface and does nothing
 type testSessionRegistry struct{}

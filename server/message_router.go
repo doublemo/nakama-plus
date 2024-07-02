@@ -141,8 +141,26 @@ func (r *LocalMessageRouter) SendToPresenceIDs(logger *zap.Logger, presenceIDs [
 }
 
 func (r *LocalMessageRouter) SendToStream(logger *zap.Logger, stream PresenceStream, envelope *rtapi.Envelope, reliable bool) {
-	presenceIDs := r.tracker.ListPresenceIDByStream(stream)
+	presenceIDs := r.tracker.ListLocalPresenceIDByStream(stream)
 	r.SendToPresenceIDs(logger, presenceIDs, envelope, reliable)
+
+	if r.peer == nil {
+		return
+	}
+
+	recipient := &pb.Recipienter{
+		Action:  pb.Recipienter_STREAM,
+		Payload: &pb.Recipienter_Stream{Stream: presenceStream2PB(stream)},
+	}
+
+	r.peer.Broadcast(&pb.Request{
+		Payload: &pb.Request_Out{
+			Out: &pb.ResponseWriter{
+				Recipient: []*pb.Recipienter{recipient},
+				Payload:   &pb.ResponseWriter_Envelope{Envelope: envelope},
+			},
+		},
+	}, reliable)
 }
 
 func (r *LocalMessageRouter) SendDeferred(logger *zap.Logger, messages []*DeferredMessage) {
