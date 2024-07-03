@@ -177,12 +177,11 @@ func (t *LocalTracker) ClearTrackByNode(node string) {
 func (t *LocalTracker) TrackPeer(sessionID uuid.UUID, userID uuid.UUID, ops []*TrackerOp) {
 	size := len(ops)
 	presence := &pb.Presence{
-		SessionID:              sessionID.String(),
-		UserID:                 userID.String(),
-		Stream:                 make([]*pb.PresenceStream, size),
-		Meta:                   make([]*pb.PresenceMeta, size),
-		AllowIfFirstForSession: true,
-		Node:                   t.name,
+		SessionID: sessionID.String(),
+		UserID:    userID.String(),
+		Stream:    make([]*pb.PresenceStream, size),
+		Meta:      make([]*pb.PresenceMeta, size),
+		Node:      t.name,
 	}
 
 	for k, v := range ops {
@@ -224,11 +223,10 @@ func (t *LocalTracker) UntrackPeer(sessionID uuid.UUID, userID uuid.UUID, stream
 func (t *LocalTracker) UpdateTrackPeer(sessionID uuid.UUID, userID uuid.UUID, ops []*TrackerOp) {
 	size := len(ops)
 	presence := &pb.Presence{
-		SessionID:              sessionID.String(),
-		UserID:                 userID.String(),
-		Stream:                 make([]*pb.PresenceStream, size),
-		Meta:                   make([]*pb.PresenceMeta, size),
-		AllowIfFirstForSession: true,
+		SessionID: sessionID.String(),
+		UserID:    userID.String(),
+		Stream:    make([]*pb.PresenceStream, size),
+		Meta:      make([]*pb.PresenceMeta, size),
 	}
 
 	for k, v := range ops {

@@ -55,6 +55,13 @@ type (
 		Request(ctx context.Context, endpoint Endpoint, msg *pb.Request) (*pb.ResponseWriter, error)
 		GetServiceRegistry() kit.ServiceRegistry
 		Version() (map[string][2]uint64, int)
+		MatchmakerAdd(extract *pb.MatchmakerExtract)
+		MatchmakerRemoveSession(sessionID, ticket string)
+		MatchmakerRemoveSessionAll(sessionID string)
+		MatchmakerRemoveParty(partyID, ticket string)
+		MatchmakerRemovePartyAll(partyID string)
+		MatchmakerRemoveAll(node string)
+		MatchmakerRemove(tickets []string)
 	}
 
 	peerMsg struct {
@@ -77,6 +84,9 @@ type (
 		sessionRegistry      SessionRegistry
 		messageRouter        MessageRouter
 		tracker              Tracker
+		matchRegistry        MatchRegistry
+		matchmaker           Matchmaker
+		partyRegistry        PartyRegistry
 		binaryLog            BinaryLog
 		inbox                *PeerInbox
 		msgChan              chan *peerMsg
@@ -89,7 +99,7 @@ type (
 	}
 )
 
-func NewLocalPeer(logger *zap.Logger, name string, metadata map[string]string, metrics Metrics, sessionRegistry SessionRegistry, tracker Tracker, messageRouter MessageRouter, protojsonMarshaler *protojson.MarshalOptions, protojsonUnmarshaler *protojson.UnmarshalOptions, c *PeerConfig) Peer {
+func NewLocalPeer(logger *zap.Logger, name string, metadata map[string]string, metrics Metrics, sessionRegistry SessionRegistry, tracker Tracker, messageRouter MessageRouter, matchRegistry MatchRegistry, matchmaker Matchmaker, partyRegistry PartyRegistry, protojsonMarshaler *protojson.MarshalOptions, protojsonUnmarshaler *protojson.UnmarshalOptions, c *PeerConfig) Peer {
 	ctx, ctxCancelFn := context.WithCancel(context.Background())
 	if metadata == nil {
 		metadata = make(map[string]string)
@@ -106,6 +116,9 @@ func NewLocalPeer(logger *zap.Logger, name string, metadata map[string]string, m
 		serviceRegistry:      kit.NewLocalServiceRegistry(ctx, logger, name),
 		metrics:              metrics,
 		sessionRegistry:      sessionRegistry,
+		matchRegistry:        matchRegistry,
+		matchmaker:           matchmaker,
+		partyRegistry:        partyRegistry,
 		tracker:              tracker,
 		inbox:                NewPeerInbox(),
 		msgChan:              make(chan *peerMsg, c.BroadcastQueueSize),
@@ -192,6 +205,7 @@ func (s *LocalPeer) LocalState(join bool) []byte {
 		Presences:  make([]*pb.Presence, 0),
 		CheckPoint: s.binaryLog.GetCheckPoint(),
 		Version:    s.binaryLog.CurrentID(),
+		Matchmaker: make([]*pb.MatchmakerExtract, 0),
 	}
 	presencesMap := make(map[uuid.UUID]int)
 	s.tracker.Range(func(sessionID uuid.UUID, presences []*Presence) bool {
@@ -224,19 +238,21 @@ func (s *LocalPeer) LocalState(join bool) []byte {
 			}
 
 			p := &pb.Presence{
-				SessionID:              presence.GetSessionId(),
-				UserID:                 presence.GetUserId(),
-				Stream:                 []*pb.PresenceStream{presenceStream},
-				Meta:                   []*pb.PresenceMeta{presenceMeta},
-				AllowIfFirstForSession: true,
-				Node:                   presence.GetNodeId(),
+				SessionID: presence.GetSessionId(),
+				UserID:    presence.GetUserId(),
+				Stream:    []*pb.PresenceStream{presenceStream},
+				Meta:      []*pb.PresenceMeta{presenceMeta},
+				Node:      presence.GetNodeId(),
 			}
 			state.Presences = append(state.Presences, p)
 			presencesMap[presence.ID.SessionID] = len(state.Presences) - 1
 		}
-
 		return true
 	})
+
+	for _, extract := range s.matchmaker.Extract() {
+		state.Matchmaker = append(state.Matchmaker, matchmakerExtract2pb(extract))
+	}
 
 	bytes, err := proto.Marshal(state)
 	if err != nil {
@@ -572,7 +588,16 @@ func (s *LocalPeer) Request(ctx context.Context, endpoint Endpoint, msg *pb.Requ
 		if !ok {
 			return nil, status.Error(codes.DeadlineExceeded, "DeadlineExceeded")
 		}
-		return m.GetResponseWriter(), nil
+
+		writer := m.GetResponseWriter()
+		switch writer.Payload.(type) {
+		case *pb.ResponseWriter_Envelope:
+			if err := writer.GetEnvelope().GetError(); err != nil {
+				return nil, status.Error(codes.Code(err.Code), err.Message)
+			}
+		default:
+		}
+		return writer, nil
 
 	case <-ctx.Done():
 	}
@@ -769,78 +794,18 @@ func (s *LocalPeer) onMergeRemoteState(buf []byte, join bool) {
 	for _, v := range state.GetBinaryLog() {
 		s.onBinaryLog(v)
 	}
+
 	s.tracker.MergeRemoteState(state.GetNode(), state.GetPresences(), join)
 	s.binaryLog.MergeCheckPoint(state.CheckPoint, join)
 	s.binaryLog.SetLocalCheckPoint(state.GetNode(), state.GetVersion())
-}
 
-func (s *LocalPeer) onBinaryLog(log *pb.BinaryLog) {
-	if !s.binaryLog.Push(log) {
-		return
-	}
-
-	switch log.Payload.(type) {
-	case *pb.BinaryLog_Ban:
-		s.onBan(log.GetNode(), log.GetBan())
-
-	case *pb.BinaryLog_Track:
-		s.onTrack(log.GetNode(), log.GetTrack())
-
-	case *pb.BinaryLog_Untrack:
-		s.onUntrack(log.GetNode(), log.GetUntrack())
-	}
-}
-
-func (s *LocalPeer) onRequest(frame *pb.Frame) {
-	w := func(response *pb.ResponseWriter) error {
-		if len(frame.Inbox) < 1 {
-			return nil
+	s.matchmaker.RemoveAll(state.Node)
+	if matchmakerExtractSize := len(state.GetMatchmaker()); matchmakerExtractSize > 0 {
+		matchmakerExtracts := make([]*MatchmakerExtract, matchmakerExtractSize)
+		for k, v := range state.GetMatchmaker() {
+			matchmakerExtracts[k] = pb2MatchmakerExtract(v)
 		}
-
-		endpoint, ok := s.members.Load(frame.Node)
-		if !ok {
-			return status.Error(codes.Aborted, "the remote node does not exist")
-		}
-
-		frame := &pb.Frame{
-			Id:        uuid.Must(uuid.NewV4()).String(),
-			Inbox:     frame.Inbox,
-			Node:      s.endpoint.Name(),
-			Timestamp: timestamppb.New(time.Now().UTC()),
-			Payload:   &pb.Frame_ResponseWriter{ResponseWriter: response},
-		}
-
-		b, err := proto.Marshal(frame)
-		if err != nil {
-			return status.Error(codes.Aborted, err.Error())
-		}
-
-		if err := s.memberlist.SendReliable(endpoint.MemberlistNode(), b); err != nil {
-			return status.Error(codes.Aborted, err.Error())
-		}
-		//s.metrics.PeerSent(int64(len(b)))
-		return nil
-	}
-
-	request := frame.GetRequest()
-	switch request.Payload.(type) {
-	case *pb.Request_Ping:
-		w(&pb.ResponseWriter{Payload: &pb.ResponseWriter_Pong{Pong: "PONG"}})
-		return
-
-	case *pb.Request_Out:
-		s.handler(nil, request.GetOut())
-		return
-
-	case *pb.Request_SingleSocket:
-		s.singleSocket(request.GetSingleSocket())
-		return
-
-	case *pb.Request_Disconnect:
-		s.disconnect(request.GetDisconnect())
-		return
-
-	default:
+		s.matchmaker.Insert(matchmakerExtracts)
 	}
 }
 

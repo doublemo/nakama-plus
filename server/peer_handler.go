@@ -15,6 +15,8 @@ import (
 	"github.com/doublemo/nakama-kit/pb"
 	"github.com/gofrs/uuid/v5"
 	"go.uber.org/zap"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -51,7 +53,7 @@ func (s *LocalPeer) toClient(w *pb.ResponseWriter) {
 			}
 
 		case pb.Recipienter_CHANNEL:
-
+			fallthrough
 		case pb.Recipienter_STREAM:
 			presenceIDs := s.tracker.ListLocalPresenceIDByStream(pb2PresenceStream(recipient.GetStream()))
 			s.messageRouter.SendToPresenceIDs(s.logger, presenceIDs, w.GetEnvelope(), true)
@@ -117,4 +119,17 @@ func (s *LocalPeer) disconnect(w *pb.Disconnect) {
 			session.Close("server-side session disconnect", reasonOverride)
 		}
 	}
+}
+
+func newEnvelopeError(err error) *rtapi.Envelope {
+	errMessage := &rtapi.Error{
+		Code:    int32(codes.Unknown),
+		Message: err.Error(),
+	}
+	code, ok := status.FromError(err)
+	if ok {
+		errMessage.Code = int32(code.Code())
+		errMessage.Message = code.Message()
+	}
+	return &rtapi.Envelope{Message: &rtapi.Envelope_Error{Error: errMessage}}
 }

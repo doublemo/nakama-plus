@@ -368,3 +368,54 @@ func (b *LocalBinaryLog) isExpired(v *pb.BinaryLog, versionMap map[string][2]uin
 
 	return ts.AsTime().Add(time.Minute * 10).Before(time.Now().UTC())
 }
+
+func (s *LocalPeer) onBinaryLog(log *pb.BinaryLog) {
+	if !s.binaryLog.Push(log) {
+		return
+	}
+
+	switch log.Payload.(type) {
+	case *pb.BinaryLog_Ban:
+		s.onBan(log.GetNode(), log.GetBan())
+
+	case *pb.BinaryLog_Track:
+		s.onTrack(log.GetNode(), log.GetTrack())
+
+	case *pb.BinaryLog_Untrack:
+		s.onUntrack(log.GetNode(), log.GetUntrack())
+
+	case *pb.BinaryLog_MatchmakerAdd:
+		extract := pb2MatchmakerExtract(log.GetMatchmakerAdd())
+		_, _, err := s.matchmaker.Add(s.ctx, extract.Presences, extract.SessionID, extract.PartyId, extract.Query, extract.MinCount, extract.MaxCount, extract.CountMultiple, extract.StringProperties, extract.NumericProperties)
+		if err != nil {
+			s.logger.Error("BinaryLog_MatchmakerAdd", zap.Error(err), zap.Any("extract", extract))
+		}
+	case *pb.BinaryLog_MatchmakerRemoveSession:
+		extract := log.GetMatchmakerRemoveSession()
+		if err := s.matchmaker.RemoveSession(extract.SessionId, extract.Ticket); err != nil {
+			s.logger.Error("BinaryLog_MatchmakerRemoveSession", zap.Error(err), zap.Any("extract", extract))
+		}
+	case *pb.BinaryLog_MatchmakerRemoveSessionAll:
+		extract := log.GetMatchmakerRemoveSessionAll()
+		if err := s.matchmaker.RemoveSessionAll(extract.SessionId); err != nil {
+			s.logger.Error("BinaryLog_MatchmakerRemoveSessionAll", zap.Error(err), zap.Any("extract", extract))
+		}
+	case *pb.BinaryLog_MatchmakerRemoveParty:
+		extract := log.GetMatchmakerRemoveParty()
+		if err := s.matchmaker.RemoveParty(extract.PartyId, extract.Ticket); err != nil {
+			s.logger.Error("BinaryLog_MatchmakerRemoveParty", zap.Error(err), zap.Any("extract", extract))
+		}
+	case *pb.BinaryLog_MatchmakerRemovePartyAll:
+		extract := log.GetMatchmakerRemovePartyAll()
+		if err := s.matchmaker.RemovePartyAll(extract.PartyId); err != nil {
+			s.logger.Error("BinaryLog_MatchmakerRemovePartyAll", zap.Error(err), zap.Any("extract", extract))
+		}
+	case *pb.BinaryLog_MatchmakerRemoveAll:
+		extract := log.GetMatchmakerRemoveAll()
+		s.matchmaker.RemoveAll(extract.Node)
+
+	case *pb.BinaryLog_MatchmakerRemove:
+		extract := log.GetMatchmakerRemove()
+		s.matchmaker.Remove(extract.Ticket)
+	}
+}

@@ -65,6 +65,6 @@ func createTestPartyHandler(t *testing.T, logger *zap.Logger) (*PartyHandler, fu
 	dmr := DummyMessageRouter{}
 
 	pr := NewLocalPartyRegistry(logger, cfg, mm, &tt, &tsm, &dmr, node)
-	ph := NewPartyHandler(logger, pr, mm, &tt, &tsm, &dmr, uuid.UUID{}, node, true, 10, nil)
+	ph := NewPartyHandler(logger, pr, mm, &tt, &tsm, &dmr, uuid.UUID{}, node, true, 10, nil, nil)
 	return ph, cleanup
 }

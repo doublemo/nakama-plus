@@ -69,7 +69,7 @@ func (p *Pipeline) partyCreate(logger *zap.Logger, session Session, envelope *rt
 
 	if p.config.GetSession().SingleParty {
 		// Kick the user from any other parties they may be part of.
-		p.tracker.UntrackLocalByModes(session.ID(), partyStreamMode, ph.Stream)
+		p.tracker.UntrackByModes(session.ID(), partyStreamMode, ph.Stream)
 	}
 
 	out := &rtapi.Envelope{Cid: envelope.Cid, Message: &rtapi.Envelope_Party{Party: &rtapi.Party{
@@ -146,7 +146,7 @@ func (p *Pipeline) partyJoin(logger *zap.Logger, session Session, envelope *rtap
 
 		if p.config.GetSession().SingleParty {
 			// Kick the user from any other parties they may be part of.
-			p.tracker.UntrackLocalByModes(session.ID(), partyStreamMode, stream)
+			p.tracker.UntrackByModes(session.ID(), partyStreamMode, stream)
 		}
 	}
 

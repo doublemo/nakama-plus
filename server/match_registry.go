@@ -121,6 +121,8 @@ type MatchRegistry interface {
 	Signal(ctx context.Context, id, data string) (string, error)
 	// Get a snapshot of the match state in a string representation.
 	GetState(ctx context.Context, id uuid.UUID, node string) ([]*rtapi.UserPresence, int64, string, error)
+
+	SetPeer(peer Peer)
 }
 
 type LocalMatchRegistry struct {
@@ -144,6 +146,7 @@ type LocalMatchRegistry struct {
 
 	stopped   *atomic.Bool
 	stoppedCh chan struct{}
+	peer      Peer
 }
 
 func NewLocalMatchRegistry(logger, startupLogger *zap.Logger, config Config, sessionRegistry SessionRegistry, tracker Tracker, router MessageRouter, metrics Metrics, node string) MatchRegistry {
@@ -176,6 +179,7 @@ func NewLocalMatchRegistry(logger, startupLogger *zap.Logger, config Config, ses
 
 		stopped:   atomic.NewBool(false),
 		stoppedCh: make(chan struct{}, 2),
+		peer:      nil,
 	}
 
 	go func() {
@@ -889,4 +893,8 @@ func MapMatchIndexEntry(id string, in *MatchIndexEntry) (*bluge.Document, error)
 	}
 
 	return rv, nil
+}
+
+func (r *LocalMatchRegistry) SetPeer(peer Peer) {
+	r.peer = peer
 }

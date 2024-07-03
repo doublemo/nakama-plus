@@ -45,6 +45,15 @@ message Request {
         Disconnect disconnect = 4;
         ResponseWriter out = 5;
         api.Request in = 6;
+        Party.JoinRequest partyJoinRequest = 7;
+        Party.Promote partyPromote = 8;
+        Party.Accept partyAccept = 9;
+        Party.Remove partyRemove = 10;
+        Party.Close partyClose = 11;
+        Party.JoinRequestList partyJoinRequestList = 12;
+        Party.MatchmakerAdd partyMatchmakerAdd = 13;
+        Party.MatchmakerRemove partyMatchmakerRemove = 14;
+        Party.DataSend partyDataSend = 15;
     }
 }
 
@@ -54,6 +63,9 @@ message ResponseWriter {
     oneof payload {
         realtime.Envelope envelope = 3;
         string pong = 4;
+        Party.JoinRequestListReply partyJoinRequestList = 5;
+        Party.PartyMatchmakerAddReply PartyMatchmakerAdd = 6;
+        bool partyJoinRequest = 7;
     }
 }
 
@@ -97,6 +109,7 @@ message State {
     repeated Presence Presences = 3; 
     CheckPoint checkPoint = 4;
     uint64 version = 5;
+    repeated MatchmakerExtract matchmaker = 6;
 }
 
 message Status {
@@ -122,8 +135,7 @@ message Presence {
     string userID = 2;
     repeated PresenceStream  stream = 3;
     repeated PresenceMeta meta = 4;
-    bool allowIfFirstForSession = 5;
-    string node = 6;
+    string node = 5;
 }
 
 message PresenceStream {
@@ -206,6 +218,11 @@ message UntrackValue {
     uint32 reason  = 6;
 }
 
+message MatchBatch {
+    repeated bytes documents = 1;
+    repeated string ids = 2;
+}
+
 message BinaryLog {
     uint64 id = 1;
     string node = 2;
@@ -215,6 +232,18 @@ message BinaryLog {
         UntrackValue untrack = 5;
         BanValue ban = 6;
         Presence updateTrack = 7;
+        MatchmakerExtract MatchmakerAdd = 8;
+        MatchmakerExtract MatchmakerRemoveSession = 9;
+        MatchmakerExtract MatchmakerRemoveSessionAll = 10;
+        MatchmakerExtract MatchmakerRemoveParty = 11;
+        MatchmakerExtract MatchmakerRemovePartyAll = 12;
+        MatchmakerExtract MatchmakerRemoveAll = 13;
+        PartyMatchmakerRemove MatchmakerRemove = 14;
+    }
+
+
+    message PartyMatchmakerRemove {
+        repeated string ticket = 1;
     }
 }
 
@@ -224,4 +253,105 @@ message Point {
 
 message CheckPoint {
     map<string, Point> value = 1;
+}
+
+
+message MatchmakerPresence{
+    string userId = 1;
+    string sessionId = 2;
+    string username = 3;
+    string node = 4;
+}
+
+message MatchmakerExtract{
+    repeated MatchmakerPresence presences = 1;
+    string sessionId = 2;
+    string partyId = 3;
+    string query = 4;
+    int32 minCount = 5;
+    int32 maxCount = 6;
+    int32 countMultiple = 7;
+    map<string, string> stringProperties = 8;
+    map<string, double> numericProperties = 9;
+    string ticket = 10;
+    int32 count = 11;
+    int32 intervals = 12;
+    int64 createdAt = 13;
+    string node = 14;
+}
+
+message Party {
+    message JoinRequest{
+        string id = 1;
+        Presence presence = 2;
+    }
+
+    message Promote{
+        string id = 1;
+        string sessionID = 2;
+        string fromNode = 3;
+        realtime.UserPresence userPresence = 4;
+    }
+
+    message Accept{
+        string id = 1;
+        string sessionID = 2;
+        string fromNode = 3;
+        realtime.UserPresence userPresence = 4;
+    }
+
+    message Remove{
+        string id = 1;
+        string sessionID = 2;
+        string fromNode = 3;
+        realtime.UserPresence userPresence = 4;
+    }
+
+    message Close{
+        string id = 1;
+        string sessionID = 2;
+        string fromNode = 3;
+    }
+
+    message JoinRequestList{
+        string id = 1;
+        string sessionID = 2;
+        string fromNode = 3;
+    }
+
+    message JoinRequestListReply{
+        repeated realtime.UserPresence userPresence = 1;
+    }
+
+    message MatchmakerAdd{
+        string id = 1;
+        string sessionID = 2;
+        string fromNode = 3;
+        string query = 4;
+        int32 minCount = 5;
+        int32 maxCount = 6;
+        int32 countMultiple = 7;
+        map<string, string> stringProperties = 8;
+        map<string, double> numericProperties = 9;
+    }
+
+    message PartyMatchmakerAddReply {
+        string ticket = 1;
+        repeated PresenceID presenceID = 2;
+    }
+
+    message MatchmakerRemove{
+        string id = 1;
+        string sessionID = 2;
+        string fromNode = 3;
+        string ticket = 4;
+    }
+
+    message DataSend {
+        string id = 1;
+        string sessionID = 2;
+        string fromNode = 3;
+        int64 opCode = 4;
+        bytes data = 5;
+    }
 }
