@@ -10,6 +10,7 @@ import (
 
 	"github.com/doublemo/nakama-kit/pb"
 	"github.com/gofrs/uuid/v5"
+	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
@@ -48,6 +49,7 @@ func (s *LocalPeer) onRequest(frame *pb.Frame) {
 	}
 
 	request := frame.GetRequest()
+	s.logger.Debug("onRequest", zap.Any("request", request), zap.String("node", frame.Node))
 	switch request.Payload.(type) {
 	case *pb.Request_Ping:
 		w(&pb.ResponseWriter{Payload: &pb.ResponseWriter_Pong{Pong: "PONG"}})

@@ -251,6 +251,7 @@ func main() {
 	ctxCancelFn()
 
 	// Gracefully stop remaining server components.
+	peer.Shutdown()
 	apiServer.Stop()
 	consoleServer.Stop()
 	matchmaker.Stop()

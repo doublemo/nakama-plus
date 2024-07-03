@@ -331,8 +331,16 @@ func (t *LocalTracker) Track(ctx context.Context, sessionID uuid.UUID, stream Pr
 }
 
 func (t *LocalTracker) TrackMulti(ctx context.Context, sessionID uuid.UUID, ops []*TrackerOp, userID uuid.UUID, otherNode ...string) bool {
+	node := t.name
+	if len(otherNode) > 0 && otherNode[0] != "" {
+		node = otherNode[0]
+	}
+
 	if session := t.getSession(sessionID); session == nil {
-		return false
+		if node == t.name {
+			return false
+		}
+
 	} else {
 		defer session.CloseUnlock()
 	}
@@ -345,11 +353,6 @@ func (t *LocalTracker) TrackMulti(ctx context.Context, sessionID uuid.UUID, ops 
 		t.Unlock()
 		return false
 	default:
-	}
-
-	node := t.name
-	if len(otherNode) > 0 && otherNode[0] != "" {
-		node = otherNode[0]
 	}
 
 	for _, op := range ops {
@@ -597,15 +600,16 @@ func (t *LocalTracker) UntrackAll(sessionID uuid.UUID, reason runtime.PresenceRe
 }
 
 func (t *LocalTracker) Update(ctx context.Context, sessionID uuid.UUID, stream PresenceStream, userID uuid.UUID, meta PresenceMeta, otherNode ...string) bool {
-	if session := t.getSession(sessionID); session == nil {
-		return false
-	} else {
-		defer session.CloseUnlock()
-	}
-
 	node := t.name
 	if len(otherNode) > 0 && otherNode[0] != "" {
 		node = otherNode[0]
+	}
+	if session := t.getSession(sessionID); session == nil {
+		if node == t.name {
+			return false
+		}
+	} else {
+		defer session.CloseUnlock()
 	}
 
 	syncAtomic.StoreUint32(&meta.Reason, uint32(runtime.PresenceReasonUpdate))

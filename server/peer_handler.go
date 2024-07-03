@@ -21,7 +21,12 @@ import (
 )
 
 func (s *LocalPeer) handler(client kit.Client, msg *pb.ResponseWriter) {
-	s.logger.Debug("recv info", zap.String("name", client.Name()), zap.String("Role", client.Name()))
+	if client != nil {
+		s.logger.Debug("recv info", zap.String("name", client.Name()), zap.String("Role", client.Name()))
+	} else {
+		s.logger.Debug("recv info")
+	}
+
 	switch msg.Payload.(type) {
 	case *pb.ResponseWriter_Envelope:
 		s.toClient(msg)

@@ -94,6 +94,21 @@ func (p *Pipeline) matchmakerAdd(logger *zap.Logger, session Session, envelope *
 		return false, nil
 	}
 
+	peer := p.runtime.GetPeer()
+	if peer != nil {
+		peer.MatchmakerAdd(matchmakerExtract2pb(&MatchmakerExtract{
+			Presences:         presences,
+			SessionID:         session.ID().String(),
+			PartyId:           "",
+			Query:             query,
+			MinCount:          minCount,
+			MaxCount:          maxCount,
+			CountMultiple:     countMultiple,
+			StringProperties:  incoming.StringProperties,
+			NumericProperties: incoming.NumericProperties,
+		}))
+	}
+
 	// Return the ticket.
 	out := &rtapi.Envelope{Cid: envelope.Cid, Message: &rtapi.Envelope_MatchmakerTicket{MatchmakerTicket: &rtapi.MatchmakerTicket{
 		Ticket: ticket,
@@ -131,6 +146,11 @@ func (p *Pipeline) matchmakerRemove(logger *zap.Logger, session Session, envelop
 			Message: "Error removing matchmaker ticket",
 		}}}, true)
 		return false, nil
+	}
+
+	peer := p.runtime.GetPeer()
+	if peer != nil {
+		peer.MatchmakerRemoveSession(session.ID().String(), incoming.Ticket)
 	}
 
 	out := &rtapi.Envelope{Cid: envelope.Cid}
