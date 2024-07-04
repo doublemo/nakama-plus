@@ -20,17 +20,23 @@ func main() {
 		consoleLogger.Fatal("登录失败", zap.Error(err))
 	}
 
-	client.CreateParty()
-	time.Sleep(time.Second)
+	channel, err := client.ChannelJoin("room", 1)
+	if err != nil {
+		consoleLogger.Fatal("加入聊天室失败", zap.Error(err))
+	}
+
+	party, err := client.CreateParty()
+	if err != nil {
+		consoleLogger.Fatal("创建队伍失败", zap.Error(err))
+	}
+
 	client2 := NewRobot(ctx, consoleLogger, "localhost:8350", "kaXMH1i2m5BzRm5F5uvePclHSM7Zjc4g", 101112)
 	if err := client2.Login(); err != nil {
 		consoleLogger.Fatal("登录失败", zap.Error(err))
 	}
 
-	party := client.party.Load()
 	client2.PartyJoin(party.PartyId)
-	client.PartyDataSend(party.PartyId, 1, []byte(`{"mm":"test"}`))
-	client2.PartyDataSend(party.PartyId, 2, []byte(`{"mm":"test222"}`))
+	client2.ChannelJoin("room", 1)
 
 	go func() {
 		t := time.NewTicker(time.Second * 10)
@@ -45,9 +51,15 @@ func main() {
 			case <-t.C:
 				i++
 				if i%2 == 0 {
-					client2.PartyDataSend(party.PartyId, 3, []byte(`{"mm":"test222"}`))
+
+					client2.MatchmakerAdd()
+					_ = channel
+					return
+					// client2.PartyDataSend(party.PartyId, 3, []byte(`{"mm":"test222"}`))
+					// client2.ChannelWriteMessage(channel.Id, `{"body":"hello"}`)
 				} else {
-					client.PartyDataSend(party.PartyId, 13, []byte(`{"mm":"test222"}`))
+					client.MatchmakerAdd()
+					// client.PartyDataSend(party.PartyId, 13, []byte(`{"mm":"test222"}`))
 				}
 
 			}

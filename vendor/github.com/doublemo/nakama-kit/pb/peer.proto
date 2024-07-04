@@ -54,6 +54,11 @@ message Request {
         Party.MatchmakerAdd partyMatchmakerAdd = 13;
         Party.MatchmakerRemove partyMatchmakerRemove = 14;
         Party.DataSend partyDataSend = 15;
+        string matchId = 16;
+        Match.JoinAttempt matchJoinAttempt = 17;
+        Match.SendData matchSendData = 18;
+        Match.Signal matchSignal = 19;
+        string matchState = 20;
     }
 }
 
@@ -66,6 +71,10 @@ message ResponseWriter {
         Party.JoinRequestListReply partyJoinRequestList = 5;
         Party.PartyMatchmakerAddReply PartyMatchmakerAdd = 6;
         bool partyJoinRequest = 7;
+        api.Match match = 8;
+        Match.JoinAttemptReply mathJoinAttempt = 9;
+        string matchSignal = 10;
+        Match.State matchState = 11;
     }
 }
 
@@ -280,6 +289,14 @@ message MatchmakerExtract{
     string node = 14;
 }
 
+message MatchPresence{
+    string userId = 1;
+    string sessionId = 2;
+    string username = 3;
+    string node = 4;
+    uint32 reason = 5;
+}
+
 message Party {
     message JoinRequest{
         string id = 1;
@@ -353,5 +370,52 @@ message Party {
         string fromNode = 3;
         int64 opCode = 4;
         bytes data = 5;
+    }
+}
+
+message Match {
+    message JoinAttempt{
+        string id = 1;
+        string userId = 2;
+        string sessionId = 3;
+        string username = 4;
+        int64 sessionExpiry = 5;
+        map<string, string> vars = 6;
+        string clientIP = 7;
+        string clientPort = 8;
+        string fromNode = 9;
+        map<string, string> metadata = 20;
+    }
+
+    message JoinAttemptReply {
+        bool found = 1;
+        bool allow = 2;
+        bool isNew = 3;
+        string reason = 4;
+        string label = 5;
+        repeated MatchPresence presences = 6;
+    }
+
+    message SendData {
+        string id = 1;
+        string userId = 2;
+        string sessionId = 3;
+        string username = 4;
+        string fromNode = 5;
+        int64 opCode = 6;
+        bytes data = 7;
+        bool reliable = 8;
+        int64 receiveTime = 9;
+    }
+
+    message Signal {
+        string id = 1;
+        string data = 2;
+    }
+
+    message State {
+        repeated realtime.UserPresence userPresence = 1;
+        int64 tick = 2;
+        string state = 3;
     }
 }

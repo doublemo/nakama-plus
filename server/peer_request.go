@@ -6,8 +6,10 @@
 package server
 
 import (
+	"strings"
 	"time"
 
+	"github.com/doublemo/nakama-common/rtapi"
 	"github.com/doublemo/nakama-kit/pb"
 	"github.com/gofrs/uuid/v5"
 	"go.uber.org/zap"
@@ -185,6 +187,92 @@ func (s *LocalPeer) onRequest(frame *pb.Frame) {
 			return
 		}
 		w(&pb.ResponseWriter{})
+		return
+	case *pb.Request_MatchId:
+		id := request.GetMatchId()
+		idComponents := strings.SplitN(id, ".", 2)
+		if len(idComponents) != 2 || idComponents[1] != s.endpoint.Name() {
+			w(&pb.ResponseWriter{Payload: &pb.ResponseWriter_Envelope{Envelope: newEnvelopeError(status.Error(codes.NotFound, "Not Found"))}})
+			return
+		}
+		match, _, err := s.matchRegistry.GetMatch(s.ctx, request.GetMatchId())
+		if err != nil {
+			w(&pb.ResponseWriter{Payload: &pb.ResponseWriter_Envelope{Envelope: newEnvelopeError(err)}})
+			return
+		}
+
+		w(&pb.ResponseWriter{Payload: &pb.ResponseWriter_Match{Match: match}})
+		return
+	case *pb.Request_MatchJoinAttempt:
+		joinAttempt := request.GetMatchJoinAttempt()
+		found, allow, isNew, reason, l, ps := s.matchRegistry.JoinAttempt(s.ctx, uuid.FromStringOrNil(joinAttempt.Id), s.endpoint.Name(), uuid.FromStringOrNil(joinAttempt.UserId), uuid.FromStringOrNil(joinAttempt.SessionId), joinAttempt.Username, joinAttempt.SessionExpiry, joinAttempt.Vars, joinAttempt.ClientIP, joinAttempt.ClientPort, frame.Node, joinAttempt.Metadata)
+		matchPresences := make([]*pb.MatchPresence, len(ps))
+		for k, v := range ps {
+			matchPresences[k] = &pb.MatchPresence{
+				UserId:    v.GetUserId(),
+				SessionId: v.GetSessionId(),
+				Username:  v.GetUsername(),
+				Node:      v.GetNodeId(),
+				Reason:    uint32(v.GetReason()),
+			}
+		}
+		w(&pb.ResponseWriter{Payload: &pb.ResponseWriter_MathJoinAttempt{
+			MathJoinAttempt: &pb.Match_JoinAttemptReply{
+				Found:     found,
+				Allow:     allow,
+				IsNew:     isNew,
+				Reason:    reason,
+				Label:     l,
+				Presences: matchPresences,
+			},
+		}})
+		return
+
+	case *pb.Request_MatchSendData:
+		sendData := request.GetMatchSendData()
+		s.matchRegistry.SendData(uuid.FromStringOrNil(sendData.Id), s.endpoint.Name(), uuid.FromStringOrNil(sendData.UserId), uuid.FromStringOrNil(sendData.SessionId), sendData.Username, sendData.FromNode, sendData.OpCode, sendData.Data, sendData.Reliable, sendData.ReceiveTime)
+		return
+	case *pb.Request_MatchSignal:
+		sig := request.GetMatchSignal()
+		idComponents := strings.SplitN(sig.Id, ".", 2)
+		if len(idComponents) != 2 || idComponents[1] != s.endpoint.Name() {
+			w(&pb.ResponseWriter{Payload: &pb.ResponseWriter_Envelope{Envelope: newEnvelopeError(status.Error(codes.NotFound, "Not Found"))}})
+			return
+		}
+		v, err := s.matchRegistry.Signal(s.ctx, sig.Id, sig.Data)
+		if err != nil {
+			w(&pb.ResponseWriter{Payload: &pb.ResponseWriter_Envelope{Envelope: newEnvelopeError(err)}})
+			return
+		}
+
+		w(&pb.ResponseWriter{Payload: &pb.ResponseWriter_MatchSignal{MatchSignal: v}})
+		return
+
+	case *pb.Request_MatchState:
+		userPresence, tick, state, err := s.matchRegistry.GetState(s.ctx, uuid.FromStringOrNil(request.GetMatchState()), s.endpoint.Name())
+		if err != nil {
+			w(&pb.ResponseWriter{Payload: &pb.ResponseWriter_Envelope{Envelope: newEnvelopeError(err)}})
+			return
+		}
+
+		presences := make([]*rtapi.UserPresence, len(userPresence))
+		for k, v := range userPresence {
+			presences[k] = &rtapi.UserPresence{
+				UserId:      v.GetUserId(),
+				SessionId:   v.GetSessionId(),
+				Username:    v.GetUsername(),
+				Persistence: v.GetPersistence(),
+				Status:      v.GetStatus(),
+			}
+		}
+
+		w(&pb.ResponseWriter{Payload: &pb.ResponseWriter_MatchState{
+			MatchState: &pb.Match_State{
+				UserPresence: presences,
+				Tick:         tick,
+				State:        state,
+			},
+		}})
 		return
 	default:
 	}

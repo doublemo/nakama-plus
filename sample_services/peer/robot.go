@@ -12,10 +12,14 @@ import (
 	"time"
 
 	"github.com/doublemo/nakama-common/rtapi"
+	"github.com/doublemo/nakama-plus/v3/server"
 	"github.com/gorilla/websocket"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 var (
@@ -47,10 +51,10 @@ type (
 		url          string
 		session      *atomic.Pointer[Session]
 		conn         *atomic.Pointer[websocket.Conn]
-		party        *atomic.Pointer[rtapi.Party]
 		pingTimer    *time.Timer
 		pingTimerCAS *atomic.Uint32
 		outgoingCh   chan *rtapi.Envelope
+		router       *server.MapOf[string, chan *rtapi.Envelope]
 	}
 )
 
@@ -65,11 +69,11 @@ func NewRobot(ctx context.Context, logger *zap.Logger, url, httpKey string, id i
 		url:          url,
 		session:      &atomic.Pointer[Session]{},
 		conn:         &atomic.Pointer[websocket.Conn]{},
-		party:        &atomic.Pointer[rtapi.Party]{},
 		pingTimer:    time.NewTimer(10 * time.Second),
 		pingTimerCAS: atomic.NewUint32(1),
 		outgoingCh:   make(chan *rtapi.Envelope, 16),
 		id:           id,
+		router:       &server.MapOf[string, chan *rtapi.Envelope]{},
 	}
 	return r
 }
@@ -119,7 +123,7 @@ func (r *Robot) Login() error {
 	return nil
 }
 
-func (r *Robot) CreateParty() error {
+func (r *Robot) CreateParty() (*rtapi.Party, error) {
 	envelope := &rtapi.Envelope{
 		Message: &rtapi.Envelope_PartyCreate{
 			PartyCreate: &rtapi.PartyCreate{
@@ -130,12 +134,17 @@ func (r *Robot) CreateParty() error {
 	}
 
 	if err := r.Send(envelope); err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+
+	m, err := r.wait("rtapi.Party")
+	if err != nil {
+		return nil, err
+	}
+	return m.GetParty(), nil
 }
 
-func (r *Robot) PartyJoin(partyId string) error {
+func (r *Robot) PartyJoin(partyId string) (*rtapi.Party, error) {
 	envelope := &rtapi.Envelope{
 		Message: &rtapi.Envelope_PartyJoin{
 			PartyJoin: &rtapi.PartyJoin{
@@ -145,9 +154,97 @@ func (r *Robot) PartyJoin(partyId string) error {
 	}
 
 	if err := r.Send(envelope); err != nil {
+		return nil, err
+	}
+
+	m, err := r.wait("rtapi.Party")
+	if err != nil {
+		return nil, err
+	}
+	return m.GetParty(), nil
+}
+
+func (r *Robot) ChannelJoin(roomId string, ty int32) (*rtapi.Channel, error) {
+	envelope := &rtapi.Envelope{
+		Message: &rtapi.Envelope_ChannelJoin{
+			ChannelJoin: &rtapi.ChannelJoin{
+				Target:      roomId,
+				Type:        ty,
+				Persistence: wrapperspb.Bool(true),
+				Hidden:      wrapperspb.Bool(false),
+			},
+		},
+	}
+
+	if err := r.Send(envelope); err != nil {
+		return nil, err
+	}
+
+	m, err := r.wait("rtapi.ChannelJoin")
+	if err != nil {
+		return nil, err
+	}
+	return m.GetChannel(), nil
+}
+
+func (r *Robot) ChannelLeave(channelId string) error {
+	envelope := &rtapi.Envelope{
+		Message: &rtapi.Envelope_ChannelLeave{
+			ChannelLeave: &rtapi.ChannelLeave{
+				ChannelId: channelId,
+			},
+		},
+	}
+
+	if err := r.Send(envelope); err != nil {
 		return err
 	}
 	return nil
+}
+
+func (r *Robot) MatchmakerAdd() (*rtapi.MatchmakerTicket, error) {
+	envelope := &rtapi.Envelope{
+		Message: &rtapi.Envelope_MatchmakerAdd{
+			MatchmakerAdd: &rtapi.MatchmakerAdd{
+				MinCount:          2,
+				MaxCount:          20,
+				Query:             "*",
+				StringProperties:  make(map[string]string),
+				NumericProperties: make(map[string]float64),
+			},
+		},
+	}
+
+	if err := r.Send(envelope); err != nil {
+		return nil, err
+	}
+
+	m, err := r.wait("rtapi.MatchmakerTicket")
+	if err != nil {
+		return nil, err
+	}
+	return m.GetMatchmakerTicket(), nil
+}
+
+func (r *Robot) ChannelWriteMessage(channelId, content string) (*rtapi.ChannelMessageAck, error) {
+	envelope := &rtapi.Envelope{
+		Message: &rtapi.Envelope_ChannelMessageSend{
+			ChannelMessageSend: &rtapi.ChannelMessageSend{
+				ChannelId: channelId,
+				Content:   content,
+			},
+		},
+	}
+
+	if err := r.Send(envelope); err != nil {
+		return nil, err
+	}
+
+	m, err := r.wait("rtapi.ChannelMessageAck")
+	if err != nil {
+		return nil, err
+	}
+	return m.GetChannelMessageAck(), nil
 }
 
 func (r *Robot) PartyDataSend(partyId string, opCode int64, data []byte) error {
@@ -252,11 +349,37 @@ IncomingLoop:
 			continue
 		}
 
+		replyChanKey := ""
 		switch envelope.Message.(type) {
 		case *rtapi.Envelope_PartyPresenceEvent:
-
 		case *rtapi.Envelope_Party:
-			r.party.Store(envelope.GetParty())
+			replyChanKey = "rtapi.Party"
+		case *rtapi.Envelope_Channel:
+			replyChanKey = "rtapi.ChannelJoin"
+		case *rtapi.Envelope_ChannelMessageAck:
+			replyChanKey = "rtapi.ChannelMessageAck"
+		case *rtapi.Envelope_MatchmakerTicket:
+			replyChanKey = "rtapi.MatchmakerTicket"
+		case *rtapi.Envelope_Error:
+			r.router.Range(func(key string, value chan *rtapi.Envelope) bool {
+				select {
+				case value <- &envelope:
+				default:
+					r.logger.Error("router chan full")
+				}
+				return true
+			})
+			continue
+		}
+
+		if replyChanKey != "" {
+			if f, ok := r.router.Load(replyChanKey); ok {
+				select {
+				case f <- &envelope:
+				default:
+					r.logger.Error("router chan full")
+				}
+			}
 		}
 	}
 	r.Close()
@@ -296,4 +419,30 @@ func (r *Robot) Send(payload *rtapi.Envelope) error {
 func (r *Robot) Close() {
 	r.pingTimer.Stop()
 	r.ctxCancelFn()
+}
+
+func (r *Robot) wait(id string) (*rtapi.Envelope, error) {
+	ch := make(chan *rtapi.Envelope)
+	ctx, cancel := context.WithTimeout(r.ctx, time.Second*30)
+	r.router.Store(id, ch)
+	defer func() {
+		r.router.Delete(id)
+		close(ch)
+		cancel()
+	}()
+
+	select {
+	case m := <-ch:
+		switch m.Message.(type) {
+		case *rtapi.Envelope_Error:
+			err := m.GetError()
+			return nil, status.Error(codes.Code(err.Code), err.Message)
+		default:
+		}
+
+		return m, nil
+
+	case <-ctx.Done():
+	}
+	return nil, status.Error(codes.DeadlineExceeded, "time-out")
 }
