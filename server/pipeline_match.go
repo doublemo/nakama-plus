@@ -434,7 +434,6 @@ func (p *Pipeline) matchDataSend(logger *zap.Logger, session Session, envelope *
 	if len(presenceIDs) == 0 {
 		return true, nil
 	}
-
 	outgoing := &rtapi.Envelope{Message: &rtapi.Envelope_MatchData{MatchData: &rtapi.MatchData{
 		MatchId: incoming.MatchId,
 		Presence: &rtapi.UserPresence{

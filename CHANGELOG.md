@@ -6,6 +6,9 @@ The format is based on [keep a changelog](http://keepachangelog.com) and this pr
 ## [Unreleased]
 ### Fixed
 - Correctly wire Go runtime shutdown function context.
+### Added
+- 增加集群,包括channel,party,match
+- 增加微服务
 
 ## [3.22.0] - 2024-06-09
 ### Added

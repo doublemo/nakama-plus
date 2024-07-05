@@ -264,6 +264,82 @@ func (r *Robot) PartyDataSend(partyId string, opCode int64, data []byte) error {
 	return nil
 }
 
+func (r *Robot) CreateMatch(name string) (*rtapi.Match, error) {
+	envelope := &rtapi.Envelope{
+		Message: &rtapi.Envelope_MatchCreate{
+			MatchCreate: &rtapi.MatchCreate{
+				Name: name,
+			},
+		},
+	}
+
+	if err := r.Send(envelope); err != nil {
+		return nil, err
+	}
+
+	m, err := r.wait("rtapi.Match")
+	if err != nil {
+		return nil, err
+	}
+	return m.GetMatch(), nil
+}
+
+func (r *Robot) MatchJoin(id string, metadata map[string]string) (*rtapi.Match, error) {
+	envelope := &rtapi.Envelope{
+		Message: &rtapi.Envelope_MatchJoin{
+			MatchJoin: &rtapi.MatchJoin{
+				Id:       &rtapi.MatchJoin_MatchId{MatchId: id},
+				Metadata: metadata,
+			},
+		},
+	}
+
+	if err := r.Send(envelope); err != nil {
+		return nil, err
+	}
+
+	m, err := r.wait("rtapi.Match")
+	if err != nil {
+		return nil, err
+	}
+	return m.GetMatch(), nil
+}
+
+func (r *Robot) MatchLeave(id string) error {
+	envelope := &rtapi.Envelope{
+		Message: &rtapi.Envelope_MatchLeave{
+			MatchLeave: &rtapi.MatchLeave{
+				MatchId: id,
+			},
+		},
+	}
+
+	if err := r.Send(envelope); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *Robot) MatchSendData(id string, opCode int64, data []byte, presences []*rtapi.UserPresence) error {
+	envelope := &rtapi.Envelope{
+		Message: &rtapi.Envelope_MatchDataSend{
+			MatchDataSend: &rtapi.MatchDataSend{
+				MatchId:   id,
+				OpCode:    opCode,
+				Data:      data,
+				Presences: presences,
+				Reliable:  true,
+			},
+		},
+	}
+
+	if err := r.Send(envelope); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (r *Robot) basicAuth() string {
 	return base64.StdEncoding.EncodeToString([]byte(r.httpKey + ":"))
 }
@@ -360,6 +436,8 @@ IncomingLoop:
 			replyChanKey = "rtapi.ChannelMessageAck"
 		case *rtapi.Envelope_MatchmakerTicket:
 			replyChanKey = "rtapi.MatchmakerTicket"
+		case *rtapi.Envelope_Match:
+			replyChanKey = "rtapi.Match"
 		case *rtapi.Envelope_Error:
 			r.router.Range(func(key string, value chan *rtapi.Envelope) bool {
 				select {

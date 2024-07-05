@@ -50,7 +50,7 @@ type (
 		Member(name string) (Endpoint, bool)
 		Members() []Endpoint
 		Broadcast(msg *pb.Request, reliable bool)
-		BroadcastBinaryLog(b *pb.BinaryLog)
+		BroadcastBinaryLog(b *pb.BinaryLog, toQueue bool)
 		Send(endpoint Endpoint, msg *pb.Request, reliable bool) error
 		Request(ctx context.Context, endpoint Endpoint, msg *pb.Request) (*pb.ResponseWriter, error)
 		GetServiceRegistry() kit.ServiceRegistry
@@ -191,7 +191,17 @@ func (s *LocalPeer) NotifyMsg(msg []byte) {
 // the limit. Care should be taken that this method does not block,
 // since doing so would block the entire UDP packet receive loop.
 func (s *LocalPeer) GetBroadcasts(overhead, limit int) [][]byte {
-	return s.transmitLimitedQueue.GetBroadcasts(overhead, limit)
+	broadcasts := s.transmitLimitedQueue.GetBroadcasts(overhead, limit)
+	size := len(broadcasts)
+	if size < 1 {
+		return nil
+	}
+
+	sorted := make([][]byte, size)
+	for i := 0; i < size; i++ {
+		sorted[i] = broadcasts[size-(i+1)]
+	}
+	return sorted
 }
 
 // LocalState is used for a TCP Push/Pull. This is sent to
@@ -605,7 +615,7 @@ func (s *LocalPeer) Request(ctx context.Context, endpoint Endpoint, msg *pb.Requ
 	return nil, status.Error(codes.DeadlineExceeded, "DeadlineExceeded")
 }
 
-func (s *LocalPeer) BroadcastBinaryLog(b *pb.BinaryLog) {
+func (s *LocalPeer) BroadcastBinaryLog(b *pb.BinaryLog, toQueue bool) {
 	if b == nil {
 		return
 	}
@@ -621,13 +631,26 @@ func (s *LocalPeer) BroadcastBinaryLog(b *pb.BinaryLog) {
 		Payload:   &pb.Frame_BinaryLog{BinaryLog: b},
 	})
 
+	s.binaryLog.Push(b)
+	if !toQueue {
+		s.members.Range(func(key string, value Endpoint) bool {
+			if value.Name() == s.endpoint.Name() {
+				return true
+			}
+
+			if err := s.memberlist.SendBestEffort(value.MemberlistNode(), bytes); err != nil {
+				s.logger.Error("Failed to send broadcast", zap.String("name", key))
+			}
+			return true
+		})
+		return
+	}
 	s.transmitLimitedQueue.QueueBroadcast(&PeerBroadcast{
 		name:     strconv.FormatUint(b.Id, 10),
 		msg:      bytes,
 		finished: nil,
 	})
 
-	s.binaryLog.Push(b)
 	// s.metrics.PeerSent(int64(len(bytes)))
 }
 

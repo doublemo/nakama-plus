@@ -81,7 +81,7 @@ func (r *LocalMessageRouter) SendToPresenceIDs(logger *zap.Logger, presenceIDs [
 
 		session := r.sessionRegistry.Get(presenceID.SessionID)
 		if session == nil {
-			logger.Debug("No session to route to", zap.String("sid", presenceID.SessionID.String()))
+			logger.Debug("No session to route to", zap.String("sid", presenceID.SessionID.String()), zap.Any("envelope", envelope))
 			continue
 		}
 

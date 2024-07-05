@@ -907,6 +907,9 @@ func (t *LocalTracker) ListLocalSessionIDByStream(stream PresenceStream) []uuid.
 	}
 	ps := make([]uuid.UUID, 0, len(byStream))
 	for pc := range byStream {
+		if pc.ID.Node != t.name {
+			continue
+		}
 		ps = append(ps, pc.ID.SessionID)
 	}
 	t.RUnlock()

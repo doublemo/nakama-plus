@@ -374,6 +374,7 @@ func (s *LocalPeer) onBinaryLog(log *pb.BinaryLog) {
 		return
 	}
 
+	s.logger.Debug("onBinaryLog", zap.Any("log", log))
 	switch log.Payload.(type) {
 	case *pb.BinaryLog_Ban:
 		s.onBan(log.GetNode(), log.GetBan())

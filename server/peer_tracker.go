@@ -192,7 +192,7 @@ func (t *LocalTracker) TrackPeer(sessionID uuid.UUID, userID uuid.UUID, ops []*T
 	t.peer.BroadcastBinaryLog(&pb.BinaryLog{
 		Node:    t.name,
 		Payload: &pb.BinaryLog_Track{Track: presence},
-	})
+	}, false)
 }
 
 func (t *LocalTracker) UntrackPeer(sessionID uuid.UUID, userID uuid.UUID, streams []*PresenceStream, modes []uint32, reason runtime.PresenceReason, skipStream *PresenceStream) {
@@ -217,7 +217,7 @@ func (t *LocalTracker) UntrackPeer(sessionID uuid.UUID, userID uuid.UUID, stream
 	t.peer.BroadcastBinaryLog(&pb.BinaryLog{
 		Node:    t.name,
 		Payload: &pb.BinaryLog_Untrack{Untrack: untrack},
-	})
+	}, false)
 }
 
 func (t *LocalTracker) UpdateTrackPeer(sessionID uuid.UUID, userID uuid.UUID, ops []*TrackerOp) {
@@ -237,7 +237,7 @@ func (t *LocalTracker) UpdateTrackPeer(sessionID uuid.UUID, userID uuid.UUID, op
 	t.peer.BroadcastBinaryLog(&pb.BinaryLog{
 		Node:    t.name,
 		Payload: &pb.BinaryLog_UpdateTrack{UpdateTrack: presence},
-	})
+	}, false)
 }
 
 func (t *LocalTracker) UntrackByModes(sessionID uuid.UUID, modes map[uint8]struct{}, skipStream PresenceStream) {

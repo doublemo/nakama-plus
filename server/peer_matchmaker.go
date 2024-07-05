@@ -13,7 +13,7 @@ func (s *LocalPeer) MatchmakerAdd(extract *pb.MatchmakerExtract) {
 		Payload: &pb.BinaryLog_MatchmakerAdd{
 			MatchmakerAdd: extract,
 		},
-	})
+	}, false)
 }
 func (s *LocalPeer) MatchmakerRemoveSession(sessionID, ticket string) {
 	s.BroadcastBinaryLog(&pb.BinaryLog{
@@ -24,7 +24,7 @@ func (s *LocalPeer) MatchmakerRemoveSession(sessionID, ticket string) {
 				Ticket:    ticket,
 			},
 		},
-	})
+	}, false)
 }
 
 func (s *LocalPeer) MatchmakerRemoveSessionAll(sessionID string) {
@@ -33,7 +33,7 @@ func (s *LocalPeer) MatchmakerRemoveSessionAll(sessionID string) {
 		Payload: &pb.BinaryLog_MatchmakerRemoveSessionAll{
 			MatchmakerRemoveSessionAll: &pb.MatchmakerExtract{SessionId: sessionID},
 		},
-	})
+	}, false)
 }
 
 func (s *LocalPeer) MatchmakerRemoveParty(partyID, ticket string) {
@@ -45,7 +45,7 @@ func (s *LocalPeer) MatchmakerRemoveParty(partyID, ticket string) {
 				Ticket:  ticket,
 			},
 		},
-	})
+	}, false)
 }
 
 func (s *LocalPeer) MatchmakerRemovePartyAll(partyID string) {
@@ -56,7 +56,7 @@ func (s *LocalPeer) MatchmakerRemovePartyAll(partyID string) {
 				PartyId: partyID,
 			},
 		},
-	})
+	}, false)
 }
 
 func (s *LocalPeer) MatchmakerRemoveAll(node string) {
@@ -67,7 +67,7 @@ func (s *LocalPeer) MatchmakerRemoveAll(node string) {
 				Node: node,
 			},
 		},
-	})
+	}, false)
 }
 
 func (s *LocalPeer) MatchmakerRemove(tickets []string) {
@@ -76,7 +76,7 @@ func (s *LocalPeer) MatchmakerRemove(tickets []string) {
 		Payload: &pb.BinaryLog_MatchmakerRemove{
 			MatchmakerRemove: &pb.BinaryLog_PartyMatchmakerRemove{Ticket: tickets},
 		},
-	})
+	}, false)
 }
 
 func pb2MatchmakerExtract(extract *pb.MatchmakerExtract) *MatchmakerExtract {
