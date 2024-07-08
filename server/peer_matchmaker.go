@@ -5,7 +5,10 @@
 
 package server
 
-import "github.com/doublemo/nakama-kit/pb"
+import (
+	"github.com/doublemo/nakama-kit/pb"
+	"github.com/gofrs/uuid/v5"
+)
 
 func (s *LocalPeer) MatchmakerAdd(extract *pb.MatchmakerExtract) {
 	s.BroadcastBinaryLog(&pb.BinaryLog{
@@ -107,6 +110,7 @@ func pb2MatchmakerExtract(extract *pb.MatchmakerExtract) *MatchmakerExtract {
 			SessionId: v.SessionId,
 			Username:  v.Username,
 			Node:      v.Node,
+			SessionID: uuid.FromStringOrNil(v.SessionId),
 		}
 	}
 	return m

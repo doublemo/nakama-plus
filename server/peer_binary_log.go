@@ -300,6 +300,8 @@ func (b *LocalBinaryLog) ClearBinaryLogByNode(node string) {
 	if m, ok := b.checkPoint[b.node]; ok {
 		delete(m, node)
 	}
+
+	delete(b.pendingData, node)
 	b.data = n
 	b.Unlock()
 }

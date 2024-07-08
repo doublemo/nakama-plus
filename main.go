@@ -223,6 +223,7 @@ func main() {
 	}
 
 	apiServer := server.StartApiServer(logger, startupLogger, db, jsonpbMarshaler, jsonpbUnmarshaler, config, version, socialClient, storageIndex, leaderboardCache, leaderboardRankCache, sessionRegistry, sessionCache, statusRegistry, matchRegistry, matchmaker, tracker, router, streamManager, metrics, pipeline, runtime)
+	socketServer := server.StartSocketServer(logger, config, sessionRegistry, sessionCache, statusRegistry, matchmaker, tracker, metrics, runtime, jsonpbMarshaler, jsonpbUnmarshaler, pipeline)
 	consoleServer := server.StartConsoleServer(logger, startupLogger, db, config, tracker, router, streamManager, metrics, sessionRegistry, sessionCache, consoleSessionCache, loginAttemptCache, statusRegistry, statusHandler, runtimeInfo, matchRegistry, configWarnings, semver, leaderboardCache, leaderboardRankCache, leaderboardScheduler, storageIndex, apiServer, runtime, cookie)
 	console.UIFS.Nt = true
 	// gaenabled := len(os.Getenv("NAKAMA_TELEMETRY")) < 1
@@ -253,6 +254,7 @@ func main() {
 	// Gracefully stop remaining server components.
 	peer.Shutdown()
 	apiServer.Stop()
+	socketServer.Stop()
 	consoleServer.Stop()
 	matchmaker.Stop()
 	leaderboardScheduler.Stop()

@@ -5,7 +5,6 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/doublemo/nakama-plus/v3/server"
 	"go.uber.org/zap"
@@ -15,7 +14,7 @@ import (
 func main() {
 	ctx, ctxCancelFn := context.WithCancel(context.Background())
 	consoleLogger := server.NewJSONLogger(os.Stdout, zapcore.InfoLevel, server.JSONFormat)
-	client := NewRobot(ctx, consoleLogger, "localhost:7350", "kaXMH1i2m5BzRm5F5uvePclHSM7Zjc4g", 101111)
+	client := NewRobotTCP(ctx, consoleLogger, "localhost:7350", "kaXMH1i2m5BzRm5F5uvePclHSM7Zjc4g", 101111, 1)
 	if err := client.Login(); err != nil {
 		consoleLogger.Fatal("登录失败", zap.Error(err))
 	}
@@ -49,30 +48,31 @@ func main() {
 
 	client2.MatchmakerAdd()
 	client.MatchmakerAdd()
-	go func() {
-		t := time.NewTicker(time.Second * 10)
-		defer t.Stop()
+	_ = channel
+	// go func() {
+	// 	t := time.NewTicker(time.Second * 10)
+	// 	defer t.Stop()
 
-		i := 0
-		for {
-			select {
-			case <-ctx.Done():
-				return
+	// 	i := 0
+	// 	for {
+	// 		select {
+	// 		case <-ctx.Done():
+	// 			return
 
-			case <-t.C:
-				i++
-				if i%2 == 0 {
-					client2.MatchSendData(match.MatchId, 10007, []byte(`{"b":"33333"}`), nil)
-					client2.PartyDataSend(party.PartyId, 3, []byte(`{"mm":"test222"}`))
-					client2.ChannelWriteMessage(channel.Id, `{"body":"hello"}`)
-				} else {
-					client.PartyDataSend(party.PartyId, 13, []byte(`{"mm":"test222"}`))
-					client.MatchSendData(match.MatchId, 10001, []byte(`{"b":"444"}`), nil)
-				}
+	// 		case <-t.C:
+	// 			i++
+	// 			if i%2 == 0 {
+	// 				client2.MatchSendData(match.MatchId, 10007, []byte(`{"b":"33333"}`), nil)
+	// 				client2.PartyDataSend(party.PartyId, 3, []byte(`{"mm":"test222"}`))
+	// 				client2.ChannelWriteMessage(channel.Id, `{"body":"hello"}`)
+	// 			} else {
+	// 				client.PartyDataSend(party.PartyId, 13, []byte(`{"mm":"test222"}`))
+	// 				client.MatchSendData(match.MatchId, 10001, []byte(`{"b":"444"}`), nil)
+	// 			}
 
-			}
-		}
-	}()
+	// 		}
+	// 	}
+	// }()
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)

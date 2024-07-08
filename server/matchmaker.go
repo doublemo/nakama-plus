@@ -428,6 +428,7 @@ func (m *LocalMatchmaker) Process() {
 					outgoing.GetMatchmakerMatched().Self = users[i]
 					outgoing.GetMatchmakerMatched().Ticket = entry.Ticket
 					// Route outgoing message.
+
 					m.router.SendToPresenceIDs(m.logger, []*PresenceID{{Node: entry.Presence.Node, SessionID: entry.Presence.SessionID}}, outgoing, true)
 				}
 				wg.Done()
