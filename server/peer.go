@@ -632,13 +632,16 @@ func (s *LocalPeer) BroadcastBinaryLog(b *pb.BinaryLog, toQueue bool) {
 	})
 
 	s.binaryLog.Push(b)
+
+	// 如果不加入队列
+	// 那么就直接实时发出去
 	if !toQueue {
 		s.members.Range(func(key string, value Endpoint) bool {
 			if value.Name() == s.endpoint.Name() {
 				return true
 			}
 
-			if err := s.memberlist.SendBestEffort(value.MemberlistNode(), bytes); err != nil {
+			if err := s.memberlist.SendReliable(value.MemberlistNode(), bytes); err != nil {
 				s.logger.Error("Failed to send broadcast", zap.String("name", key))
 			}
 			return true

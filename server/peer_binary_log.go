@@ -31,6 +31,7 @@ type (
 		GetBinaryLogVersions() map[string][2]uint64
 		Len() int
 		Stop()
+		GetPendingBinaryLog() []*pb.BinaryLog
 	}
 
 	binaryLogValue struct {
@@ -42,7 +43,9 @@ type (
 		ctxCancelFn context.CancelFunc
 		logger      *zap.Logger
 		node        string
+
 		data        *skiplist.SkipList
+		pendingData map[string]*skiplist.SkipList
 		checkPoint  map[string]map[string]uint64
 		idGenValue  *atomic.Uint64
 		numMembers  func() int
@@ -95,6 +98,7 @@ func NewLocalBinaryLog(ctx context.Context, logger *zap.Logger, node string, num
 		logger:      logger,
 		node:        node,
 		data:        skiplist.New(),
+		pendingData: make(map[string]*skiplist.SkipList),
 		checkPoint:  make(map[string]map[string]uint64),
 		idGenValue:  atomic.NewUint64(0),
 		numMembers:  numMembers,
@@ -126,25 +130,60 @@ func (b *LocalBinaryLog) Stop() {
 	})
 }
 
+func (b *LocalBinaryLog) GetPendingBinaryLog() []*pb.BinaryLog {
+	var checkPoint uint64
+	list := make([]*pb.BinaryLog, 0)
+	b.Lock()
+	for k, v := range b.pendingData {
+		checkPoint = 0
+		if m, ok := b.checkPoint[b.node]; ok {
+			checkPoint = m[k]
+		} else {
+			b.checkPoint[b.node] = make(map[string]uint64)
+		}
+
+		for e := v.Front(); e != nil; e = e.Next() {
+			value := e.Value.(*binaryLogValue).value
+			if value.Id-checkPoint == 1 {
+				list = append(list, value)
+				v.Delete(e.Value)
+				if b.checkPoint[b.node][k] < value.Id {
+					b.checkPoint[b.node][k] = value.Id
+				}
+			} else {
+				break
+			}
+		}
+
+		if v.Len() < 1 {
+			delete(b.pendingData, k)
+		}
+	}
+	b.Unlock()
+	return list
+}
+
 func (b *LocalBinaryLog) Push(log *pb.BinaryLog) bool {
 	value := &binaryLogValue{value: log}
 	b.Lock()
-	point, ok := b.checkPoint[b.node]
-	if ok {
-		if version := point[log.GetNode()]; log.Id-version != 1 {
-			b.Unlock()
-			return false
-		}
-	} else {
-		b.checkPoint[b.node] = make(map[string]uint64)
-	}
-
 	if v := b.data.Find(value); v != nil {
 		b.Unlock()
 		return false
 	}
-	b.checkPoint[b.node][log.GetNode()] = log.GetId()
+
 	b.data.Insert(value)
+	if log.Node == b.node {
+		b.Unlock()
+		return true
+	}
+
+	// 加入等待
+	if pending, ok := b.pendingData[log.Node]; ok {
+		pending.Insert(value)
+	} else {
+		b.pendingData[log.Node] = skiplist.New()
+		b.pendingData[log.Node].Insert(value)
+	}
 	b.Unlock()
 	return true
 }
@@ -344,6 +383,9 @@ func (b *LocalBinaryLog) processClear() {
 			for e := b.data.Front(); e != nil; e = e.Next() {
 				v := e.Value.(*binaryLogValue).value
 				if b.isExpired(v, versionMap) {
+					if m, ok := b.pendingData[v.Node]; ok {
+						m.Delete(e.Value)
+					}
 					continue
 				}
 
@@ -369,54 +411,56 @@ func (b *LocalBinaryLog) isExpired(v *pb.BinaryLog, versionMap map[string][2]uin
 	return ts.AsTime().Add(time.Minute * 10).Before(time.Now().UTC())
 }
 
-func (s *LocalPeer) onBinaryLog(log *pb.BinaryLog) {
-	if !s.binaryLog.Push(log) {
+func (s *LocalPeer) onBinaryLog(v *pb.BinaryLog) {
+	if !s.binaryLog.Push(v) {
 		return
 	}
 
-	s.logger.Debug("onBinaryLog", zap.Any("log", log))
-	switch log.Payload.(type) {
-	case *pb.BinaryLog_Ban:
-		s.onBan(log.GetNode(), log.GetBan())
+	for _, log := range s.binaryLog.GetPendingBinaryLog() {
+		s.logger.Debug("onBinaryLog", zap.Any("log", log))
+		switch log.Payload.(type) {
+		case *pb.BinaryLog_Ban:
+			s.onBan(log.GetNode(), log.GetBan())
 
-	case *pb.BinaryLog_Track:
-		s.onTrack(log.GetNode(), log.GetTrack())
+		case *pb.BinaryLog_Track:
+			s.onTrack(log.GetNode(), log.GetTrack())
 
-	case *pb.BinaryLog_Untrack:
-		s.onUntrack(log.GetNode(), log.GetUntrack())
+		case *pb.BinaryLog_Untrack:
+			s.onUntrack(log.GetNode(), log.GetUntrack())
 
-	case *pb.BinaryLog_MatchmakerAdd:
-		extract := pb2MatchmakerExtract(log.GetMatchmakerAdd())
-		_, _, err := s.matchmaker.Add(s.ctx, extract.Presences, extract.SessionID, extract.PartyId, extract.Query, extract.MinCount, extract.MaxCount, extract.CountMultiple, extract.StringProperties, extract.NumericProperties)
-		if err != nil {
-			s.logger.Error("BinaryLog_MatchmakerAdd", zap.Error(err), zap.Any("extract", extract))
-		}
-	case *pb.BinaryLog_MatchmakerRemoveSession:
-		extract := log.GetMatchmakerRemoveSession()
-		if err := s.matchmaker.RemoveSession(extract.SessionId, extract.Ticket); err != nil {
-			s.logger.Error("BinaryLog_MatchmakerRemoveSession", zap.Error(err), zap.Any("extract", extract))
-		}
-	case *pb.BinaryLog_MatchmakerRemoveSessionAll:
-		extract := log.GetMatchmakerRemoveSessionAll()
-		if err := s.matchmaker.RemoveSessionAll(extract.SessionId); err != nil {
-			s.logger.Error("BinaryLog_MatchmakerRemoveSessionAll", zap.Error(err), zap.Any("extract", extract))
-		}
-	case *pb.BinaryLog_MatchmakerRemoveParty:
-		extract := log.GetMatchmakerRemoveParty()
-		if err := s.matchmaker.RemoveParty(extract.PartyId, extract.Ticket); err != nil {
-			s.logger.Error("BinaryLog_MatchmakerRemoveParty", zap.Error(err), zap.Any("extract", extract))
-		}
-	case *pb.BinaryLog_MatchmakerRemovePartyAll:
-		extract := log.GetMatchmakerRemovePartyAll()
-		if err := s.matchmaker.RemovePartyAll(extract.PartyId); err != nil {
-			s.logger.Error("BinaryLog_MatchmakerRemovePartyAll", zap.Error(err), zap.Any("extract", extract))
-		}
-	case *pb.BinaryLog_MatchmakerRemoveAll:
-		extract := log.GetMatchmakerRemoveAll()
-		s.matchmaker.RemoveAll(extract.Node)
+		case *pb.BinaryLog_MatchmakerAdd:
+			extract := pb2MatchmakerExtract(log.GetMatchmakerAdd())
+			_, _, err := s.matchmaker.Add(s.ctx, extract.Presences, extract.SessionID, extract.PartyId, extract.Query, extract.MinCount, extract.MaxCount, extract.CountMultiple, extract.StringProperties, extract.NumericProperties)
+			if err != nil {
+				s.logger.Error("BinaryLog_MatchmakerAdd", zap.Error(err), zap.Any("extract", extract))
+			}
+		case *pb.BinaryLog_MatchmakerRemoveSession:
+			extract := log.GetMatchmakerRemoveSession()
+			if err := s.matchmaker.RemoveSession(extract.SessionId, extract.Ticket); err != nil {
+				s.logger.Error("BinaryLog_MatchmakerRemoveSession", zap.Error(err), zap.Any("extract", extract))
+			}
+		case *pb.BinaryLog_MatchmakerRemoveSessionAll:
+			extract := log.GetMatchmakerRemoveSessionAll()
+			if err := s.matchmaker.RemoveSessionAll(extract.SessionId); err != nil {
+				s.logger.Error("BinaryLog_MatchmakerRemoveSessionAll", zap.Error(err), zap.Any("extract", extract))
+			}
+		case *pb.BinaryLog_MatchmakerRemoveParty:
+			extract := log.GetMatchmakerRemoveParty()
+			if err := s.matchmaker.RemoveParty(extract.PartyId, extract.Ticket); err != nil {
+				s.logger.Error("BinaryLog_MatchmakerRemoveParty", zap.Error(err), zap.Any("extract", extract))
+			}
+		case *pb.BinaryLog_MatchmakerRemovePartyAll:
+			extract := log.GetMatchmakerRemovePartyAll()
+			if err := s.matchmaker.RemovePartyAll(extract.PartyId); err != nil {
+				s.logger.Error("BinaryLog_MatchmakerRemovePartyAll", zap.Error(err), zap.Any("extract", extract))
+			}
+		case *pb.BinaryLog_MatchmakerRemoveAll:
+			extract := log.GetMatchmakerRemoveAll()
+			s.matchmaker.RemoveAll(extract.Node)
 
-	case *pb.BinaryLog_MatchmakerRemove:
-		extract := log.GetMatchmakerRemove()
-		s.matchmaker.Remove(extract.Ticket)
+		case *pb.BinaryLog_MatchmakerRemove:
+			extract := log.GetMatchmakerRemove()
+			s.matchmaker.Remove(extract.Ticket)
+		}
 	}
 }
