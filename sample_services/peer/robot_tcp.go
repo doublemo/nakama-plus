@@ -148,7 +148,7 @@ func (r *RobotTcp) Login() error {
 	go r.loop()
 
 	data, err := bytes.Pack(bytes.NewBytesBuffer(nil), &socketSYN{
-		Format: 1,
+		Format: r.format,
 		E1:     r.e1.Int64(),
 		E2:     r.e2.Int64(),
 		Token:  session.Token,
