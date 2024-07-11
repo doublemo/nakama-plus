@@ -675,8 +675,6 @@ func (s *sessionTcp) syn(data []byte) error {
 		// Kick any other sockets for this user.
 		go s.sessionRegistry.SingleSession(s.Context(), s.tracker, userID, s.id)
 	}
-
-	fmt.Println(syn)
 	return nil
 }
 
