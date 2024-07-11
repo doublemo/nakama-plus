@@ -44,6 +44,7 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	_ "google.golang.org/grpc/encoding/gzip" // enable gzip compression on server for grpc
+	"google.golang.org/grpc/grpclog"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
@@ -112,6 +113,9 @@ func StartApiServer(logger *zap.Logger, startupLogger *zap.Logger, db *sql.DB, p
 		serverOpts = append(serverOpts, grpc.Creds(credentials.NewServerTLSFromCert(&config.GetSocket().TLSCert[0])))
 	}
 	grpcServer := grpc.NewServer(serverOpts...)
+	// Set grpc logger
+	grpcLogger := NewGrpcCustomLogger(logger)
+	grpclog.SetLoggerV2(grpcLogger)
 
 	s := &ApiServer{
 		logger:               logger,
@@ -153,6 +157,7 @@ func StartApiServer(logger *zap.Logger, startupLogger *zap.Logger, db *sql.DB, p
 	// Should start after GRPC server itself because RegisterNakamaHandlerFromEndpoint below tries to dial GRPC.
 	ctx := context.Background()
 	grpcGateway := grpcgw.NewServeMux(
+		grpcgw.WithRoutingErrorHandler(handleRoutingError),
 		grpcgw.WithMetadata(func(ctx context.Context, r *http.Request) metadata.MD {
 			// For RPC GET operations pass through any custom query parameters.
 			if r.Method != "GET" || (!strings.HasPrefix(r.URL.Path, "/v2/rpc/") && !strings.HasPrefix(r.URL.Path, "/v2/any/")) {
@@ -167,7 +172,7 @@ func StartApiServer(logger *zap.Logger, startupLogger *zap.Logger, db *sql.DB, p
 				}
 				p["q_"+k] = vs
 			}
-			return metadata.MD(p)
+			return p
 		}),
 		grpcgw.WithMarshalerOption(grpcgw.MIMEWildcard, &grpcgw.HTTPBodyMarshaler{
 			Marshaler: &grpcgw.JSONPb{
@@ -647,4 +652,19 @@ func traceApiAfter(ctx context.Context, logger *zap.Logger, metrics Metrics, ful
 	err := fn(clientIP, clientPort)
 
 	metrics.ApiAfter(fullMethodName, time.Since(start), err != nil)
+}
+
+func handleRoutingError(ctx context.Context, mux *grpcgw.ServeMux, marshaler grpcgw.Marshaler, w http.ResponseWriter, r *http.Request, httpStatus int) {
+	sterr := status.Error(codes.Internal, "Unexpected routing error")
+	switch httpStatus {
+	case http.StatusBadRequest:
+		sterr = status.Error(codes.InvalidArgument, http.StatusText(httpStatus))
+	case http.StatusMethodNotAllowed:
+		sterr = status.Error(codes.Unimplemented, http.StatusText(httpStatus))
+	case http.StatusNotFound:
+		sterr = status.Error(codes.NotFound, http.StatusText(httpStatus))
+	}
+
+	// Set empty ServerMetadata to prevent logging error on nil metadata.
+	grpcgw.DefaultHTTPErrorHandler(grpcgw.NewServerMetadataContext(ctx, grpcgw.ServerMetadata{}), mux, marshaler, w, r, sterr)
 }

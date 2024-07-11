@@ -6,6 +6,8 @@ The format is based on [keep a changelog](http://keepachangelog.com) and this pr
 ## [Unreleased]
 ### Fixed
 - Correctly wire Go runtime shutdown function context.
+- Fix friends of friends api error when user has no friends.
+- Fix group listing pagination if name filter is used.
 ### Added
 - 增加集群,包括channel,party,match
 - 增加微服务
