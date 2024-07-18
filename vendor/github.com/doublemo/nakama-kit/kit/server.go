@@ -22,6 +22,7 @@ import (
 	"google.golang.org/grpc/channelz/service"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/grpclog"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
@@ -143,6 +144,10 @@ func NewServer(logger *zap.Logger, md map[string]string, handler ServerHandler, 
 	pb.RegisterPeerServer(s.grpc, s)
 	service.RegisterChannelzServiceToServer(s.grpc)
 	grpc_prometheus.Register(s.grpc)
+	// Set grpc logger
+	grpcLogger := NewGrpcCustomLogger(logger)
+	grpclog.SetLoggerV2(grpcLogger)
+
 	go func() {
 		logger.Info("Starting API server for gRPC requests", zap.Int("port", port))
 		if err := s.grpc.Serve(listen); err != nil {
