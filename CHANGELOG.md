@@ -4,13 +4,15 @@ All notable changes to this project are documented below.
 The format is based on [keep a changelog](http://keepachangelog.com) and this project uses [semantic versioning](http://semver.org).
 
 ## [Unreleased]
+### Added
+- 增加集群,包括channel,party,match
+- 增加微服务
+- New runtime functions to get and delete notifications by id.
+
 ### Fixed
 - Correctly wire Go runtime shutdown function context.
 - Fix friends of friends api error when user has no friends.
 - Fix group listing pagination if name filter is used.
-### Added
-- 增加集群,包括channel,party,match
-- 增加微服务
 
 ## [3.22.0] - 2024-06-09
 ### Added
