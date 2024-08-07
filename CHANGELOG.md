@@ -8,6 +8,10 @@ The format is based on [keep a changelog](http://keepachangelog.com) and this pr
 - 增加集群,包括channel,party,match
 - 增加微服务
 - New runtime functions to get and delete notifications by id.
+- Add runtime function to disable ranks for an active leaderboard.
+
+### Changed
+- Add leaderboard and tournament create param to enable or disable ranks.
 
 ### Fixed
 - Correctly wire Go runtime shutdown function context.
