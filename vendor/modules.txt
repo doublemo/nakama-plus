@@ -109,7 +109,7 @@ github.com/dop251/goja/parser
 github.com/dop251/goja/token
 github.com/dop251/goja/unistring
 # github.com/doublemo/nakama-common v0.0.0-00010101000000-000000000000 => ../nakama-common
-## explicit; go 1.22.0
+## explicit; go 1.19
 github.com/doublemo/nakama-common/api
 github.com/doublemo/nakama-common/rtapi
 github.com/doublemo/nakama-common/runtime
