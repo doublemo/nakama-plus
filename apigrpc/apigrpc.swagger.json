@@ -1345,11 +1345,17 @@
             "type": "string"
           },
           {
-            "name": "bytes",
+            "name": "bytesValue",
             "in": "query",
             "required": false,
             "type": "string",
             "format": "byte"
+          },
+          {
+            "name": "stringValue",
+            "in": "query",
+            "required": false,
+            "type": "string"
           }
         ],
         "tags": [
@@ -1414,9 +1420,12 @@
                 "httpKey": {
                   "type": "string"
                 },
-                "bytes": {
+                "bytesValue": {
                   "type": "string",
                   "format": "byte"
+                },
+                "stringValue": {
+                  "type": "string"
                 }
               }
             }
@@ -4712,9 +4721,12 @@
             "type": "string"
           }
         },
-        "bytes": {
+        "bytesValue": {
           "type": "string",
           "format": "byte"
+        },
+        "stringValue": {
+          "type": "string"
         }
       }
     },
@@ -5556,7 +5568,9 @@
       "type": "basic"
     },
     "BearerJwt": {
-      "type": ""
+      "type": "apiKey",
+      "name": "Authorization",
+      "in": "header"
     },
     "HttpKeyAuth": {
       "type": "apiKey",

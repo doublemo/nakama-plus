@@ -15,969 +15,982 @@
 /**
  * The RPC protocol for the developer console.
  */
-syntax = "proto3";
-
-package nakama.console;
-
-import "api/api.proto";
-import "github.com/doublemo/nakama-common/rtapi/realtime.proto";
-import "google/api/annotations.proto";
-import "google/protobuf/empty.proto";
-import "google/protobuf/timestamp.proto";
-import "google/protobuf/wrappers.proto";
-import "protoc-gen-openapiv2/options/annotations.proto";
-
-option go_package = "github.com/doublemo/nakama-plus/v3/console";
-
-option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_swagger) = {
-  info: {
-    title: "Nakama console API v2";
-    version: "2.0";
-    contact: {
-      name: "The Nakama Authors & Contributors";
-      url: "https://github.com/heroiclabs/nakama";
-      email: "hello@heroiclabs.com";
-    };
-  };
-  host: "127.0.0.1:7351";
-  external_docs: {
-    url: "https://heroiclabs.com/docs";
-    description: "Nakama server console documentation";
-  }
-  schemes: HTTP;
-  consumes: "application/json";
-  produces: "application/json";
-  security_definitions: {
-    security: {
-      key: "BasicAuth";
-      value: {
-        type: TYPE_BASIC;
-      }
-    }
-    security: {
-      // Made up security so we can apply "Bearer <JWT_TOKEN>"
-      key: "BearerJwt";
-      value: {};
-    }
-  }
-  // Default security definition.
-  security: {
-    security_requirement: {
-      key: "BearerJwt";
-      value: {};
-    }
-  },
-};
-
-/**
- * The developer console RPC protocol service built with GRPC.
- */
-service Console {
-  // Authenticate a console user with username and password.
-  rpc Authenticate (AuthenticateRequest) returns (ConsoleSession) {
-    option (google.api.http) = {
-      post: "/v2/console/authenticate",
-      body: "*"
-    };
-    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
-      security: {
-        security_requirement: {};
-      };
-    };
-  }
-
-  // Log out a session and invalidate the session token.
-  rpc AuthenticateLogout (AuthenticateLogoutRequest) returns (google.protobuf.Empty) {
-    option (google.api.http) = {
-      post: "/v2/console/authenticate/logout",
-      body: "*"
-    };
-  }
-
-  // Add a new console user.
-  rpc AddUser (AddUserRequest) returns (google.protobuf.Empty) {
-    option (google.api.http) = {
-      post: "/v2/console/user",
-      body: "*"
-    };
-  }
-
-  // Add/join members to a group.
-  rpc AddGroupUsers (AddGroupUsersRequest) returns (google.protobuf.Empty) {
-    option (google.api.http) = {
-      post: "/v2/console/group/{group_id}/add",
-      body: "*"
-    };
-  }
-
-  // Ban a user.
-  rpc BanAccount (AccountId) returns (google.protobuf.Empty) {
-    option (google.api.http).post = "/v2/console/account/{id}/ban";
-  }
-
-  // API Explorer - call an endpoint
-  rpc CallApiEndpoint (CallApiEndpointRequest) returns (CallApiEndpointResponse) {
-    option (google.api.http) = {
-      post: "/v2/console/api/endpoints/{method}",
-      body: "*"
-    };
-  }
-
-  // API Explorer - call a custom RPC endpoint
-  rpc CallRpcEndpoint (CallApiEndpointRequest) returns (CallApiEndpointResponse) {
-    option (google.api.http) = {
-      post: "/v2/console/api/endpoints/rpc/{method}",
-      body: "*"
-    };
-  }
-
-  // Deletes all data
-  rpc DeleteAllData (google.protobuf.Empty) returns (google.protobuf.Empty) {
-    option (google.api.http).delete = "/v2/console/all";
-  }
-
-  // Delete all information stored for a user account.
-  rpc DeleteAccount (AccountDeleteRequest) returns (google.protobuf.Empty) {
-    option (google.api.http).delete = "/v2/console/account/{id}";
-  }
-
-  // Delete messages.
-  rpc DeleteChannelMessages (DeleteChannelMessagesRequest) returns (DeleteChannelMessagesResponse) {
-    option (google.api.http).delete = "/v2/console/message";
-  }
-
-  // Delete the friend relationship between two users.
-  rpc DeleteFriend (DeleteFriendRequest) returns (google.protobuf.Empty) {
-    option (google.api.http).delete = "/v2/console/account/{id}/friend/{friend_id}";
-  }
-
-  // Remove a group.
-  rpc DeleteGroup (DeleteGroupRequest) returns (google.protobuf.Empty) {
-    option (google.api.http).delete = "/v2/console/group/{id}";
-  }
-
-  // Remove a user from a group.
-  rpc DeleteGroupUser (DeleteGroupUserRequest) returns (google.protobuf.Empty) {
-    option (google.api.http).delete = "/v2/console/account/{id}/group/{group_id}";
-  }
-
-  // Delete all storage data.
-  rpc DeleteStorage (google.protobuf.Empty) returns (google.protobuf.Empty) {
-    option (google.api.http).delete = "/v2/console/storage";
-  }
-
-  // Delete a storage object.
-  rpc DeleteStorageObject (DeleteStorageObjectRequest) returns (google.protobuf.Empty) {
-    option (google.api.http) = {
-      delete: "/v2/console/storage/{collection}/{key}/{user_id}",
-      additional_bindings {
-        delete: "/v2/console/storage/{collection}/{key}/{user_id}/{version}"
-      }
-    };
-  }
-
-  // Delete (non-recorded) all user accounts.
-  rpc DeleteAccounts (google.protobuf.Empty) returns (google.protobuf.Empty) {
-    option (google.api.http).delete = "/v2/console/account";
-  }
-
-  // Delete leaderboard
-  rpc DeleteLeaderboard (LeaderboardRequest) returns (google.protobuf.Empty) {
-    option (google.api.http).delete = "/v2/console/leaderboard/{id}";
-  }
-
-  // Delete leaderboard record
-  rpc DeleteLeaderboardRecord (DeleteLeaderboardRecordRequest) returns (google.protobuf.Empty) {
-    option (google.api.http).delete = "/v2/console/leaderboard/{id}/owner/{owner_id}";
-  }
-
-  // Delete console user.
-  rpc DeleteUser (Username) returns (google.protobuf.Empty) {
-    option (google.api.http).delete = "/v2/console/user";
-  }
-
-  // Delete a wallet ledger item.
-  rpc DeleteWalletLedger (DeleteWalletLedgerRequest) returns (google.protobuf.Empty) {
-    option (google.api.http).delete = "/v2/console/account/{id}/wallet/{wallet_id}";
-  }
-
-  // Demote a user from a group.
-  rpc DemoteGroupMember (UpdateGroupUserStateRequest) returns (google.protobuf.Empty) {
-    option (google.api.http).post = "/v2/console/group/{group_id}/account/{id}/demote";
-  }
-
-  // Export all information stored about a user account.
-  rpc ExportAccount (AccountId) returns (AccountExport) {
-    option (google.api.http).get = "/v2/console/account/{id}/export";
-  }
-
-  // Export all information stored about a group.
-  rpc ExportGroup (GroupId) returns (GroupExport) {
-    option (google.api.http).get = "/v2/console/group/{id}/export";
-  }
-
-  // Get detailed account information for a single user.
-  rpc GetAccount (AccountId) returns (Account) {
-    option (google.api.http).get = "/v2/console/account/{id}";
-  }
-
-  // Get server config and configuration warnings.
-  rpc GetConfig (google.protobuf.Empty) returns (Config) {
-    option (google.api.http).get = "/v2/console/config";
-  }
-
-  // Get a user's list of friend relationships.
-  rpc GetFriends (AccountId) returns (nakama.api.FriendList) {
-    option (google.api.http).get = "/v2/console/account/{id}/friend";
-  }
-
-  // Get detailed group information.
-  rpc GetGroup (GroupId) returns (nakama.api.Group) {
-    option (google.api.http).get = "/v2/console/group/{id}";
-  }
-
-  // Get a list of members of the group.
-  rpc GetMembers (GroupId) returns (nakama.api.GroupUserList) {
-    option (google.api.http).get = "/v2/console/group/{id}/member";
-  }
-
-  // Get a list of groups the user is a member of.
-  rpc GetGroups (AccountId) returns (nakama.api.UserGroupList) {
-    option (google.api.http).get = "/v2/console/account/{id}/group";
-  }
-
-  // Get leaderboard.
-  rpc GetLeaderboard (LeaderboardRequest) returns (Leaderboard) {
-    option (google.api.http).get = "/v2/console/leaderboard/{id}";
-  }
-
-  // Get current state of a running match
-  rpc GetMatchState (MatchStateRequest) returns (MatchState) {
-    option (google.api.http).get = "/v2/console/match/{id}/state";
-  }
-
-  // Get runtime info
-  rpc GetRuntime (google.protobuf.Empty) returns (RuntimeInfo) {
-    option (google.api.http).get = "/v2/console/runtime";
-  }
-
-  // Get current status data for all nodes.
-  rpc GetStatus (google.protobuf.Empty) returns (StatusList) {
-    option (google.api.http).get = "/v2/console/status";
-  }
-
-  // Get a storage object.
-  rpc GetStorage (nakama.api.ReadStorageObjectId) returns (nakama.api.StorageObject) {
-    option (google.api.http).get = "/v2/console/storage/{collection}/{key}/{user_id}";
-  }
-
-  // Get a list of the user's wallet transactions.
-  rpc GetWalletLedger (GetWalletLedgerRequest) returns (WalletLedgerList) {
-    option (google.api.http).get = "/v2/console/account/{account_id}/wallet";
-  }
-
-  // API Explorer - list all endpoints
-  rpc ListApiEndpoints (google.protobuf.Empty) returns (ApiEndpointList) {
-    option (google.api.http).get = "/v2/console/api/endpoints";
-  }
-
-  // List leaderboard records.
-  rpc ListLeaderboardRecords (api.ListLeaderboardRecordsRequest) returns (api.LeaderboardRecordList) {
-    option (google.api.http).get = "/v2/console/leaderboard/{leaderboard_id}/records";
-  }
-
-  // List leaderboards
-  rpc ListLeaderboards (LeaderboardListRequest) returns (LeaderboardList) {
-    option (google.api.http).get = "/v2/console/leaderboard";
-  }
-
-  // List (and optionally filter) storage data.
-  rpc ListStorage (ListStorageRequest) returns (StorageList) {
-    option (google.api.http).get = "/v2/console/storage";
-  }
-
-  //List storage collections
-  rpc ListStorageCollections (google.protobuf.Empty) returns (StorageCollectionsList) {
-    option (google.api.http).get = "/v2/console/storage/collections";
-  }
-
-  // List (and optionally filter) accounts.
-  rpc ListAccounts (ListAccountsRequest) returns (AccountList) {
-    option (google.api.http).get = "/v2/console/account";
-  }
-
-  // List channel messages with the selected filter
-  rpc ListChannelMessages (ListChannelMessagesRequest) returns (api.ChannelMessageList) {
-    option (google.api.http).get = "/v2/console/channel";
-  }
-
-  // List (and optionally filter) groups.
-  rpc ListGroups (ListGroupsRequest) returns (GroupList) {
-    option (google.api.http).get = "/v2/console/group";
-  }
-
-  // List ongoing matches
-  rpc ListMatches (ListMatchesRequest) returns (MatchList) {
-    option (google.api.http).get = "/v2/console/match";
-  }
-
-  // List validated purchases
-  rpc ListPurchases (ListPurchasesRequest) returns (api.PurchaseList) {
-    option (google.api.http).get = "/v2/console/purchase";
-  }
-
-  // List validated subscriptions
-  rpc ListSubscriptions (ListSubscriptionsRequest) returns (api.SubscriptionList) {
-    option (google.api.http).get = "/v2/console/subscription";
-  }
-
-  // List (and optionally filter) users.
-  rpc ListUsers (google.protobuf.Empty) returns (UserList) {
-    option (google.api.http).get = "/v2/console/user";
-  }
-
-  // Promote a user from a group.
-  rpc PromoteGroupMember (UpdateGroupUserStateRequest) returns (google.protobuf.Empty) {
-    option (google.api.http).post = "/v2/console/group/{group_id}/account/{id}/promote";
-  }
-
-  // Unban a user.
-  rpc UnbanAccount (AccountId) returns (google.protobuf.Empty) {
-    option (google.api.http).post = "/v2/console/account/{id}/unban";
-  }
-
-  // Unlink the custom ID from a user account.
-  rpc UnlinkCustom (AccountId) returns (google.protobuf.Empty) {
-    option (google.api.http).post = "/v2/console/account/{id}/unlink/custom";
-  }
-
-  // Unlink the device ID from a user account.
-  rpc UnlinkDevice (UnlinkDeviceRequest) returns (google.protobuf.Empty) {
-    option (google.api.http) = {
-      post: "/v2/console/account/{id}/unlink/device",
-      body: "*"
-    };
-  }
-
-  // Unlink the email from a user account.
-  rpc UnlinkEmail (AccountId) returns (google.protobuf.Empty) {
-    option (google.api.http).post = "/v2/console/account/{id}/unlink/email";
-  }
-
-  // Unlink the Apple ID from a user account.
-  rpc UnlinkApple (AccountId) returns (google.protobuf.Empty) {
-    option (google.api.http).post = "/v2/console/account/{id}/unlink/apple";
-  }
-
-  // Unlink the Facebook ID from a user account.
-  rpc UnlinkFacebook (AccountId) returns (google.protobuf.Empty) {
-    option (google.api.http).post = "/v2/console/account/{id}/unlink/facebook";
-  }
-
-  // Unlink the Facebook Instant Game ID from a user account.
-  rpc UnlinkFacebookInstantGame (AccountId) returns (google.protobuf.Empty) {
-    option (google.api.http).post = "/v2/console/account/{id}/unlink/facebookinstantgame";
-  }
-
-  // Unlink the Game Center ID from a user account.
-  rpc UnlinkGameCenter (AccountId) returns (google.protobuf.Empty) {
-    option (google.api.http).post = "/v2/console/account/{id}/unlink/gamecenter";
-  }
-
-  // Unlink the Google ID from a user account.
-  rpc UnlinkGoogle (AccountId) returns (google.protobuf.Empty) {
-    option (google.api.http).post = "/v2/console/account/{id}/unlink/google";
-  }
-
-  // Unlink the Steam ID from a user account.
-  rpc UnlinkSteam (AccountId) returns (google.protobuf.Empty) {
-    option (google.api.http).post = "/v2/console/account/{id}/unlink/steam";
-  }
-
-  // Update one or more fields on a user account.
-  rpc UpdateAccount (UpdateAccountRequest) returns (google.protobuf.Empty) {
-    option (google.api.http) = {
-      post: "/v2/console/account/{id}",
-      body: "*"
-    };
-  }
-
-  // Update one or more fields on a group.
-  rpc UpdateGroup (UpdateGroupRequest) returns (google.protobuf.Empty) {
-    option (google.api.http) = {
-      post: "/v2/console/group/{id}",
-      body: "*"
-    };
-  }
-
-  // Write a new storage object or replace an existing one.
-  rpc WriteStorageObject (WriteStorageObjectRequest) returns (nakama.api.StorageObjectAck) {
-    option (google.api.http) = {
-      put: "/v2/console/storage/{collection}/{key}/{user_id}",
-      body: "*"
-    };
-  }
-}
-
-// API Explorer List of Endpoints response message
-message ApiEndpointDescriptor {
-  string method = 1;
-  string body_template = 2;
-}
-
-// Account information.
-message Account {
-  // The user's account details.
-  nakama.api.Account account = 1;
-  // The UNIX time when the account was disabled.
-  google.protobuf.Timestamp disable_time = 2;
-}
-
-// Delete a user account.
-message AccountDeleteRequest {
-  // The unique identifier of the user account.
-  string id = 1;
-  // Record the user deletion - used for GDPR compliance.
-  google.protobuf.BoolValue record_deletion = 2;
-}
-
-// An export of all information stored for a user account.
-message AccountExport {
-  // The user's account details.
-  nakama.api.Account account = 1;
-  // The user's storage.
-  repeated nakama.api.StorageObject objects = 2;
-  // The user's friends.
-  repeated nakama.api.Friend friends = 3;
-  // The user's groups.
-  repeated nakama.api.Group groups = 4;
-  // The user's chat messages.
-  repeated nakama.api.ChannelMessage messages = 5;
-  // The user's leaderboard records.
-  repeated nakama.api.LeaderboardRecord leaderboard_records = 6;
-  // The user's notifications.
-  repeated nakama.api.Notification notifications = 7;
-  // The user's wallet ledger items.
-  repeated WalletLedger wallet_ledgers = 8;
-}
-
-// The identifier for a user account.
-message AccountId {
-  // The unique identifier of the user account.
-  string id = 1;
-}
-
-// A list of users.
-message AccountList {
-  // A list of users.
-  repeated nakama.api.User users = 1;
-  // Approximate total number of users.
-  int32 total_count = 2;
-  // Next cursor.
-  string next_cursor = 3;
-}
-
-// The identifier for a group.
-message GroupId {
-  // The unique identifier of the group.
-  string id = 1;
-}
-
-// A list of groups
-message GroupList {
-  // A list of groups.
-  repeated nakama.api.Group groups = 1;
-  // Approximate total number of groups.
-  int32 total_count = 2;
-  // Next cursor.
-  string next_cursor = 3;
-}
-
-// An export of all information stored for a group.
-message GroupExport {
-  // The group details.
-  nakama.api.Group group = 1;
-  // The group's list of members.
-  repeated nakama.api.GroupUserList.GroupUser members = 2;
-}
-
-// A list of realtime matches, with their node names.
-message MatchList {
-  message Match {
-    // The API match
-    api.Match api_match = 1;
-    // The node name
-    string node = 2;
-  }
-  repeated Match matches = 1;
-}
-
-
-// Add a new console user
-message AddUserRequest {
-  // The username of the user.
-  string username = 1;
-  // The password of the user.
-  string password = 2;
-  // Email address of the user.
-  string email = 3;
-  // Role of this user;
-  UserRole role = 4;
-  // Subscribe to newsletters
-  bool newsletter_subscription = 5;
-}
-
-// Add/join users to a group.
-message AddGroupUsersRequest {
-  // Users to add/join.
-  string ids = 1;
-  // ID of the group to add them to.
-  string group_id = 2;
-  // Whether it is a join request.
-  bool join_request = 3;
-}
-
-// API Explorer List of Endpoints
-message ApiEndpointList {
-  repeated ApiEndpointDescriptor endpoints = 1;
-  repeated ApiEndpointDescriptor rpc_endpoints = 2;
-}
-
-// Authenticate a console user with username and password.
-message AuthenticateRequest {
-  // The username of the user.
-  string username = 1;
-  // The password of the user.
-  string password = 2;
-}
-
-// Log out a session and invalidate a session token.
-message AuthenticateLogoutRequest {
-  // Session token to log out.
-  string token = 1;
-}
-
-// API Explorer request definition for CallApiEndpoint
-message CallApiEndpointRequest {
-  string method = 1;
-  string body = 2;
-  string user_id = 3;
-  map<string, string> session_vars = 4;
-}
-
-// API Explorer response definition for CallApiEndpoint
-message CallApiEndpointResponse {
-  string body = 1;
-  string error_message = 2;
-}
-
-// The current server configuration and any associated warnings.
-message Config {
-  // A warning for a configuration field.
-  message Warning {
-    // The config field this warning is for in a JSON pointer format.
-    string field = 1;
-    // Warning message text.
-    string message = 2;
-  }
-
-  // JSON-encoded active server configuration.
-  string config = 1;
-  // Any warnings about the current config.
-  repeated Warning warnings = 2;
-  // Server version
-  string server_version = 3;
-}
-
-// A console user session.
-message ConsoleSession {
-  // A session token (JWT) for the console user.
-  string token = 1;
-}
-
-// Delete channel messages by timestamp or/and ids.
-message DeleteChannelMessagesRequest {
-  // Timestamp before which messages will be deleted.
-  google.protobuf.Timestamp before = 1;
-  // IDs of the messages to delete.
-  repeated string ids = 2;
-}
-
-// Delete friend relationship between two users.
-message DeleteFriendRequest {
-  // The user do delete for.
-  string id = 1;
-  // User ID of the friend to remove.
-  string friend_id = 2;
-}
-
-// Delete a group.
-message DeleteGroupRequest {
-  // ID of the group to delete.
-  string id = 1;
-}
-
-// Remove a user from a group.
-message DeleteGroupUserRequest {
-  // User to remove.
-  string id = 1;
-  // ID of the group to remove them from.
-  string group_id = 2;
-}
-
-// Promote/demote a user in a group.
-message UpdateGroupUserStateRequest {
-  // User to change state.
-  string id = 1;
-  // ID of the group.
-  string group_id = 2;
-}
-
-// Remove a leaderboard record
-message DeleteLeaderboardRecordRequest {
-  // Leaderboard ID.
-  string id = 1;
-  // Record owner.
-  string owner_id = 2;
-}
-
-// Delete an individual storage object.
-message DeleteStorageObjectRequest {
-  // Collection.
-  string collection = 1;
-  // Key.
-  string key = 2;
-  // Owner user ID.
-  string user_id = 3;
-  // Version for OCC.
-  string version = 4;
-}
-
-// Delete a single wallet ledger item.
-message DeleteWalletLedgerRequest {
-  // User ID to remove wallet ledger item from.
-  string id = 1;
-  // ID of the wallet ledger item to remove.
-  string wallet_id = 2;
-}
-
-// A leaderboard.
-message Leaderboard {
-  // The ID of the leaderboard.
-  string id = 1;
-  // The title for the leaderboard.
-  string title = 2;
-  // The description of the leaderboard. May be blank.
-  string description = 3;
-  // The category of the leaderboard. e.g. "vip" could be category 1.
-  uint32 category = 4;
-  // ASC or DESC sort mode of scores in the leaderboard.
-  uint32 sort_order = 5;
-  // The current number of players in the leaderboard.
-  uint32 size = 6;
-  // The maximum number of players for the leaderboard.
-  uint32 max_size = 7;
-  // The maximum score updates allowed per player for the current leaderboard.
-  uint32 max_num_score = 8;
-  // The operator of the leaderboard
-  uint32 operator = 9;
-  // The UNIX time when the leaderboard stops being active until next reset. A computed value.
-  uint32 end_active = 10;
-  // Reset cron expression.
-  string reset_schedule = 11;
-  // Additional information stored as a JSON object.
-  string metadata = 12;
-  // The UNIX time when the leaderboard was created.
-  google.protobuf.Timestamp create_time = 13;
-  // The UNIX time when the leaderboard will start.
-  google.protobuf.Timestamp start_time = 14;
-  // The UNIX time when the leaderboard will be stopped.
-  google.protobuf.Timestamp end_time = 15;
-  // Duration of the tournament in seconds.
-  uint32 duration = 16;
-  // The UNIX time when the leaderboard start being active. A computed value.
-  uint32 start_active = 17;
-  // Join required.
-  bool join_required = 18;
-  // Authoritative.
-  bool authoritative = 19;
-  // Tournament.
-  bool tournament = 20;
-  // The UNIX time when the tournament was last reset. A computed value.
-  uint32 prev_reset = 21;
-  // The UNIX time when the tournament is next playable. A computed value.
-  uint32 next_reset = 22;
-}
-
-// List leaderboards.
-message LeaderboardListRequest {
-  // An optional cursor to paginate from.
-  string cursor = 1;
-}
-
-// A list of leaderboards.
-message LeaderboardList {
-  // The list of leaderboards returned.
-  repeated Leaderboard leaderboards = 1;
-  // Total count of leaderboards and tournaments.
-  int32 total = 2;
-  // A cursor, if any.
-  string cursor = 3;
-}
-
-// Get Leaderboard.
-message LeaderboardRequest {
-  // Leaderboard ID
-  string id = 1;
-}
-
-// List (and optionally filter) users.
-message ListAccountsRequest {
-  // User ID or username filter.
-  string filter = 1;
-  // Search only recorded deletes.
-  bool tombstones = 2;
-  // Cursor to start from
-  string cursor = 3;
-}
-
-// List selected channel messages.
-message ListChannelMessagesRequest {
-  enum Type {
-    UNKNOWN = 0;
-    ROOM = 2;
-    GROUP = 3;
-    DIRECT = 4;
-  }
-  // Type of the chat channel
-  Type type = 1;
-  // Label of the channel, if a standard chat room
-  string label = 2;
-  // Group ID of the channel, if a group chat
-  string group_id = 3;
-  // User IDs, if a direct chat
-  string user_id_one = 4;
-  string user_id_two = 5;
-  // Cursor to start from
-  string cursor = 6;
-}
-
-// List (and optionally filter) groups.
-message ListGroupsRequest {
-  // User ID or username filter.
-  string filter = 1;
-  // Cursor to start from
-  string cursor = 2;
-}
-
-// List realtime matches.
-message ListMatchesRequest {
-  // Limit the number of returned matches.
-  google.protobuf.Int32Value limit = 1;
-  // Authoritative or relayed matches, or null for both.
-  google.protobuf.BoolValue authoritative = 2;
-  // Label filter.
-  google.protobuf.StringValue label = 3;
-  // Minimum user count.
-  google.protobuf.Int32Value min_size = 4;
-  // Maximum user count.
-  google.protobuf.Int32Value max_size = 5;
-  // Match ID.
-  string match_id = 6;
-  // Arbitrary label query.
-  google.protobuf.StringValue query = 7;
-  // Node name filter, optional.
-  google.protobuf.StringValue node = 8;
-}
-
-// List validated purchases.
-message ListPurchasesRequest {
-  // User ID to filter purchases for
-  string user_id = 1;
-  // Max number of results per page
-  uint32 limit = 2;
-  // Cursor to retrieve a page of records from
-  string cursor = 3;
-}
-
-// List subscriptions.
-message ListSubscriptionsRequest {
-  // UserID to filter subscriptions for
-  string user_id = 1;
-  // Max number of results per page
-  uint32 limit = 2;
-  // Cursor to retrieve a page of records from
-  string cursor = 3;
-}
-
-// List (and optionally filter) storage objects.
-message ListStorageRequest {
-  // User ID to filter objects for.
-  string user_id = 1;
-  // Key to filter objects for
-  string key = 2;
-  // Collection name to filter objects for
-  string collection = 3;
-  // Cursor to retrieve a page of records from
-  string cursor = 4;
-}
-
-// Match state
-message MatchState {
-  // Presence list.
-  repeated nakama.realtime.UserPresence presences = 1;
-  // Current tick number.
-  int64 tick = 2;
-  // State.
-  string state = 3;
-}
-
-// Get current state of a running match
-message MatchStateRequest {
-  // Match ID
-  string id = 1;
-}
-
-message DeleteChannelMessagesResponse {
-  // Total number of messages deleted.
-  int64 total = 1;
-}
-
-// List of storage objects.
-message StorageList {
-  // List of storage objects matching list/filter operation.
-  repeated StorageListObject objects = 1;
-  // Approximate total number of storage objects.
-  int32 total_count = 2;
-  // Next page cursor if any
-  string next_cursor = 3;
-}
-
-message StorageCollectionsList {
-  // Available collection names in the whole of the storage
-  repeated string collections = 3;
-}
-
-// Unlink a particular device ID from a user's account.
-message UnlinkDeviceRequest {
-  // User ID to unlink from.
-  string id = 1;
-  // Device ID to unlink.
-  string device_id = 2;
-}
-
-// Update user account information.
-message UpdateAccountRequest {
-  // User ID to update.
-  string id = 1;
-  // Username.
-  google.protobuf.StringValue username = 2;
-  // Display name.
-  google.protobuf.StringValue display_name = 3;
-  // Metadata.
-  google.protobuf.StringValue metadata = 4;
-  // Avatar URL.
-  google.protobuf.StringValue avatar_url = 5;
-  // Langtag.
-  google.protobuf.StringValue lang_tag = 6;
-  // Location.
-  google.protobuf.StringValue location = 7;
-  // Timezone.
-  google.protobuf.StringValue timezone = 8;
-  // Custom ID.
-  google.protobuf.StringValue custom_id = 9;
-  // Email.
-  google.protobuf.StringValue email = 10;
-  // Password.
-  google.protobuf.StringValue password = 11;
-  // Device ID modifications.
-  map<string, string> device_ids = 12;
-  // Wallet.
-  google.protobuf.StringValue wallet = 13;
-}
-
-// Update group information.
-message UpdateGroupRequest {
-  // Group ID to update.
-  string id = 1;
-  // Name.
-  google.protobuf.StringValue name = 2;
-  // Description.
-  google.protobuf.StringValue description = 3;
-  // Langtag.
-  google.protobuf.StringValue lang_tag = 4;
-  // Metadata.
-  google.protobuf.StringValue metadata = 5;
-  // Avatar URL.
-  google.protobuf.StringValue avatar_url = 6;
-  // Anyone can join open groups, otherwise only admins can accept members.
-  google.protobuf.BoolValue open = 7;
-  // The maximum number of members allowed.
-  google.protobuf.Int32Value max_count = 8;
-}
-
-// The identifier for a user account.
-message Username {
-  // The unique username of the user account.
-  string username = 1;
-}
-
-// A list of console users.
-message UserList {
-  // A console user
-  message User {
-    // Username of the user
-    string username = 1;
-    // Email of the user
-    string email = 2;
-    // Role of the user;
-    UserRole role = 3;
-  }
-
-  // A list of users.
-  repeated User users = 1;
-}
-
-enum UserRole {
-  USER_ROLE_UNKNOWN = 0;
-  USER_ROLE_ADMIN = 1; // All access
-  USER_ROLE_DEVELOPER = 2; // Best for developers, also enables APIs and API explorer
-  USER_ROLE_MAINTAINER = 3; // Best for users who regularly update player information.
-  USER_ROLE_READONLY = 4; // Read-only role for those only need to view data
-}
-
-enum StatusHealth {
-  STATUS_HEALTH_OK = 0;
-  STATUS_HEALTH_ERROR = 1;
-  STATUS_HEALTH_CONNECTING = 2;
-  STATUS_HEALTH_DISCONNECTING = 3;
-}
-
-// List of nodes and their stats.
-message StatusList {
-  // The status of a Nakama node.
-  message Status {
-    // Node name.
-    string name = 1;
-    // Health score.
-    StatusHealth health = 2;
-    // Currently connected sessions.
-    int32 session_count = 3;
-    // Currently registered live presences.
-    int32 presence_count = 4;
-    // Current number of active authoritative matches.
-    int32 match_count = 5;
-    // Current number of running goroutines.
-    int32 goroutine_count = 6;
-    // Average response latency in milliseconds.
-    double avg_latency_ms = 7;
-    // Average number of requests per second.
-    double avg_rate_sec = 8;
-    // Average input bandwidth usage.
-    double avg_input_kbs = 9;
-    // Average output bandwidth usage.
-    double avg_output_kbs = 10;
-  }
+ syntax = "proto3";
+
+ package nakama.console;
+ 
+ import "api/api.proto";
+ import "github.com/doublemo/nakama-common/rtapi/realtime.proto";
+ import "google/api/annotations.proto";
+ import "google/protobuf/empty.proto";
+ import "google/protobuf/timestamp.proto";
+ import "google/protobuf/wrappers.proto";
+ import "protoc-gen-openapiv2/options/annotations.proto";
+ 
+ option go_package = "github.com/doublemo/nakama-plus/v3/console";
+ 
+ option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_swagger) = {
+   info: {
+     title: "Nakama console API v2";
+     version: "2.0";
+     contact: {
+       name: "The Nakama Authors & Contributors";
+       url: "https://github.com/heroiclabs/nakama";
+       email: "hello@heroiclabs.com";
+     };
+   };
+   host: "127.0.0.1:7351";
+   external_docs: {
+     url: "https://heroiclabs.com/docs";
+     description: "Nakama server console documentation";
+   }
+   schemes: HTTP;
+   consumes: "application/json";
+   produces: "application/json";
+   security_definitions: {
+     security: {
+       key: "BasicAuth";
+       value: {
+         type: TYPE_BASIC;
+       }
+     }
+     security: {
+       key: "BearerJwt"
+       value: {
+         type: TYPE_API_KEY
+         in: IN_HEADER
+         name: "Authorization"
+       }
+     }
+   }
+   // Default security definition.
+   security: {
+     security_requirement: {
+       key: "BearerJwt";
+       value: {};
+     }
+   },
+ };
+ 
+ /**
+  * The developer console RPC protocol service built with GRPC.
+  */
+ service Console {
+   // Authenticate a console user with username and password.
+   rpc Authenticate (AuthenticateRequest) returns (ConsoleSession) {
+     option (google.api.http) = {
+       post: "/v2/console/authenticate",
+       body: "*"
+     };
+     option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+       security: {
+         security_requirement: {};
+       };
+     };
+   }
+ 
+   // Log out a session and invalidate the session token.
+   rpc AuthenticateLogout (AuthenticateLogoutRequest) returns (google.protobuf.Empty) {
+     option (google.api.http) = {
+       post: "/v2/console/authenticate/logout",
+       body: "*"
+     };
+   }
+ 
+   // Add a new console user.
+   rpc AddUser (AddUserRequest) returns (google.protobuf.Empty) {
+     option (google.api.http) = {
+       post: "/v2/console/user",
+       body: "*"
+     };
+   }
+ 
+   // Add/join members to a group.
+   rpc AddGroupUsers (AddGroupUsersRequest) returns (google.protobuf.Empty) {
+     option (google.api.http) = {
+       post: "/v2/console/group/{group_id}/add",
+       body: "*"
+     };
+   }
+ 
+   // Ban a user.
+   rpc BanAccount (AccountId) returns (google.protobuf.Empty) {
+     option (google.api.http).post = "/v2/console/account/{id}/ban";
+   }
+ 
+   // API Explorer - call an endpoint
+   rpc CallApiEndpoint (CallApiEndpointRequest) returns (CallApiEndpointResponse) {
+     option (google.api.http) = {
+       post: "/v2/console/api/endpoints/{method}",
+       body: "*"
+     };
+   }
+ 
+   // API Explorer - call a custom RPC endpoint
+   rpc CallRpcEndpoint (CallApiEndpointRequest) returns (CallApiEndpointResponse) {
+     option (google.api.http) = {
+       post: "/v2/console/api/endpoints/rpc/{method}",
+       body: "*"
+     };
+   }
+ 
+   // Deletes all data
+   rpc DeleteAllData (google.protobuf.Empty) returns (google.protobuf.Empty) {
+     option (google.api.http).delete = "/v2/console/all";
+   }
+ 
+   // Delete all information stored for a user account.
+   rpc DeleteAccount (AccountDeleteRequest) returns (google.protobuf.Empty) {
+     option (google.api.http).delete = "/v2/console/account/{id}";
+   }
+ 
+   // Delete messages.
+   rpc DeleteChannelMessages (DeleteChannelMessagesRequest) returns (DeleteChannelMessagesResponse) {
+     option (google.api.http).delete = "/v2/console/message";
+   }
+ 
+   // Delete the friend relationship between two users.
+   rpc DeleteFriend (DeleteFriendRequest) returns (google.protobuf.Empty) {
+     option (google.api.http).delete = "/v2/console/account/{id}/friend/{friend_id}";
+   }
+ 
+   // Remove a group.
+   rpc DeleteGroup (DeleteGroupRequest) returns (google.protobuf.Empty) {
+     option (google.api.http).delete = "/v2/console/group/{id}";
+   }
+ 
+   // Remove a user from a group.
+   rpc DeleteGroupUser (DeleteGroupUserRequest) returns (google.protobuf.Empty) {
+     option (google.api.http).delete = "/v2/console/account/{id}/group/{group_id}";
+   }
+ 
+   // Delete all storage data.
+   rpc DeleteStorage (google.protobuf.Empty) returns (google.protobuf.Empty) {
+     option (google.api.http).delete = "/v2/console/storage";
+   }
+ 
+   // Delete a storage object.
+   rpc DeleteStorageObject (DeleteStorageObjectRequest) returns (google.protobuf.Empty) {
+     option (google.api.http) = {
+       delete: "/v2/console/storage/{collection}/{key}/{user_id}",
+       additional_bindings {
+         delete: "/v2/console/storage/{collection}/{key}/{user_id}/{version}"
+       }
+     };
+   }
+ 
+   // Delete (non-recorded) all user accounts.
+   rpc DeleteAccounts (google.protobuf.Empty) returns (google.protobuf.Empty) {
+     option (google.api.http).delete = "/v2/console/account";
+   }
+ 
+   // Delete leaderboard
+   rpc DeleteLeaderboard (LeaderboardRequest) returns (google.protobuf.Empty) {
+     option (google.api.http).delete = "/v2/console/leaderboard/{id}";
+   }
+ 
+   // Delete leaderboard record
+   rpc DeleteLeaderboardRecord (DeleteLeaderboardRecordRequest) returns (google.protobuf.Empty) {
+     option (google.api.http).delete = "/v2/console/leaderboard/{id}/owner/{owner_id}";
+   }
+ 
+   // Delete console user.
+   rpc DeleteUser (Username) returns (google.protobuf.Empty) {
+     option (google.api.http).delete = "/v2/console/user";
+   }
+ 
+   // Delete a wallet ledger item.
+   rpc DeleteWalletLedger (DeleteWalletLedgerRequest) returns (google.protobuf.Empty) {
+     option (google.api.http).delete = "/v2/console/account/{id}/wallet/{wallet_id}";
+   }
+ 
+   // Demote a user from a group.
+   rpc DemoteGroupMember (UpdateGroupUserStateRequest) returns (google.protobuf.Empty) {
+     option (google.api.http).post = "/v2/console/group/{group_id}/account/{id}/demote";
+   }
+ 
+   // Export all information stored about a user account.
+   rpc ExportAccount (AccountId) returns (AccountExport) {
+     option (google.api.http).get = "/v2/console/account/{id}/export";
+   }
+ 
+   // Export all information stored about a group.
+   rpc ExportGroup (GroupId) returns (GroupExport) {
+     option (google.api.http).get = "/v2/console/group/{id}/export";
+   }
+ 
+   // Get detailed account information for a single user.
+   rpc GetAccount (AccountId) returns (Account) {
+     option (google.api.http).get = "/v2/console/account/{id}";
+   }
+ 
+   // Get server config and configuration warnings.
+   rpc GetConfig (google.protobuf.Empty) returns (Config) {
+     option (google.api.http).get = "/v2/console/config";
+   }
+ 
+   // Get a user's list of friend relationships.
+   rpc GetFriends (AccountId) returns (api.FriendList) {
+     option (google.api.http).get = "/v2/console/account/{id}/friend";
+   }
+ 
+   // Get detailed group information.
+   rpc GetGroup (GroupId) returns (api.Group) {
+     option (google.api.http).get = "/v2/console/group/{id}";
+   }
+ 
+   // Get a list of members of the group.
+   rpc GetMembers (GroupId) returns (api.GroupUserList) {
+     option (google.api.http).get = "/v2/console/group/{id}/member";
+   }
+ 
+   // Get a list of groups the user is a member of.
+   rpc GetGroups (AccountId) returns (api.UserGroupList) {
+     option (google.api.http).get = "/v2/console/account/{id}/group";
+   }
+ 
+   // Get leaderboard.
+   rpc GetLeaderboard (LeaderboardRequest) returns (Leaderboard) {
+     option (google.api.http).get = "/v2/console/leaderboard/{id}";
+   }
+ 
+   // Get current state of a running match
+   rpc GetMatchState (MatchStateRequest) returns (MatchState) {
+     option (google.api.http).get = "/v2/console/match/{id}/state";
+   }
+ 
+   // Get runtime info
+   rpc GetRuntime (google.protobuf.Empty) returns (RuntimeInfo) {
+     option (google.api.http).get = "/v2/console/runtime";
+   }
+ 
+   // Get current status data for all nodes.
+   rpc GetStatus (google.protobuf.Empty) returns (StatusList) {
+     option (google.api.http).get = "/v2/console/status";
+   }
+ 
+   // Get a storage object.
+   rpc GetStorage (api.ReadStorageObjectId) returns (api.StorageObject) {
+     option (google.api.http).get = "/v2/console/storage/{collection}/{key}/{user_id}";
+   }
+ 
+   // Get a list of the user's wallet transactions.
+   rpc GetWalletLedger (GetWalletLedgerRequest) returns (WalletLedgerList) {
+     option (google.api.http).get = "/v2/console/account/{account_id}/wallet";
+   }
+ 
+   // Get purchase by transaction_id
+   rpc GetPurchase (GetPurchaseRequest) returns (api.ValidatedPurchase) {
+     option (google.api.http).get = "/v2/console/iap/purchase/{transaction_id}";
+   }
+ 
+   // Get subscription by original_transaction_id
+   rpc GetSubscription (GetSubscriptionRequest) returns (api.ValidatedSubscription) {
+     option (google.api.http).get = "/v2/console/iap/subscription/{original_transaction_id}";
+   }
+ 
+   // API Explorer - list all endpoints
+   rpc ListApiEndpoints (google.protobuf.Empty) returns (ApiEndpointList) {
+     option (google.api.http).get = "/v2/console/api/endpoints";
+   }
+ 
+   // List leaderboard records.
+   rpc ListLeaderboardRecords (api.ListLeaderboardRecordsRequest) returns (api.LeaderboardRecordList) {
+     option (google.api.http).get = "/v2/console/leaderboard/{leaderboard_id}/records";
+   }
+ 
+   // List leaderboards
+   rpc ListLeaderboards (LeaderboardListRequest) returns (LeaderboardList) {
+     option (google.api.http).get = "/v2/console/leaderboard";
+   }
+ 
+   // List (and optionally filter) storage data.
+   rpc ListStorage (ListStorageRequest) returns (StorageList) {
+     option (google.api.http).get = "/v2/console/storage";
+   }
+ 
+   //List storage collections
+   rpc ListStorageCollections (google.protobuf.Empty) returns (StorageCollectionsList) {
+     option (google.api.http).get = "/v2/console/storage/collections";
+   }
+ 
+   // List (and optionally filter) accounts.
+   rpc ListAccounts (ListAccountsRequest) returns (AccountList) {
+     option (google.api.http).get = "/v2/console/account";
+   }
+ 
+   // List channel messages with the selected filter
+   rpc ListChannelMessages (ListChannelMessagesRequest) returns (api.ChannelMessageList) {
+     option (google.api.http).get = "/v2/console/channel";
+   }
+ 
+   // List (and optionally filter) groups.
+   rpc ListGroups (ListGroupsRequest) returns (GroupList) {
+     option (google.api.http).get = "/v2/console/group";
+   }
+ 
+   // List ongoing matches
+   rpc ListMatches (ListMatchesRequest) returns (MatchList) {
+     option (google.api.http).get = "/v2/console/match";
+   }
+ 
+   // List validated purchases
+   rpc ListPurchases (ListPurchasesRequest) returns (api.PurchaseList) {
+     option (google.api.http).get = "/v2/console/purchase";
+   }
+ 
+   // List validated subscriptions
+   rpc ListSubscriptions (ListSubscriptionsRequest) returns (api.SubscriptionList) {
+     option (google.api.http).get = "/v2/console/subscription";
+   }
+ 
+   // List (and optionally filter) users.
+   rpc ListUsers (google.protobuf.Empty) returns (UserList) {
+     option (google.api.http).get = "/v2/console/user";
+   }
+ 
+   // Promote a user from a group.
+   rpc PromoteGroupMember (UpdateGroupUserStateRequest) returns (google.protobuf.Empty) {
+     option (google.api.http).post = "/v2/console/group/{group_id}/account/{id}/promote";
+   }
+ 
+   // Unban a user.
+   rpc UnbanAccount (AccountId) returns (google.protobuf.Empty) {
+     option (google.api.http).post = "/v2/console/account/{id}/unban";
+   }
+ 
+   // Unlink the custom ID from a user account.
+   rpc UnlinkCustom (AccountId) returns (google.protobuf.Empty) {
+     option (google.api.http).post = "/v2/console/account/{id}/unlink/custom";
+   }
+ 
+   // Unlink the device ID from a user account.
+   rpc UnlinkDevice (UnlinkDeviceRequest) returns (google.protobuf.Empty) {
+     option (google.api.http) = {
+       post: "/v2/console/account/{id}/unlink/device",
+       body: "*"
+     };
+   }
+ 
+   // Unlink the email from a user account.
+   rpc UnlinkEmail (AccountId) returns (google.protobuf.Empty) {
+     option (google.api.http).post = "/v2/console/account/{id}/unlink/email";
+   }
+ 
+   // Unlink the Apple ID from a user account.
+   rpc UnlinkApple (AccountId) returns (google.protobuf.Empty) {
+     option (google.api.http).post = "/v2/console/account/{id}/unlink/apple";
+   }
+ 
+   // Unlink the Facebook ID from a user account.
+   rpc UnlinkFacebook (AccountId) returns (google.protobuf.Empty) {
+     option (google.api.http).post = "/v2/console/account/{id}/unlink/facebook";
+   }
+ 
+   // Unlink the Facebook Instant Game ID from a user account.
+   rpc UnlinkFacebookInstantGame (AccountId) returns (google.protobuf.Empty) {
+     option (google.api.http).post = "/v2/console/account/{id}/unlink/facebookinstantgame";
+   }
+ 
+   // Unlink the Game Center ID from a user account.
+   rpc UnlinkGameCenter (AccountId) returns (google.protobuf.Empty) {
+     option (google.api.http).post = "/v2/console/account/{id}/unlink/gamecenter";
+   }
+ 
+   // Unlink the Google ID from a user account.
+   rpc UnlinkGoogle (AccountId) returns (google.protobuf.Empty) {
+     option (google.api.http).post = "/v2/console/account/{id}/unlink/google";
+   }
+ 
+   // Unlink the Steam ID from a user account.
+   rpc UnlinkSteam (AccountId) returns (google.protobuf.Empty) {
+     option (google.api.http).post = "/v2/console/account/{id}/unlink/steam";
+   }
+ 
+   // Update one or more fields on a user account.
+   rpc UpdateAccount (UpdateAccountRequest) returns (google.protobuf.Empty) {
+     option (google.api.http) = {
+       post: "/v2/console/account/{id}",
+       body: "*"
+     };
+   }
+ 
+   // Update one or more fields on a group.
+   rpc UpdateGroup (UpdateGroupRequest) returns (google.protobuf.Empty) {
+     option (google.api.http) = {
+       post: "/v2/console/group/{id}",
+       body: "*"
+     };
+   }
+ 
+   // Write a new storage object or replace an existing one.
+   rpc WriteStorageObject (WriteStorageObjectRequest) returns (api.StorageObjectAck) {
+     option (google.api.http) = {
+       put: "/v2/console/storage/{collection}/{key}/{user_id}",
+       body: "*"
+     };
+   }
+ }
+ 
+ // API Explorer List of Endpoints response message
+ message ApiEndpointDescriptor {
+   string method = 1;
+   string body_template = 2;
+ }
+ 
+ // Account information.
+ message Account {
+   // The user's account details.
+   api.Account account = 1;
+   // The UNIX time when the account was disabled.
+   google.protobuf.Timestamp disable_time = 2;
+ }
+ 
+ // Delete a user account.
+ message AccountDeleteRequest {
+   // The unique identifier of the user account.
+   string id = 1;
+   // Record the user deletion - used for GDPR compliance.
+   google.protobuf.BoolValue record_deletion = 2;
+ }
+ 
+ // An export of all information stored for a user account.
+ message AccountExport {
+   // The user's account details.
+   api.Account account = 1;
+   // The user's storage.
+   repeated api.StorageObject objects = 2;
+   // The user's friends.
+   repeated api.Friend friends = 3;
+   // The user's groups.
+   repeated api.Group groups = 4;
+   // The user's chat messages.
+   repeated api.ChannelMessage messages = 5;
+   // The user's leaderboard records.
+   repeated api.LeaderboardRecord leaderboard_records = 6;
+   // The user's notifications.
+   repeated api.Notification notifications = 7;
+   // The user's wallet ledger items.
+   repeated WalletLedger wallet_ledgers = 8;
+ }
+ 
+ // The identifier for a user account.
+ message AccountId {
+   // The unique identifier of the user account.
+   string id = 1;
+ }
+ 
+ // A list of users.
+ message AccountList {
+   // A list of users.
+   repeated api.User users = 1;
+   // Approximate total number of users.
+   int32 total_count = 2;
+   // Next cursor.
+   string next_cursor = 3;
+ }
+ 
+ // The identifier for a group.
+ message GroupId {
+   // The unique identifier of the group.
+   string id = 1;
+ }
+ 
+ // A list of groups
+ message GroupList {
+   // A list of groups.
+   repeated api.Group groups = 1;
+   // Approximate total number of groups.
+   int32 total_count = 2;
+   // Next cursor.
+   string next_cursor = 3;
+ }
+ 
+ // An export of all information stored for a group.
+ message GroupExport {
+   // The group details.
+   api.Group group = 1;
+   // The group's list of members.
+   repeated api.GroupUserList.GroupUser members = 2;
+ }
+ 
+ // A list of realtime matches, with their node names.
+ message MatchList {
+   message Match {
+     // The API match
+     api.Match api_match = 1;
+     // The node name
+     string node = 2;
+   }
+   repeated Match matches = 1;
+ }
+ 
+ 
+ // Add a new console user
+ message AddUserRequest {
+   // The username of the user.
+   string username = 1;
+   // The password of the user.
+   string password = 2;
+   // Email address of the user.
+   string email = 3;
+   // Role of this user;
+   UserRole role = 4;
+   // Subscribe to newsletters
+   bool newsletter_subscription = 5;
+ }
+ 
+ // Add/join users to a group.
+ message AddGroupUsersRequest {
+   // Users to add/join.
+   string ids = 1;
+   // ID of the group to add them to.
+   string group_id = 2;
+   // Whether it is a join request.
+   bool join_request = 3;
+ }
+ 
+ // API Explorer List of Endpoints
+ message ApiEndpointList {
+   repeated ApiEndpointDescriptor endpoints = 1;
+   repeated ApiEndpointDescriptor rpc_endpoints = 2;
+ }
+ 
+ // Authenticate a console user with username and password.
+ message AuthenticateRequest {
+   // The username of the user.
+   string username = 1;
+   // The password of the user.
+   string password = 2;
+ }
+ 
+ // Log out a session and invalidate a session token.
+ message AuthenticateLogoutRequest {
+   // Session token to log out.
+   string token = 1;
+ }
+ 
+ // API Explorer request definition for CallApiEndpoint
+ message CallApiEndpointRequest {
+   string method = 1;
+   string body = 2;
+   string user_id = 3;
+   map<string, string> session_vars = 4;
+ }
+ 
+ // API Explorer response definition for CallApiEndpoint
+ message CallApiEndpointResponse {
+   string body = 1;
+   string error_message = 2;
+ }
+ 
+ // The current server configuration and any associated warnings.
+ message Config {
+   // A warning for a configuration field.
+   message Warning {
+     // The config field this warning is for in a JSON pointer format.
+     string field = 1;
+     // Warning message text.
+     string message = 2;
+   }
+ 
+   // JSON-encoded active server configuration.
+   string config = 1;
+   // Any warnings about the current config.
+   repeated Warning warnings = 2;
+   // Server version
+   string server_version = 3;
+ }
+ 
+ // A console user session.
+ message ConsoleSession {
+   // A session token (JWT) for the console user.
+   string token = 1;
+ }
+ 
+ // Delete channel messages by timestamp or/and ids.
+ message DeleteChannelMessagesRequest {
+   // Timestamp before which messages will be deleted.
+   google.protobuf.Timestamp before = 1;
+   // IDs of the messages to delete.
+   repeated string ids = 2;
+ }
+ 
+ // Delete friend relationship between two users.
+ message DeleteFriendRequest {
+   // The user do delete for.
+   string id = 1;
+   // User ID of the friend to remove.
+   string friend_id = 2;
+ }
+ 
+ // Delete a group.
+ message DeleteGroupRequest {
+   // ID of the group to delete.
+   string id = 1;
+ }
+ 
+ // Remove a user from a group.
+ message DeleteGroupUserRequest {
+   // User to remove.
+   string id = 1;
+   // ID of the group to remove them from.
+   string group_id = 2;
+ }
+ 
+ // Promote/demote a user in a group.
+ message UpdateGroupUserStateRequest {
+   // User to change state.
+   string id = 1;
+   // ID of the group.
+   string group_id = 2;
+ }
+ 
+ // Remove a leaderboard record
+ message DeleteLeaderboardRecordRequest {
+   // Leaderboard ID.
+   string id = 1;
+   // Record owner.
+   string owner_id = 2;
+ }
+ 
+ // Delete an individual storage object.
+ message DeleteStorageObjectRequest {
+   // Collection.
+   string collection = 1;
+   // Key.
+   string key = 2;
+   // Owner user ID.
+   string user_id = 3;
+   // Version for OCC.
+   string version = 4;
+ }
+ 
+ // Delete a single wallet ledger item.
+ message DeleteWalletLedgerRequest {
+   // User ID to remove wallet ledger item from.
+   string id = 1;
+   // ID of the wallet ledger item to remove.
+   string wallet_id = 2;
+ }
+ 
+ // A leaderboard.
+ message Leaderboard {
+   // The ID of the leaderboard.
+   string id = 1;
+   // The title for the leaderboard.
+   string title = 2;
+   // The description of the leaderboard. May be blank.
+   string description = 3;
+   // The category of the leaderboard. e.g. "vip" could be category 1.
+   uint32 category = 4;
+   // ASC or DESC sort mode of scores in the leaderboard.
+   uint32 sort_order = 5;
+   // The current number of players in the leaderboard.
+   uint32 size = 6;
+   // The maximum number of players for the leaderboard.
+   uint32 max_size = 7;
+   // The maximum score updates allowed per player for the current leaderboard.
+   uint32 max_num_score = 8;
+   // The operator of the leaderboard
+   uint32 operator = 9;
+   // The UNIX time when the leaderboard stops being active until next reset. A computed value.
+   uint32 end_active = 10;
+   // Reset cron expression.
+   string reset_schedule = 11;
+   // Additional information stored as a JSON object.
+   string metadata = 12;
+   // The UNIX time when the leaderboard was created.
+   google.protobuf.Timestamp create_time = 13;
+   // The UNIX time when the leaderboard will start.
+   google.protobuf.Timestamp start_time = 14;
+   // The UNIX time when the leaderboard will be stopped.
+   google.protobuf.Timestamp end_time = 15;
+   // Duration of the tournament in seconds.
+   uint32 duration = 16;
+   // The UNIX time when the leaderboard start being active. A computed value.
+   uint32 start_active = 17;
+   // Join required.
+   bool join_required = 18;
+   // Authoritative.
+   bool authoritative = 19;
+   // Tournament.
+   bool tournament = 20;
+   // The UNIX time when the tournament was last reset. A computed value.
+   uint32 prev_reset = 21;
+   // The UNIX time when the tournament is next playable. A computed value.
+   uint32 next_reset = 22;
+ }
+ 
+ // List leaderboards.
+ message LeaderboardListRequest {
+   // An optional cursor to paginate from.
+   string cursor = 1;
+ }
+ 
+ // A list of leaderboards.
+ message LeaderboardList {
+   // The list of leaderboards returned.
+   repeated Leaderboard leaderboards = 1;
+   // Total count of leaderboards and tournaments.
+   int32 total = 2;
+   // A cursor, if any.
+   string cursor = 3;
+ }
+ 
+ // Get Leaderboard.
+ message LeaderboardRequest {
+   // Leaderboard ID
+   string id = 1;
+ }
+ 
+ // List (and optionally filter) users.
+ message ListAccountsRequest {
+   // User ID or username filter.
+   string filter = 1;
+   // Search only recorded deletes.
+   bool tombstones = 2;
+   // Cursor to start from
+   string cursor = 3;
+ }
+ 
+ // List selected channel messages.
+ message ListChannelMessagesRequest {
+   enum Type {
+     UNKNOWN = 0;
+     ROOM = 2;
+     GROUP = 3;
+     DIRECT = 4;
+   }
+   // Type of the chat channel
+   Type type = 1;
+   // Label of the channel, if a standard chat room
+   string label = 2;
+   // Group ID of the channel, if a group chat
+   string group_id = 3;
+   // User IDs, if a direct chat
+   string user_id_one = 4;
+   string user_id_two = 5;
+   // Cursor to start from
+   string cursor = 6;
+ }
+ 
+ // List (and optionally filter) groups.
+ message ListGroupsRequest {
+   // User ID or username filter.
+   string filter = 1;
+   // Cursor to start from
+   string cursor = 2;
+ }
+ 
+ // List realtime matches.
+ message ListMatchesRequest {
+   // Limit the number of returned matches.
+   google.protobuf.Int32Value limit = 1;
+   // Authoritative or relayed matches, or null for both.
+   google.protobuf.BoolValue authoritative = 2;
+   // Label filter.
+   google.protobuf.StringValue label = 3;
+   // Minimum user count.
+   google.protobuf.Int32Value min_size = 4;
+   // Maximum user count.
+   google.protobuf.Int32Value max_size = 5;
+   // Match ID.
+   string match_id = 6;
+   // Arbitrary label query.
+   google.protobuf.StringValue query = 7;
+   // Node name filter, optional.
+   google.protobuf.StringValue node = 8;
+ }
+ 
+ // List validated purchases.
+ message ListPurchasesRequest {
+   // User ID to filter purchases for
+   string user_id = 1;
+   // Max number of results per page
+   uint32 limit = 2;
+   // Cursor to retrieve a page of records from
+   string cursor = 3;
+ }
+ 
+ // List subscriptions.
+ message ListSubscriptionsRequest {
+   // UserID to filter subscriptions for
+   string user_id = 1;
+   // Max number of results per page
+   uint32 limit = 2;
+   // Cursor to retrieve a page of records from
+   string cursor = 3;
+ }
+ 
+ // List (and optionally filter) storage objects.
+ message ListStorageRequest {
+   // User ID to filter objects for.
+   string user_id = 1;
+   // Key to filter objects for
+   string key = 2;
+   // Collection name to filter objects for
+   string collection = 3;
+   // Cursor to retrieve a page of records from
+   string cursor = 4;
+ }
+ 
+ // Match state
+ message MatchState {
+   // Presence list.
+   repeated nakama.realtime.UserPresence presences = 1;
+   // Current tick number.
+   int64 tick = 2;
+   // State.
+   string state = 3;
+ }
+ 
+ // Get current state of a running match
+ message MatchStateRequest {
+   // Match ID
+   string id = 1;
+ }
+ 
+ message DeleteChannelMessagesResponse {
+   // Total number of messages deleted.
+   int64 total = 1;
+ }
+ 
+ // List of storage objects.
+ message StorageList {
+   // List of storage objects matching list/filter operation.
+   repeated StorageListObject objects = 1;
+   // Approximate total number of storage objects.
+   int32 total_count = 2;
+   // Next page cursor if any
+   string next_cursor = 3;
+ }
+ 
+ message StorageCollectionsList {
+   // Available collection names in the whole of the storage
+   repeated string collections = 3;
+ }
+ 
+ // Unlink a particular device ID from a user's account.
+ message UnlinkDeviceRequest {
+   // User ID to unlink from.
+   string id = 1;
+   // Device ID to unlink.
+   string device_id = 2;
+ }
+ 
+ // Update user account information.
+ message UpdateAccountRequest {
+   // User ID to update.
+   string id = 1;
+   // Username.
+   google.protobuf.StringValue username = 2;
+   // Display name.
+   google.protobuf.StringValue display_name = 3;
+   // Metadata.
+   google.protobuf.StringValue metadata = 4;
+   // Avatar URL.
+   google.protobuf.StringValue avatar_url = 5;
+   // Langtag.
+   google.protobuf.StringValue lang_tag = 6;
+   // Location.
+   google.protobuf.StringValue location = 7;
+   // Timezone.
+   google.protobuf.StringValue timezone = 8;
+   // Custom ID.
+   google.protobuf.StringValue custom_id = 9;
+   // Email.
+   google.protobuf.StringValue email = 10;
+   // Password.
+   google.protobuf.StringValue password = 11;
+   // Device ID modifications.
+   map<string, string> device_ids = 12;
+   // Wallet.
+   google.protobuf.StringValue wallet = 13;
+ }
+ 
+ // Update group information.
+ message UpdateGroupRequest {
+   // Group ID to update.
+   string id = 1;
+   // Name.
+   google.protobuf.StringValue name = 2;
+   // Description.
+   google.protobuf.StringValue description = 3;
+   // Langtag.
+   google.protobuf.StringValue lang_tag = 4;
+   // Metadata.
+   google.protobuf.StringValue metadata = 5;
+   // Avatar URL.
+   google.protobuf.StringValue avatar_url = 6;
+   // Anyone can join open groups, otherwise only admins can accept members.
+   google.protobuf.BoolValue open = 7;
+   // The maximum number of members allowed.
+   google.protobuf.Int32Value max_count = 8;
+ }
+ 
+ // The identifier for a user account.
+ message Username {
+   // The unique username of the user account.
+   string username = 1;
+ }
+ 
+ // A list of console users.
+ message UserList {
+   // A console user
+   message User {
+     // Username of the user
+     string username = 1;
+     // Email of the user
+     string email = 2;
+     // Role of the user;
+     UserRole role = 3;
+   }
+ 
+   // A list of users.
+   repeated User users = 1;
+ }
+ 
+ enum UserRole {
+   USER_ROLE_UNKNOWN = 0;
+   USER_ROLE_ADMIN = 1; // All access
+   USER_ROLE_DEVELOPER = 2; // Best for developers, also enables APIs and API explorer
+   USER_ROLE_MAINTAINER = 3; // Best for users who regularly update player information.
+   USER_ROLE_READONLY = 4; // Read-only role for those only need to view data
+ }
+ 
+ enum StatusHealth {
+   STATUS_HEALTH_OK = 0;
+   STATUS_HEALTH_ERROR = 1;
+   STATUS_HEALTH_CONNECTING = 2;
+   STATUS_HEALTH_DISCONNECTING = 3;
+ }
+ 
+ // List of nodes and their stats.
+ message StatusList {
+   // The status of a Nakama node.
+   message Status {
+     // Node name.
+     string name = 1;
+     // Health score.
+     StatusHealth health = 2;
+     // Currently connected sessions.
+     int32 session_count = 3;
+     // Currently registered live presences.
+     int32 presence_count = 4;
+     // Current number of active authoritative matches.
+     int32 match_count = 5;
+     // Current number of running goroutines.
+     int32 goroutine_count = 6;
+     // Average response latency in milliseconds.
+     double avg_latency_ms = 7;
+     // Average number of requests per second.
+     double avg_rate_sec = 8;
+     // Average input bandwidth usage.
+     double avg_input_kbs = 9;
+     // Average output bandwidth usage.
+     double avg_output_kbs = 10;
+   }
 
   message ServiceStatus {
     // Node name.
@@ -991,109 +1004,120 @@ message StatusList {
     int32 balancer = 8;
     bool allow_stream = 9;
   }
+ 
+   // List of nodes and their stats.
+   repeated Status nodes = 1;
+ 
+   // Timestamp
+   google.protobuf.Timestamp timestamp = 2;
 
-  // List of nodes and their stats.
-  repeated Status nodes = 1;
-
-  // Timestamp
-  google.protobuf.Timestamp timestamp = 2;
-
-  repeated ServiceStatus services = 3;
-}
-
-// Runtime information
-message RuntimeInfo {
-  // Module information
-  message ModuleInfo {
-    // Module path
-    string path = 1;
-    // Module last modified date
-    google.protobuf.Timestamp mod_time = 2;
-  }
-
-  // Lua registered RPC functions
-  repeated string lua_rpc_functions = 1;
-  // Go registered RPC functions
-  repeated string go_rpc_functions = 2;
-  // JavaScript registered RPC functions
-  repeated string js_rpc_functions = 3;
-  // Go loaded modules
-  repeated ModuleInfo go_modules = 4;
-  // Lua loaded modules
-  repeated ModuleInfo lua_modules = 5;
-  // JavaScript loaded modules
-  repeated ModuleInfo js_modules = 6;
-}
-
-// An individual update to a user's wallet.
-message WalletLedger {
-  // The identifier of this wallet change.
-  string id = 1;
-  // The user ID this wallet ledger item belongs to.
-  string user_id = 2;
-  // The changeset.
-  string changeset = 3;
-  // Any associated metadata.
-  string metadata = 4;
-  // The UNIX time when the wallet ledger item was created.
-  google.protobuf.Timestamp create_time = 5;
-  // The UNIX time when the wallet ledger item was updated.
-  google.protobuf.Timestamp update_time = 6;
-}
-
-// List of wallet ledger items for a particular user.
-message WalletLedgerList {
-  // A list of wallet ledger items.
-  repeated WalletLedger items = 1;
-  // The cursor to send when retrieving the next older page, if any.
-  string next_cursor = 2;
-  // The cursor to send when retrieving the previous page newer, if any.
-  string prev_cursor = 3;
-}
-
-// Write a new storage object or update an existing one.
-message WriteStorageObjectRequest {
-  // Collection.
-  string collection = 1;
-  // Key.
-  string key = 2;
-  // Owner user ID.
-  string user_id = 3;
-  // Value.
-  string value = 4;
-  // Version for OCC.
-  string version = 5;
-  // Read permission value.
-  google.protobuf.Int32Value permission_read = 6;
-  // Write permission value.
-  google.protobuf.Int32Value permission_write = 7;
-}
-
-message GetWalletLedgerRequest {
-  // The unique identifier of the user account.
-  string account_id = 1;
-  // Max number of results per page
-  uint32 limit = 2;
-  // Cursor to retrieve a page of records from
-  string cursor = 3;
-}
-
-// An object within the storage engine.
-message StorageListObject {
-  // The collection which stores the object.
-  string collection = 1;
-  // The key of the object within the collection.
-  string key = 2;
-  // The user owner of the object.
-  string user_id = 3;
-  // The version hash of the object.
-  string version = 4;
-  // The read access permissions for the object.
-  int32 permission_read = 5;
-  // The write access permissions for the object.
-  int32 permission_write = 6;
-  // The UNIX time (for gRPC clients) or ISO string (for REST clients) when the object was created.
-  google.protobuf.Timestamp create_time = 7;
-  // The UNIX time (for gRPC clients) or ISO string (for REST clients) when the object was last updated.
-  google.protobuf.Timestamp update_time = 8;
-}
+   repeated ServiceStatus services = 3;
+ }
+ 
+ // Runtime information
+ message RuntimeInfo {
+   // Module information
+   message ModuleInfo {
+     // Module path
+     string path = 1;
+     // Module last modified date
+     google.protobuf.Timestamp mod_time = 2;
+   }
+ 
+   // Lua registered RPC functions
+   repeated string lua_rpc_functions = 1;
+   // Go registered RPC functions
+   repeated string go_rpc_functions = 2;
+   // JavaScript registered RPC functions
+   repeated string js_rpc_functions = 3;
+   // Go loaded modules
+   repeated ModuleInfo go_modules = 4;
+   // Lua loaded modules
+   repeated ModuleInfo lua_modules = 5;
+   // JavaScript loaded modules
+   repeated ModuleInfo js_modules = 6;
+ }
+ 
+ // An individual update to a user's wallet.
+ message WalletLedger {
+   // The identifier of this wallet change.
+   string id = 1;
+   // The user ID this wallet ledger item belongs to.
+   string user_id = 2;
+   // The changeset.
+   string changeset = 3;
+   // Any associated metadata.
+   string metadata = 4;
+   // The UNIX time when the wallet ledger item was created.
+   google.protobuf.Timestamp create_time = 5;
+   // The UNIX time when the wallet ledger item was updated.
+   google.protobuf.Timestamp update_time = 6;
+ }
+ 
+ // List of wallet ledger items for a particular user.
+ message WalletLedgerList {
+   // A list of wallet ledger items.
+   repeated WalletLedger items = 1;
+   // The cursor to send when retrieving the next older page, if any.
+   string next_cursor = 2;
+   // The cursor to send when retrieving the previous page newer, if any.
+   string prev_cursor = 3;
+ }
+ 
+ // Write a new storage object or update an existing one.
+ message WriteStorageObjectRequest {
+   // Collection.
+   string collection = 1;
+   // Key.
+   string key = 2;
+   // Owner user ID.
+   string user_id = 3;
+   // Value.
+   string value = 4;
+   // Version for OCC.
+   string version = 5;
+   // Read permission value.
+   google.protobuf.Int32Value permission_read = 6;
+   // Write permission value.
+   google.protobuf.Int32Value permission_write = 7;
+ }
+ 
+ message GetWalletLedgerRequest {
+   // The unique identifier of the user account.
+   string account_id = 1;
+   // Max number of results per page
+   uint32 limit = 2;
+   // Cursor to retrieve a page of records from
+   string cursor = 3;
+ }
+ 
+ message GetPurchaseRequest {
+   // Purchase original transaction id.
+   string transaction_id = 1;
+ }
+ 
+ message GetSubscriptionRequest {
+   // Subscription original transaction id.
+   string original_transaction_id = 1;
+ }
+ 
+ // An object within the storage engine.
+ message StorageListObject {
+   // The collection which stores the object.
+   string collection = 1;
+   // The key of the object within the collection.
+   string key = 2;
+   // The user owner of the object.
+   string user_id = 3;
+   // The version hash of the object.
+   string version = 4;
+   // The read access permissions for the object.
+   int32 permission_read = 5;
+   // The write access permissions for the object.
+   int32 permission_write = 6;
+   // The UNIX time (for gRPC clients) or ISO string (for REST clients) when the object was created.
+   google.protobuf.Timestamp create_time = 7;
+   // The UNIX time (for gRPC clients) or ISO string (for REST clients) when the object was last updated.
+   google.protobuf.Timestamp update_time = 8;
+ }
+ 
