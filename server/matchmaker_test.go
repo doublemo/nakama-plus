@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/blugelabs/bluge"
+	"github.com/doublemo/nakama-common/api"
 	"github.com/doublemo/nakama-common/rtapi"
 	"github.com/doublemo/nakama-common/runtime"
 	"github.com/gofrs/uuid/v5"
@@ -1715,6 +1716,8 @@ func NewLocalBenchMatchmaker(logger, startupLogger *zap.Logger, config Config, r
 		ctxCancelFn: ctxCancelFn,
 
 		indexWriter:    indexWriter,
+		stats:          NewStats(10),
+		statsSnapshot:  atomic.NewPointer[api.MatchmakerStats](&api.MatchmakerStats{}),
 		sessionTickets: make(map[string]map[string]struct{}),
 		partyTickets:   make(map[string]map[string]struct{}),
 		indexes:        make(map[string]*MatchmakerIndex),
