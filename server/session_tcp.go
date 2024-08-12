@@ -225,7 +225,9 @@ IncomingLoop:
 		var mHeader socketHeader
 		if err := bytes.UnPack(bytes.NewBytesBuffer(header), &mHeader); err != nil || int64(mHeader.Size) > s.config.GetSocket().MaxMessageSizeBytes {
 			logger.Debug("Error reading header from client", zap.Error(err), zap.Uint16("size", mHeader.Size))
-			reason = err.Error()
+			if err != nil {
+				reason = err.Error()
+			}
 			break
 		}
 
@@ -286,7 +288,7 @@ IncomingLoop:
 		}
 		if err != nil {
 			// If the payload is malformed the client is incompatible or misbehaving, either way disconnect it now.
-			logger.Warn("Received malformed payload", zap.Binary("data", data))
+			logger.Warn("Received malformed payload", zap.Binary("data", data), zap.Error(err))
 			reason = "received malformed payload"
 			break
 		}
