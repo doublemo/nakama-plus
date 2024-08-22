@@ -401,6 +401,7 @@ OutgoingLoop:
 				reason = err.Error()
 				break OutgoingLoop
 			}
+
 			if _, err := s.conn.Write(s.pack(payload)); err != nil {
 				s.Unlock()
 				logger.Warn("Could not write message", zap.Error(err))

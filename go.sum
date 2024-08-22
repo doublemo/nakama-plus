@@ -87,6 +87,10 @@ github.com/dlclark/regexp2 v1.11.0 h1:G/nrcoOa7ZXlpoa/91N3X7mM3r8eIlMBBJZvsz/mxK
 github.com/dlclark/regexp2 v1.11.0/go.mod h1:DHkYz0B9wPfa6wondMfaivmHpzrQ3v9q8cnmRbL6yW8=
 github.com/dop251/goja v0.0.0-20240516125602-ccbae20bcec2 h1:OFTHt+yJDo/uaIKMGjEKzc3DGhrpQZoqvMUIloZv6ZY=
 github.com/dop251/goja v0.0.0-20240516125602-ccbae20bcec2/go.mod h1:o31y53rb/qiIAONF7w3FHJZRqqP3fzHUr1HqanthByw=
+github.com/doublemo/nakama-common v1.33.0 h1:7icd6G/0qSv5Ax5d596LI1++jfBC4U+y6hsp7juMpto=
+github.com/doublemo/nakama-common v1.33.0/go.mod h1:j0LY0UxY0chQaS0K7sXs6caILnG4sf/C3NwKfoSspT4=
+github.com/doublemo/nakama-kit v1.0.1 h1:BiLO9ZWOPklq/juKiJ8SZR86NN++K+pn/MNvfZD7Aw0=
+github.com/doublemo/nakama-kit v1.0.1/go.mod h1:Qdc/luFmBb5WqHhTCguoe1J+bKmHhTOfEKTphOOv8vc=
 github.com/felixge/httpsnoop v1.0.4 h1:NFTV2Zj1bL4mc9sqWACXbQFVBBg2W3GPvqp8/ESS2Wg=
 github.com/felixge/httpsnoop v1.0.4/go.mod h1:m8KPJKqk1gH5J9DgRY2ASl2lWCfGKXixSwevea8zH2U=
 github.com/fogleman/gg v1.2.1-0.20190220221249-0403632d5b90/go.mod h1:R/bRT+9gY/C5z7JzPU0zXsXHKM4/ayA+zqcVNZzPa1k=
