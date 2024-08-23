@@ -571,7 +571,7 @@ func (s *sessionTcp) Close(msg string, reason runtime.PresenceReason, envelopes 
 			}
 		}
 
-		if err := s.write(payload); err != nil {
+		if err := s.write(payload, false); err != nil {
 			continue
 		}
 	}
@@ -611,8 +611,9 @@ func (s *sessionTcp) syn(data []byte) error {
 	}
 
 	x1, e1 := dh.DHExchange()
-	x2, e2 := dh.DHExchange()
 	key1 := dh.DHKey(x1, big.NewInt(syn.E1))
+
+	x2, e2 := dh.DHExchange()
 	key2 := dh.DHKey(x2, big.NewInt(syn.E2))
 
 	encoder, err := rc4.NewCipher([]byte(fmt.Sprintf("%v%v", "NK", key2)))
@@ -625,19 +626,13 @@ func (s *sessionTcp) syn(data []byte) error {
 		return err
 	}
 
-	ack := &socketSYN{
+	ackBytes, err := bytes.Pack(bytes.NewBytesBuffer(nil), &socketSYN{
 		E1:     e1.Int64(),
 		E2:     e2.Int64(),
 		Format: uint8(format),
 		Status: syn.Status,
-	}
-
-	ackBytes, err := bytes.Pack(bytes.NewBytesBuffer(nil), ack)
+	})
 	if err != nil {
-		return err
-	}
-
-	if err := s.write(ackBytes); err != nil {
 		return err
 	}
 
@@ -654,6 +649,9 @@ func (s *sessionTcp) syn(data []byte) error {
 	s.vars.Store(vars)
 	s.lang.Store(syn.Lang)
 	s.logger.Store(logger.With(zap.String("uid", userID.String())))
+	if err := s.write(ackBytes, true); err != nil {
+		return err
+	}
 
 	// Register initial status tracking and presence(s) for this session.
 	s.statusRegistry.Follow(s.id, map[uuid.UUID]struct{}{userID: {}})
@@ -688,10 +686,13 @@ func (s *sessionTcp) pack(b []byte) []byte {
 	return buffer.Bytes()
 }
 
-func (s *sessionTcp) write(data []byte) error {
+func (s *sessionTcp) write(data []byte, ignoreEncryption bool) error {
 	logger := s.logger.Load()
-	if encoder := s.encoder.Load(); encoder != nil {
-		encoder.XORKeyStream(data, data)
+
+	if !ignoreEncryption {
+		if encoder := s.encoder.Load(); encoder != nil {
+			encoder.XORKeyStream(data, data)
+		}
 	}
 
 	s.Lock()
