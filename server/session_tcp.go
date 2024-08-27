@@ -259,10 +259,6 @@ IncomingLoop:
 			}
 		}
 
-		if decoder := s.decoder.Load(); decoder != nil {
-			decoder.XORKeyStream(data, data)
-		}
-
 		if seq == 1 {
 			if err := s.syn(data); err != nil {
 				logger.Debug("Error SYN from client", zap.Error(err))
@@ -275,6 +271,10 @@ IncomingLoop:
 		if s.UserID().IsNil() {
 			reason = "error userID is nil from client"
 			break
+		}
+
+		if decoder := s.decoder.Load(); decoder != nil {
+			decoder.XORKeyStream(data, data)
 		}
 
 		request := &rtapi.Envelope{}
