@@ -2,9 +2,9 @@
 这是一个通过 github.com/doublemo/nakama-kit包，实现的微服务程序
 
 # 如何访问
-运行nakama主程序后，通过浏览器http://localhost:7350/any/服务角色名称/所要调用的方法
+运行nakama主程序后，通过浏览器http://localhost:7350/v2/any/服务角色名称/所要调用的方法
 
 本例子:
 ```sh
-http://localhost:7350/any/say_hello/test
+http://localhost:7350/v2/any/say_hello/test
 ```
