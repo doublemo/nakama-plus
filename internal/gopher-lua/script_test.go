@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/heroiclabs/nakama/v3/internal/gopher-lua/parse"
+	"github.com/doublemo/nakama-plus/v3/internal/gopher-lua/parse"
 )
 
 const maxMemory = 40

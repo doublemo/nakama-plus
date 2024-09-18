@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/heroiclabs/nakama/v3/internal/gopher-lua/ast"
+	"github.com/doublemo/nakama-plus/v3/internal/gopher-lua/ast"
 )
 
 const EOF = -1
