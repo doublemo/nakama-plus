@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/doublemo/nakama-plus/v3/internal/gopher-lua/pm"
+	"github.com/heroiclabs/nakama/v3/internal/gopher-lua/pm"
 )
 
 const emptyLString LString = LString("")
