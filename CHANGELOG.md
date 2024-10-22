@@ -4,12 +4,21 @@ All notable changes to this project are documented below.
 The format is based on [keep a changelog](http://keepachangelog.com) and this project uses [semantic versioning](http://semver.org).
 
 ## [Unreleased]
+
+## [3.24.1] - 2024-10-21
+### Changed
+- Build with correct version of Protobuf dependency.
+
+## [3.24.0] - 2024-10-21
 ### Added
 - New runtime function to list user notifications.
+- Support for runtime registration of custom HTTP handlers.
 
 ### Changed
 - Increased limit on runtimes group users list functions.
 - Added pagination support to storage index listing.
+- Update runtime Satori client for latest API changes.
+- Build with Go 1.23.2.
 
 ### Fixed
 - Ensure matchmaker stats behave correctly if matchmaker becomes fully empty and idle.
