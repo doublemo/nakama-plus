@@ -28,9 +28,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgconn"
-
 	"github.com/doublemo/nakama-plus/v3/internal/cronexpr"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"go.uber.org/zap"
 )
@@ -767,11 +766,10 @@ func (l *LocalLeaderboardCache) ListTournaments(now int64, categoryStart, catego
 			continue
 		}
 		if (endTime == 0 && leaderboard.EndTime != 0) || (endTime == -1 && (leaderboard.EndTime != 0 && leaderboard.EndTime < now)) || (endTime > 0 && (leaderboard.EndTime == 0 || leaderboard.EndTime > endTime)) {
-			// if (endTime == 0 && leaderboard.EndTime != 0) || (endTime == -1 && endTime < now) ||leaderboard.EndTime > endTime || leaderboard.EndTime == 0) || leaderboard.EndTime > endTime {
 			// SKIP tournaments where:
 			// - If end time filter is == 0, tournament end time is non-0.
 			// - If end time filter is default (show only ongoing/future tournaments) and tournament has ended.
-			// - If end time filter is set and tournament end time is below it.
+			// - If end time filter is set and tournament end time is past it.
 			continue
 		}
 

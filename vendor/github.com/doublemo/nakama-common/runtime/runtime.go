@@ -90,6 +90,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"time"
 
@@ -859,10 +860,10 @@ type Initializer interface {
 	// RegisterEventSessionStart can be used to define functions triggered when client sessions start.
 	RegisterEventSessionStart(fn func(ctx context.Context, logger Logger, evt *api.Event)) error
 
-	// RegisterEventSessionStart can be used to define functions triggered when client sessions end.
+	// RegisterEventSessionEnd can be used to define functions triggered when client sessions end.
 	RegisterEventSessionEnd(fn func(ctx context.Context, logger Logger, evt *api.Event)) error
 
-	// Register a new storage index.
+	// RegisterStorageIndex creates a new storage index definition and triggers an indexing process if needed.
 	RegisterStorageIndex(name, collection, key string, fields []string, sortableFields []string, maxEntries int, indexOnly bool) error
 
 	// RegisterStorageIndexFilter can be used to define a filtering function for a given storage index.
@@ -874,6 +875,9 @@ type Initializer interface {
 	// RegisterShutdown can be used to register a function that is executed once the server receives a termination signal.
 	// This function only fires if shutdown_grace_sec > 0 and will be terminated early if its execution takes longer than the configured grace seconds.
 	RegisterShutdown(fn func(ctx context.Context, logger Logger, db *sql.DB, nk NakamaModule)) error
+
+	// RegisterHttp attaches a new HTTP handler to a specified path on the main client API server endpoint.
+	RegisterHttp(pathPattern string, handler func(http.ResponseWriter, *http.Request), methods ...string) error
 }
 
 type PresenceReason uint8
@@ -1102,6 +1106,7 @@ type NakamaModule interface {
 	MatchSignal(ctx context.Context, id string, data string) (string, error)
 
 	NotificationSend(ctx context.Context, userID, subject string, content map[string]interface{}, code int, sender string, persistent bool) error
+	NotificationsList(ctx context.Context, userID string, limit int, cursor string) ([]*api.Notification, string, error)
 	NotificationsSend(ctx context.Context, notifications []*NotificationSend) error
 	NotificationSendAll(ctx context.Context, subject string, content map[string]interface{}, code int, persistent bool) error
 	NotificationsDelete(ctx context.Context, notifications []*NotificationDelete) error
@@ -1117,7 +1122,7 @@ type NakamaModule interface {
 	StorageRead(ctx context.Context, reads []*StorageRead) ([]*api.StorageObject, error)
 	StorageWrite(ctx context.Context, writes []*StorageWrite) ([]*api.StorageObjectAck, error)
 	StorageDelete(ctx context.Context, deletes []*StorageDelete) error
-	StorageIndexList(ctx context.Context, callerID, indexName, query string, limit int, order []string) (*api.StorageObjects, error)
+	StorageIndexList(ctx context.Context, callerID, indexName, query string, limit int, order []string, cursor string) (*api.StorageObjects, string, error)
 
 	MultiUpdate(ctx context.Context, accountUpdates []*AccountUpdate, storageWrites []*StorageWrite, storageDeletes []*StorageDelete, walletUpdates []*WalletUpdate, updateLedger bool) ([]*api.StorageObjectAck, []*WalletUpdateResult, error)
 
