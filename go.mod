@@ -2,14 +2,13 @@ module github.com/doublemo/nakama-plus/v3
 
 go 1.22.0
 
-replace github.com/doublemo/nakama-common v1.33.1 => ../nakama-common
-
 require (
 	github.com/blugelabs/bluge v0.2.2
 	github.com/blugelabs/bluge_segment_api v0.2.0
 	github.com/blugelabs/query_string v0.3.0
+	github.com/dgryski/dgoogauth v0.0.0-20190221195224-5a805980a5f3
 	github.com/dop251/goja v0.0.0-20240516125602-ccbae20bcec2
-	github.com/doublemo/nakama-common v1.33.1
+	github.com/doublemo/nakama-common v1.34.0
 	github.com/doublemo/nakama-kit v1.0.1
 	github.com/gofrs/uuid/v5 v5.2.0
 	github.com/golang-jwt/jwt/v4 v4.5.0
@@ -57,7 +56,6 @@ require (
 	github.com/coreos/go-systemd/v22 v22.3.2 // indirect
 	github.com/coreos/pkg v0.0.0-20240122114842-bbd7aa9bf6fb // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/dgryski/dgoogauth v0.0.0-20190221195224-5a805980a5f3 // indirect
 	github.com/dgryski/go-metro v0.0.0-20211217172704-adc40b04c140 // indirect
 	github.com/dlclark/regexp2 v1.11.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
