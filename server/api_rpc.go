@@ -24,6 +24,7 @@ import (
 
 	"github.com/doublemo/nakama-common/api"
 	"github.com/gofrs/uuid/v5"
+	"github.com/gorilla/mux"
 	grpcgw "github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
@@ -110,8 +111,8 @@ func (s *ApiServer) RpcFuncHttp(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	// Check the RPC function ID.
-	maybeID := r.PathValue("id")
-	if maybeID == "" {
+	maybeID, ok := mux.Vars(r)["id"]
+	if !ok || maybeID == "" {
 		// Missing RPC function ID.
 		w.Header().Set("content-type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
