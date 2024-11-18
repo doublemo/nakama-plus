@@ -26,6 +26,7 @@ func (s *ApiServer) AnyHTTP(w http.ResponseWriter, r *http.Request) {
 	var username string
 	var vars map[string]string
 	var expiry int64
+	requestCtx := r.Context()
 	if httpKey := queryParams.Get("http_key"); httpKey != "" {
 		if httpKey != s.config.GetRuntime().HTTPKey {
 			// HTTP key did not match.
@@ -50,9 +51,15 @@ func (s *ApiServer) AnyHTTP(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		} else {
-			var token string
-			userID, username, vars, expiry, token, isTokenAuth = parseBearerAuth([]byte(s.config.GetSession().EncryptionKey), auth[0])
-			if !isTokenAuth || !s.sessionCache.IsValidSession(userID, expiry, token) {
+			var tokenId string
+			var tokenIssuedAt int64
+			userID, username, vars, expiry, tokenId, tokenIssuedAt, isTokenAuth = parseBearerAuth([]byte(s.config.GetSession().EncryptionKey), auth[0])
+			requestCtx = context.WithValue(requestCtx, ctxTokenIDKey{}, tokenId)
+			requestCtx = context.WithValue(requestCtx, ctxExpiryKey{}, expiry)
+			requestCtx = context.WithValue(requestCtx, ctxTokenIssuedAtKey{}, tokenIssuedAt)
+			requestCtx = context.WithValue(requestCtx, ctxVarsKey{}, vars)
+
+			if !isTokenAuth || !s.sessionCache.IsValidSession(userID, expiry, tokenId) {
 				// Auth token not valid or expired.
 				w.Header().Set("content-type", "application/json")
 				w.WriteHeader(http.StatusUnauthorized)
@@ -175,7 +182,7 @@ func (s *ApiServer) AnyHTTP(w http.ResponseWriter, r *http.Request) {
 		request.Context["vars_"+k] = v
 	}
 
-	resp, err := s.internalRemoteCall(r.Context(), request)
+	resp, err := s.internalRemoteCall(requestCtx, request)
 	if err != nil {
 		code, ok := status.FromError(err)
 		if !ok {

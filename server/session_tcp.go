@@ -600,7 +600,7 @@ func (s *sessionTcp) syn(data []byte) error {
 		return ErrSessionInvalidToken
 	}
 
-	userID, username, vars, expiry, _, ok := parseToken([]byte(s.config.GetSession().EncryptionKey), syn.Token)
+	userID, username, vars, expiry, _, _, ok := parseToken([]byte(s.config.GetSession().EncryptionKey), syn.Token)
 	if !ok || !s.sessionCache.IsValidSession(userID, expiry, syn.Token) {
 		return ErrSessionInvalidToken
 	}

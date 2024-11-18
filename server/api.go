@@ -34,7 +34,7 @@ import (
 
 	"github.com/doublemo/nakama-common/api"
 	"github.com/doublemo/nakama-plus/v3/apigrpc"
-	"github.com/doublemo/nakama-plus/v3/internal/satori"
+	"github.com/doublemo/nakama-plus/v3/internal/ctxkeys"
 	"github.com/doublemo/nakama-plus/v3/social"
 	"github.com/gofrs/uuid/v5"
 	jwt "github.com/golang-jwt/jwt/v4"
@@ -61,11 +61,12 @@ var once sync.Once
 const byteBracket byte = '{'
 
 // Keys used for storing/retrieving user information in the context of a request after authentication.
-type ctxUserIDKey struct{}
-type ctxUsernameKey struct{}
-type ctxVarsKey struct{}
-type ctxExpiryKey struct{}
-type ctxTokenIDKey = satori.CtxTokenIDKey
+type ctxUserIDKey = ctxkeys.UserIDKey
+type ctxUsernameKey = ctxkeys.UsernameKey
+type ctxVarsKey = ctxkeys.VarsKey
+type ctxExpiryKey = ctxkeys.ExpiryKey
+type ctxTokenIDKey = ctxkeys.TokenIDKey
+type ctxTokenIssuedAtKey = ctxkeys.TokenIssuedAtKey
 
 type ctxFullMethodKey struct{}
 
@@ -439,7 +440,7 @@ func securityInterceptorFunc(logger *zap.Logger, config Config, sessionCache Ses
 			// Value of "authorization" or "grpc-authorization" was empty or repeated.
 			return nil, status.Error(codes.Unauthenticated, "Auth token invalid")
 		}
-		userID, username, vars, exp, tokenId, ok := parseBearerAuth([]byte(config.GetSession().EncryptionKey), auth[0])
+		userID, username, vars, exp, tokenId, tokenIssuedAt, ok := parseBearerAuth([]byte(config.GetSession().EncryptionKey), auth[0])
 		if !ok {
 			// Value of "authorization" or "grpc-authorization" was malformed or expired.
 			return nil, status.Error(codes.Unauthenticated, "Auth token invalid")
@@ -447,7 +448,7 @@ func securityInterceptorFunc(logger *zap.Logger, config Config, sessionCache Ses
 		if !sessionCache.IsValidSession(userID, exp, tokenId) {
 			return nil, status.Error(codes.Unauthenticated, "Auth token invalid")
 		}
-		ctx = context.WithValue(context.WithValue(context.WithValue(context.WithValue(context.WithValue(ctx, ctxUserIDKey{}, userID), ctxUsernameKey{}, username), ctxVarsKey{}, vars), ctxExpiryKey{}, exp), ctxTokenIDKey{}, tokenId)
+		ctx = context.WithValue(context.WithValue(context.WithValue(context.WithValue(context.WithValue(context.WithValue(ctx, ctxUserIDKey{}, userID), ctxUsernameKey{}, username), ctxVarsKey{}, vars), ctxExpiryKey{}, exp), ctxTokenIDKey{}, tokenId), ctxTokenIssuedAtKey{}, tokenIssuedAt)
 
 	case "/nakama.api.Nakama/RpcFunc":
 		// RPC allows full user authentication or HTTP key authentication.
@@ -483,7 +484,7 @@ func securityInterceptorFunc(logger *zap.Logger, config Config, sessionCache Ses
 			// Value of "authorization" or "grpc-authorization" was empty or repeated.
 			return nil, status.Error(codes.Unauthenticated, "Auth token invalid")
 		}
-		userID, username, vars, exp, tokenId, ok := parseBearerAuth([]byte(config.GetSession().EncryptionKey), auth[0])
+		userID, username, vars, exp, tokenId, tokenIssuedAt, ok := parseBearerAuth([]byte(config.GetSession().EncryptionKey), auth[0])
 		if !ok {
 			// Value of "authorization" or "grpc-authorization" was malformed or expired.
 			return nil, status.Error(codes.Unauthenticated, "Auth token invalid")
@@ -491,7 +492,7 @@ func securityInterceptorFunc(logger *zap.Logger, config Config, sessionCache Ses
 		if !sessionCache.IsValidSession(userID, exp, tokenId) {
 			return nil, status.Error(codes.Unauthenticated, "Auth token invalid")
 		}
-		ctx = context.WithValue(context.WithValue(context.WithValue(context.WithValue(context.WithValue(ctx, ctxUserIDKey{}, userID), ctxUsernameKey{}, username), ctxVarsKey{}, vars), ctxExpiryKey{}, exp), ctxTokenIDKey{}, tokenId)
+		ctx = context.WithValue(context.WithValue(context.WithValue(context.WithValue(context.WithValue(context.WithValue(ctx, ctxUserIDKey{}, userID), ctxUsernameKey{}, username), ctxVarsKey{}, vars), ctxExpiryKey{}, exp), ctxTokenIDKey{}, tokenId), ctxTokenIssuedAtKey{}, tokenIssuedAt)
 	default:
 		// Unless explicitly defined above, handlers require full user authentication.
 		md, ok := metadata.FromIncomingContext(ctx)
@@ -511,7 +512,7 @@ func securityInterceptorFunc(logger *zap.Logger, config Config, sessionCache Ses
 			// Value of "authorization" or "grpc-authorization" was empty or repeated.
 			return nil, status.Error(codes.Unauthenticated, "Auth token invalid")
 		}
-		userID, username, vars, exp, tokenId, ok := parseBearerAuth([]byte(config.GetSession().EncryptionKey), auth[0])
+		userID, username, vars, exp, tokenId, tokenIssuedAt, ok := parseBearerAuth([]byte(config.GetSession().EncryptionKey), auth[0])
 		if !ok {
 			// Value of "authorization" or "grpc-authorization" was malformed or expired.
 			return nil, status.Error(codes.Unauthenticated, "Auth token invalid")
@@ -519,7 +520,7 @@ func securityInterceptorFunc(logger *zap.Logger, config Config, sessionCache Ses
 		if !sessionCache.IsValidSession(userID, exp, tokenId) {
 			return nil, status.Error(codes.Unauthenticated, "Auth token invalid")
 		}
-		ctx = context.WithValue(context.WithValue(context.WithValue(context.WithValue(context.WithValue(ctx, ctxUserIDKey{}, userID), ctxUsernameKey{}, username), ctxVarsKey{}, vars), ctxExpiryKey{}, exp), ctxTokenIDKey{}, tokenId)
+		ctx = context.WithValue(context.WithValue(context.WithValue(context.WithValue(context.WithValue(context.WithValue(ctx, ctxUserIDKey{}, userID), ctxUsernameKey{}, username), ctxVarsKey{}, vars), ctxExpiryKey{}, exp), ctxTokenIDKey{}, tokenId), ctxTokenIssuedAtKey{}, tokenIssuedAt)
 	}
 	return context.WithValue(ctx, ctxFullMethodKey{}, info.FullMethod), nil
 }
@@ -544,7 +545,7 @@ func parseBasicAuth(auth string) (username, password string, ok bool) {
 	return cs[:s], cs[s+1:], true
 }
 
-func parseBearerAuth(hmacSecretByte []byte, auth string) (userID uuid.UUID, username string, vars map[string]string, exp int64, tokenId string, ok bool) {
+func parseBearerAuth(hmacSecretByte []byte, auth string) (userID uuid.UUID, username string, vars map[string]string, exp int64, tokenId string, issuedAt int64, ok bool) {
 	if auth == "" {
 		return
 	}
@@ -555,7 +556,7 @@ func parseBearerAuth(hmacSecretByte []byte, auth string) (userID uuid.UUID, user
 	return parseToken(hmacSecretByte, auth[len(prefix):])
 }
 
-func parseToken(hmacSecretByte []byte, tokenString string) (userID uuid.UUID, username string, vars map[string]string, exp int64, tokenId string, ok bool) {
+func parseToken(hmacSecretByte []byte, tokenString string) (userID uuid.UUID, username string, vars map[string]string, exp int64, tokenId string, issuedAt int64, ok bool) {
 	jwtToken, err := jwt.ParseWithClaims(tokenString, &SessionTokenClaims{}, func(token *jwt.Token) (interface{}, error) {
 		if s, ok := token.Method.(*jwt.SigningMethodHMAC); !ok || s.Hash != crypto.SHA256 {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
@@ -573,7 +574,7 @@ func parseToken(hmacSecretByte []byte, tokenString string) (userID uuid.UUID, us
 	if err != nil {
 		return
 	}
-	return userID, claims.Username, claims.Vars, claims.ExpiresAt, claims.TokenId, true
+	return userID, claims.Username, claims.Vars, claims.ExpiresAt, claims.TokenId, claims.IssuedAt, true
 }
 
 func decompressHandler(logger *zap.Logger, h http.Handler) http.HandlerFunc {

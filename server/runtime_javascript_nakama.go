@@ -117,7 +117,14 @@ func NewRuntimeJavascriptNakamaModule(logger *zap.Logger, db *sql.DB, protojsonM
 		eventFn:       eventFn,
 		matchCreateFn: matchCreateFn,
 
-		satori: satori.NewSatoriClient(logger, config.GetSatori().Url, config.GetSatori().ApiKeyName, config.GetSatori().ApiKey, config.GetSatori().SigningKey),
+		satori: satori.NewSatoriClient(
+			logger,
+			config.GetSatori().Url,
+			config.GetSatori().ApiKeyName,
+			config.GetSatori().ApiKey,
+			config.GetSatori().SigningKey,
+			config.GetSession().TokenExpirySec,
+		),
 	}
 }
 
@@ -1868,7 +1875,8 @@ func (n *runtimeJavascriptNakamaModule) authenticateTokenGenerate(r *goja.Runtim
 		}
 
 		tokenId := uuid.Must(uuid.NewV4()).String()
-		token, exp := generateTokenWithExpiry(n.config.GetSession().EncryptionKey, tokenId, userIDString, username, vars, exp)
+		tokenIssuedAt := time.Now().Unix()
+		token, exp := generateTokenWithExpiry(n.config.GetSession().EncryptionKey, tokenId, tokenIssuedAt, userIDString, username, vars, exp)
 		n.sessionCache.Add(uid, exp, tokenId, 0, "")
 
 		return r.ToValue(map[string]interface{}{
