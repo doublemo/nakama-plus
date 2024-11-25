@@ -4,9 +4,16 @@ All notable changes to this project are documented below.
 The format is based on [keep a changelog](http://keepachangelog.com) and this project uses [semantic versioning](http://semver.org).
 
 ## [Unreleased]
+### Added
+- Add new runtime function to get a list of user's friend status.
+- Add new Follow/Unfollow runtime APIs.
+- Add new NotificationsUpdate runtime API.
+- Add new initializers function to get config values.
+
 ### Changed
 - Increase limit of runtime friend listing operations to 1,000.
 - Leaving a group is now treated as a deletion when done by the last member.
+- Build with Go 1.23.3.
 
 ### Fixed
 - Add missing JavaScript runtime SessionRefresh before/after hook functions.

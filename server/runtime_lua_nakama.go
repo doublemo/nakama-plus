@@ -210,6 +210,7 @@ func (n *RuntimeLuaNakamaModule) Loader(l *lua.LState) int {
 		"account_export_id":                  n.accountExportId,
 		"users_get_id":                       n.usersGetId,
 		"users_get_username":                 n.usersGetUsername,
+		"users_get_friend_status":            n.usersGetFriendStatus,
 		"users_get_random":                   n.usersGetRandom,
 		"users_ban_id":                       n.usersBanId,
 		"users_unban_id":                     n.usersUnbanId,
@@ -254,10 +255,13 @@ func (n *RuntimeLuaNakamaModule) Loader(l *lua.LState) int {
 		"notifications_delete":               n.notificationsDelete,
 		"notifications_get_id":               n.notificationsGetId,
 		"notifications_delete_id":            n.notificationsDeleteId,
+		"notifications_update":               n.notificationsUpdate,
 		"wallet_update":                      n.walletUpdate,
 		"wallets_update":                     n.walletsUpdate,
 		"wallet_ledger_update":               n.walletLedgerUpdate,
 		"wallet_ledger_list":                 n.walletLedgerList,
+		"status_follow":                      n.statusFollow,
+		"status_unfollow":                    n.statusUnfollow,
 		"storage_list":                       n.storageList,
 		"storage_read":                       n.storageRead,
 		"storage_write":                      n.storageWrite,
@@ -321,6 +325,7 @@ func (n *RuntimeLuaNakamaModule) Loader(l *lua.LState) int {
 		"channel_messages_list":                     n.channelMessagesList,
 		"channel_id_build":                          n.channelIdBuild,
 		"storage_index_list":                        n.storageIndexList,
+		"get_config":                                n.getConfig,
 		"get_satori":                                n.getSatori,
 	}
 
@@ -805,7 +810,7 @@ func (n *RuntimeLuaNakamaModule) localcacheDelete(l *lua.LState) int {
 	return 0
 }
 
-func (n *RuntimeLuaNakamaModule) localcacheClear(l *lua.LState) int {
+func (n *RuntimeLuaNakamaModule) localcacheClear(_ *lua.LState) int {
 	n.localCache.Clear()
 
 	return 0
@@ -822,13 +827,13 @@ func (n *RuntimeLuaNakamaModule) time(l *lua.LState) int {
 		tbl := l.CheckTable(1)
 		msec := getIntField(l, tbl, "msec", 0)
 		sec := getIntField(l, tbl, "sec", 0)
-		min := getIntField(l, tbl, "min", 0)
+		mins := getIntField(l, tbl, "min", 0)
 		hour := getIntField(l, tbl, "hour", 12)
 		day := getIntField(l, tbl, "day", -1)
 		month := getIntField(l, tbl, "month", -1)
 		year := getIntField(l, tbl, "year", -1)
 		isdst := getBoolField(l, tbl, "isdst", false)
-		t := time.Date(year, time.Month(month), day, hour, min, sec, msec*int(time.Millisecond), time.UTC)
+		t := time.Date(year, time.Month(month), day, hour, mins, sec, msec*int(time.Millisecond), time.UTC)
 		// TODO dst
 		if false {
 			print(isdst)
@@ -1142,7 +1147,7 @@ func (n *RuntimeLuaNakamaModule) httpRequest(l *lua.LState) int {
 	}
 	// Read the response body.
 	responseBody, err := io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	if err != nil {
 		l.RaiseError("HTTP response body error: %v", err.Error())
 		return 0
@@ -1159,7 +1164,7 @@ func (n *RuntimeLuaNakamaModule) httpRequest(l *lua.LState) int {
 
 	l.Push(lua.LNumber(resp.StatusCode))
 	l.Push(RuntimeLuaConvertMap(l, responseHeaders))
-	l.Push(lua.LString(string(responseBody)))
+	l.Push(lua.LString(responseBody))
 	return 3
 }
 
@@ -1255,7 +1260,7 @@ func (n *RuntimeLuaNakamaModule) jsonEncode(l *lua.LState) int {
 		return 0
 	}
 
-	l.Push(lua.LString(string(jsonBytes)))
+	l.Push(lua.LString(jsonBytes))
 	return 1
 }
 
@@ -1692,7 +1697,7 @@ func (n *RuntimeLuaNakamaModule) bcryptCompare(l *lua.LState) int {
 	if err == nil {
 		l.Push(lua.LBool(true))
 		return 1
-	} else if err == bcrypt.ErrHashTooShort || err == bcrypt.ErrMismatchedHashAndPassword {
+	} else if errors.Is(err, bcrypt.ErrHashTooShort) || errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
 		l.Push(lua.LBool(false))
 		return 1
 	}
@@ -2464,7 +2469,7 @@ func (n *RuntimeLuaNakamaModule) accountGetId(l *lua.LState) int {
 	metadataMap := make(map[string]interface{})
 	err = json.Unmarshal([]byte(account.User.Metadata), &metadataMap)
 	if err != nil {
-		l.RaiseError(fmt.Sprintf("failed to convert metadata to json: %s", err.Error()))
+		l.RaiseError("failed to convert metadata to json: %s", err.Error())
 		return 0
 	}
 	metadataTable := RuntimeLuaConvertMap(l, metadataMap)
@@ -2472,7 +2477,7 @@ func (n *RuntimeLuaNakamaModule) accountGetId(l *lua.LState) int {
 
 	userTable, err := userToLuaTable(l, account.User)
 	if err != nil {
-		l.RaiseError(fmt.Sprintf("failed to convert user data to lua table: %s", err.Error()))
+		l.RaiseError("failed to convert user data to lua table: %s", err.Error())
 		return 0
 	}
 	accountTable.RawSetString("user", userTable)
@@ -2480,7 +2485,7 @@ func (n *RuntimeLuaNakamaModule) accountGetId(l *lua.LState) int {
 	walletMap := make(map[string]int64)
 	err = json.Unmarshal([]byte(account.Wallet), &walletMap)
 	if err != nil {
-		l.RaiseError(fmt.Sprintf("failed to convert wallet to json: %s", err.Error()))
+		l.RaiseError("failed to convert wallet to json: %s", err.Error())
 		return 0
 	}
 	walletTable := RuntimeLuaConvertMapInt64(l, walletMap)
@@ -2594,7 +2599,7 @@ func (n *RuntimeLuaNakamaModule) accountsGetId(l *lua.LState) int {
 		metadataMap := make(map[string]interface{})
 		err = json.Unmarshal([]byte(account.User.Metadata), &metadataMap)
 		if err != nil {
-			l.RaiseError(fmt.Sprintf("failed to convert metadata to json: %s", err.Error()))
+			l.RaiseError("failed to convert metadata to json: %s", err.Error())
 			return 0
 		}
 		metadataTable := RuntimeLuaConvertMap(l, metadataMap)
@@ -2602,7 +2607,7 @@ func (n *RuntimeLuaNakamaModule) accountsGetId(l *lua.LState) int {
 
 		userTable, err := userToLuaTable(l, account.User)
 		if err != nil {
-			l.RaiseError(fmt.Sprintf("failed to convert user data to lua table: %s", err.Error()))
+			l.RaiseError("failed to convert user data to lua table: %s", err.Error())
 			return 0
 		}
 		accountTable.RawSetString("user", userTable)
@@ -2610,7 +2615,7 @@ func (n *RuntimeLuaNakamaModule) accountsGetId(l *lua.LState) int {
 		walletMap := make(map[string]int64)
 		err = json.Unmarshal([]byte(account.Wallet), &walletMap)
 		if err != nil {
-			l.RaiseError(fmt.Sprintf("failed to convert wallet to json: %s", err.Error()))
+			l.RaiseError("failed to convert wallet to json: %s", err.Error())
 			return 0
 		}
 		walletTable := RuntimeLuaConvertMapInt64(l, walletMap)
@@ -2706,7 +2711,7 @@ func (n *RuntimeLuaNakamaModule) usersGetId(l *lua.LState) int {
 	// Get the user accounts.
 	users, err := GetUsers(l.Context(), n.logger, n.db, n.statusRegistry, userIDs, nil, facebookIDs)
 	if err != nil {
-		l.RaiseError(fmt.Sprintf("failed to get users: %s", err.Error()))
+		l.RaiseError("failed to get users: %s", err.Error())
 		return 0
 	}
 
@@ -2715,7 +2720,7 @@ func (n *RuntimeLuaNakamaModule) usersGetId(l *lua.LState) int {
 	for i, user := range users.Users {
 		userTable, err := userToLuaTable(l, user)
 		if err != nil {
-			l.RaiseError(err.Error())
+			l.RaiseError("failed to encode users: %s", err.Error())
 			return 0
 		}
 		usersTable.RawSetInt(i+1, userTable)
@@ -2905,7 +2910,7 @@ func (n *RuntimeLuaNakamaModule) usersGetUsername(l *lua.LState) int {
 	// Get the user accounts.
 	users, err := GetUsers(l.Context(), n.logger, n.db, n.statusRegistry, nil, usernameStrings, nil)
 	if err != nil {
-		l.RaiseError(fmt.Sprintf("failed to get users: %s", err.Error()))
+		l.RaiseError("failed to get users: %s", err.Error())
 		return 0
 	}
 
@@ -2914,13 +2919,78 @@ func (n *RuntimeLuaNakamaModule) usersGetUsername(l *lua.LState) int {
 	for i, user := range users.Users {
 		userTable, err := userToLuaTable(l, user)
 		if err != nil {
-			l.RaiseError(err.Error())
+			l.RaiseError("failed to encode users: %s", err.Error())
 			return 0
 		}
 		usersTable.RawSetInt(i+1, userTable)
 	}
 
 	l.Push(usersTable)
+	return 1
+}
+
+// @group users
+// @summary Get user's friend status information for a list of target users.
+// @param userID (type=string) The current user ID.
+// @param userIDs(type=table) An array of target user IDs.
+// @return friends(table) A list of user friends objects.
+// @return error(error) An optional error value if an error occurred.
+func (n *RuntimeLuaNakamaModule) usersGetFriendStatus(l *lua.LState) int {
+	id := l.CheckString(1)
+
+	uid, err := uuid.FromString(id)
+	if err != nil {
+		l.ArgError(1, "invalid user id")
+	}
+
+	ids := l.CheckTable(2)
+
+	uidsTable, ok := RuntimeLuaConvertLuaValue(ids).([]interface{})
+	if !ok {
+		l.ArgError(2, "invalid user ids list")
+		return 0
+	}
+
+	fids := make([]uuid.UUID, 0, len(uidsTable))
+	for _, id := range uidsTable {
+		ids, ok := id.(string)
+		if !ok || ids == "" {
+			l.ArgError(2, "each user id must be a string")
+			return 0
+		}
+		fid, err := uuid.FromString(ids)
+		if err != nil {
+			l.ArgError(2, "invalid user id")
+			return 0
+		}
+		fids = append(fids, fid)
+	}
+
+	friends, err := GetFriends(l.Context(), n.logger, n.db, n.statusRegistry, uid, fids)
+	if err != nil {
+		l.RaiseError("failed to get users friend status: %s", err.Error())
+		return 0
+	}
+
+	userFriends := l.CreateTable(len(friends), 0)
+	for i, f := range friends {
+		u := f.User
+
+		fut, err := userToLuaTable(l, u)
+		if err != nil {
+			l.RaiseError("failed to convert user data to lua table: %s", err.Error())
+			return 0
+		}
+
+		ft := l.CreateTable(0, 3)
+		ft.RawSetString("state", lua.LNumber(f.State.Value))
+		ft.RawSetString("update_time", lua.LNumber(f.UpdateTime.Seconds))
+		ft.RawSetString("user", fut)
+
+		userFriends.RawSetInt(i+1, ft)
+	}
+
+	l.Push(userFriends)
 	return 1
 }
 
@@ -2939,7 +3009,7 @@ func (n *RuntimeLuaNakamaModule) usersGetRandom(l *lua.LState) int {
 
 	users, err := GetRandomUsers(l.Context(), n.logger, n.db, n.statusRegistry, count)
 	if err != nil {
-		l.RaiseError(fmt.Sprintf("failed to get users: %s", err.Error()))
+		l.RaiseError("failed to get users: %s", err.Error())
 		return 0
 	}
 
@@ -2948,7 +3018,7 @@ func (n *RuntimeLuaNakamaModule) usersGetRandom(l *lua.LState) int {
 	for i, user := range users {
 		userTable, err := userToLuaTable(l, user)
 		if err != nil {
-			l.RaiseError(err.Error())
+			l.RaiseError("failed to encode users: %s", err.Error())
 			return 0
 		}
 		usersTable.RawSetInt(i+1, userTable)
@@ -3000,7 +3070,7 @@ func (n *RuntimeLuaNakamaModule) usersBanId(l *lua.LState) int {
 	// Ban the user accounts.
 	err := BanUsers(l.Context(), n.logger, n.db, n.config, n.sessionCache, n.sessionRegistry, n.tracker, uids)
 	if err != nil {
-		l.RaiseError(fmt.Sprintf("failed to ban users: %s", err.Error()))
+		l.RaiseError("failed to ban users: %s", err.Error())
 		return 0
 	}
 
@@ -3049,7 +3119,7 @@ func (n *RuntimeLuaNakamaModule) usersUnbanId(l *lua.LState) int {
 	// Unban the user accounts.
 	err := UnbanUsers(l.Context(), n.logger, n.db, n.sessionCache, uids)
 	if err != nil {
-		l.RaiseError(fmt.Sprintf("failed to unban users: %s", err.Error()))
+		l.RaiseError("failed to unban users: %s", err.Error())
 		return 0
 	}
 
@@ -3854,11 +3924,11 @@ func (n *RuntimeLuaNakamaModule) streamUserJoin(l *lua.LState) int {
 
 	success, newlyTracked, err := n.streamManager.UserJoin(stream, userID, sessionID, hidden, persistence, status)
 	if err != nil {
-		if err == ErrSessionNotFound {
+		if errors.Is(err, ErrSessionNotFound) {
 			l.ArgError(2, "session id does not exist")
 			return 0
 		}
-		l.RaiseError(fmt.Sprintf("stream user join failed: %v", err.Error()))
+		l.RaiseError("stream user join failed: %v", err.Error())
 		return 0
 	}
 	if !success {
@@ -3973,11 +4043,11 @@ func (n *RuntimeLuaNakamaModule) streamUserUpdate(l *lua.LState) int {
 
 	success, err := n.streamManager.UserUpdate(stream, userID, sessionID, hidden, persistence, status)
 	if err != nil {
-		if err == ErrSessionNotFound {
+		if errors.Is(err, ErrSessionNotFound) {
 			l.ArgError(2, "session id does not exist")
 			return 0
 		}
-		l.RaiseError(fmt.Sprintf("stream user update failed: %v", err.Error()))
+		l.RaiseError("stream user update failed: %v", err.Error())
 		return 0
 	}
 	if !success {
@@ -4079,7 +4149,7 @@ func (n *RuntimeLuaNakamaModule) streamUserLeave(l *lua.LState) int {
 	}
 
 	if err := n.streamManager.UserLeave(stream, userID, sessionID); err != nil {
-		l.RaiseError(fmt.Sprintf("stream user leave failed: %v", err.Error()))
+		l.RaiseError("stream user leave failed: %v", err.Error())
 	}
 
 	return 0
@@ -4200,7 +4270,7 @@ func (n *RuntimeLuaNakamaModule) streamUserKick(l *lua.LState) int {
 	}
 
 	if err := n.streamManager.UserLeave(stream, userID, sessionID); err != nil {
-		l.RaiseError(fmt.Sprintf("stream user kick failed: %v", err.Error()))
+		l.RaiseError("stream user kick failed: %v", err.Error())
 	}
 
 	return 0
@@ -4699,7 +4769,7 @@ func (n *RuntimeLuaNakamaModule) sessionDisconnect(l *lua.LState) int {
 	}
 
 	if err := n.sessionRegistry.Disconnect(l.Context(), sessionID, false, reason...); err != nil {
-		l.RaiseError(fmt.Sprintf("failed to disconnect: %s", err.Error()))
+		l.RaiseError("failed to disconnect: %s", err.Error())
 	}
 	return 0
 }
@@ -4727,7 +4797,7 @@ func (n *RuntimeLuaNakamaModule) sessionLogout(l *lua.LState) int {
 	refreshToken := l.OptString(3, "")
 
 	if err := SessionLogout(n.config, n.sessionCache, userID, token, refreshToken); err != nil {
-		l.RaiseError(fmt.Sprintf("failed to logout: %s", err.Error()))
+		l.RaiseError("failed to logout: %s", err.Error())
 	}
 	return 0
 }
@@ -4759,7 +4829,7 @@ func (n *RuntimeLuaNakamaModule) matchCreate(l *lua.LState) int {
 
 	id, err := n.matchRegistry.CreateMatch(l.Context(), n.matchCreateFn, module, paramsMap)
 	if err != nil {
-		l.RaiseError(err.Error())
+		l.RaiseError("error creating match: %s", err.Error())
 		return 0
 	}
 
@@ -4778,7 +4848,7 @@ func (n *RuntimeLuaNakamaModule) matchGet(l *lua.LState) int {
 
 	result, _, err := n.matchRegistry.GetMatch(l.Context(), id)
 	if err != nil {
-		l.RaiseError(fmt.Sprintf("failed to get match: %s", err.Error()))
+		l.RaiseError("failed to get match: %s", err.Error())
 		return 0
 	}
 
@@ -4826,7 +4896,7 @@ func (n *RuntimeLuaNakamaModule) matchSignal(l *lua.LState) int {
 
 	responseData, err := n.matchRegistry.Signal(l.Context(), id, data)
 	if err != nil {
-		l.RaiseError(fmt.Sprintf("failed to signal match: %s", err.Error()))
+		l.RaiseError("failed to signal match: %s", err.Error())
 		return 0
 	}
 
@@ -4899,7 +4969,7 @@ func (n *RuntimeLuaNakamaModule) matchList(l *lua.LState) int {
 
 	results, _, err := n.matchRegistry.ListMatches(l.Context(), limit, authoritative, label, minSize, maxSize, query, nil)
 	if err != nil {
-		l.RaiseError(fmt.Sprintf("failed to list matches: %s", err.Error()))
+		l.RaiseError("failed to list matches: %s", err.Error())
 		return 0
 	}
 
@@ -4994,7 +5064,7 @@ func (n *RuntimeLuaNakamaModule) notificationSend(l *lua.LState) int {
 	}
 
 	if err := NotificationSend(l.Context(), n.logger, n.db, n.tracker, n.router, notifications); err != nil {
-		l.RaiseError(fmt.Sprintf("failed to send notifications: %s", err.Error()))
+		l.RaiseError("failed to send notifications: %s", err.Error())
 	}
 
 	return 0
@@ -5151,7 +5221,7 @@ func (n *RuntimeLuaNakamaModule) notificationsSend(l *lua.LState) int {
 	}
 
 	if err := NotificationSend(l.Context(), n.logger, n.db, n.tracker, n.router, notifications); err != nil {
-		l.RaiseError(fmt.Sprintf("failed to send notifications: %s", err.Error()))
+		l.RaiseError("failed to send notifications: %s", err.Error())
 	}
 
 	return 0
@@ -5201,7 +5271,7 @@ func (n *RuntimeLuaNakamaModule) notificationSendAll(l *lua.LState) int {
 	}
 
 	if err := NotificationSendAll(l.Context(), n.logger, n.db, n.tracker, n.router, notification); err != nil {
-		l.RaiseError(fmt.Sprintf("failed to send notification: %s", err.Error()))
+		l.RaiseError("failed to send notification: %s", err.Error())
 	}
 
 	return 0
@@ -5358,11 +5428,115 @@ func (n *RuntimeLuaNakamaModule) notificationsDelete(l *lua.LState) int {
 
 	for uid, notificationIDs := range notifications {
 		if err := NotificationDelete(l.Context(), n.logger, n.db, uid, notificationIDs); err != nil {
-			l.RaiseError(fmt.Sprintf("failed to delete notifications: %s", err.Error()))
+			l.RaiseError("failed to delete notifications: %s", err.Error())
 		}
 	}
 
 	return 0
+}
+
+// @group notifications
+// @summary Update notifications by their id.
+// @param updates(type=table) A list of notifications to be updated.
+// @return error(error) An optional error value if an error occurred.
+func (n *RuntimeLuaNakamaModule) notificationsUpdate(l *lua.LState) int {
+	updatesIn := l.CheckTable(1)
+
+	updates, err := tableToNotificationUpdates(l, updatesIn)
+	if err != nil {
+		return 0
+	}
+
+	if err := NotificationsUpdate(l.Context(), n.logger, n.db, updates...); err != nil {
+		l.RaiseError("failed to update notifications: %s", err.Error())
+	}
+
+	return 0
+}
+
+func tableToNotificationUpdates(l *lua.LState, dataTable *lua.LTable) ([]notificationUpdate, error) {
+	size := dataTable.Len()
+	updates := make([]notificationUpdate, 0, size)
+	conversionError := false
+
+	dataTable.ForEach(func(k, v lua.LValue) {
+		if conversionError {
+			return
+		}
+
+		dataTable, ok := v.(*lua.LTable)
+		if !ok {
+			conversionError = true
+			l.ArgError(1, "expects a valid set of data")
+			return
+		}
+
+		update := notificationUpdate{}
+		dataTable.ForEach(func(k, v lua.LValue) {
+			if conversionError {
+				return
+			}
+
+			switch k.String() {
+			case "id":
+				if v.Type() != lua.LTString {
+					conversionError = true
+					l.ArgError(1, "expects id to be string")
+					return
+				}
+				var uid uuid.UUID
+				var err error
+				if uid, err = uuid.FromString(v.String()); err != nil {
+					conversionError = true
+					l.ArgError(1, "expects user_id to be a valid ID")
+					return
+				}
+				update.Id = uid
+			case "content":
+				if v.Type() != lua.LTTable {
+					conversionError = true
+					l.ArgError(1, "expects content to be table")
+					return
+				}
+				valueMap := RuntimeLuaConvertLuaTable(v.(*lua.LTable))
+				update.Content = valueMap
+			case "subject":
+				if v.Type() != lua.LTString {
+					conversionError = true
+					l.ArgError(1, "expects subject to be string")
+					return
+				}
+				if v.String() == "" {
+					conversionError = true
+					l.ArgError(1, "expects subject to be a non-empty string")
+					return
+				}
+				s := v.String()
+				update.Subject = &s
+			case "sender":
+				if v.Type() != lua.LTString {
+					conversionError = true
+					l.ArgError(1, "expects sender to be string")
+					return
+				}
+				if v.String() == "" {
+					conversionError = true
+					l.ArgError(1, "expects sender to be a non-empty string")
+					return
+				}
+				s := v.String()
+				update.Sender = &s
+			}
+		})
+
+		if conversionError {
+			return
+		}
+
+		updates = append(updates, update)
+	})
+
+	return updates, nil
 }
 
 // @group notifications
@@ -5397,7 +5571,7 @@ func (n *RuntimeLuaNakamaModule) notificationsGetId(l *lua.LState) int {
 
 	notifications, err := NotificationsGetId(l.Context(), n.logger, n.db, userId, notifIds...)
 	if err != nil {
-		l.RaiseError(fmt.Sprintf("failed to get notifications: %s", err.Error()))
+		l.RaiseError("failed to get notifications: %s", err.Error())
 	}
 
 	notificationsTable := l.CreateTable(len(notifications), 0)
@@ -5516,7 +5690,7 @@ func (n *RuntimeLuaNakamaModule) walletUpdate(l *lua.LState) int {
 		Metadata:  string(metadataBytes),
 	}}, updateLedger)
 	if err != nil {
-		l.RaiseError(fmt.Sprintf("failed to update user wallet: %s", err.Error()))
+		l.RaiseError("failed to update user wallet: %s", err.Error())
 		return 0
 	}
 
@@ -5641,7 +5815,7 @@ func (n *RuntimeLuaNakamaModule) walletsUpdate(l *lua.LState) int {
 
 	results, err := UpdateWallets(l.Context(), n.logger, n.db, updates, updateLedger)
 	if err != nil {
-		l.RaiseError(fmt.Sprintf("failed to update user wallet: %s", err.Error()))
+		l.RaiseError("failed to update user wallet: %s", err.Error())
 		return 0
 	}
 
@@ -5699,7 +5873,7 @@ func (n *RuntimeLuaNakamaModule) walletLedgerUpdate(l *lua.LState) int {
 
 	item, err := UpdateWalletLedger(l.Context(), n.logger, n.db, itemID, string(metadataBytes))
 	if err != nil {
-		l.RaiseError(fmt.Sprintf("failed to update user wallet ledger: %s", err.Error()))
+		l.RaiseError("failed to update user wallet ledger: %s", err.Error())
 		return 0
 	}
 
@@ -5751,7 +5925,7 @@ func (n *RuntimeLuaNakamaModule) walletLedgerList(l *lua.LState) int {
 
 	items, newCursor, _, err := ListWalletLedger(l.Context(), n.logger, n.db, userID, &limit, cursor)
 	if err != nil {
-		l.RaiseError(fmt.Sprintf("failed to retrieve user wallet ledger: %s", err.Error()))
+		l.RaiseError("failed to retrieve user wallet ledger: %s", err.Error())
 		return 0
 	}
 
@@ -5776,6 +5950,90 @@ func (n *RuntimeLuaNakamaModule) walletLedgerList(l *lua.LState) int {
 	l.Push(lua.LString(newCursor))
 
 	return 2
+}
+
+// @group status
+// @summary Follow a player's status changes on a given session.
+// @param sessionID(type=string) A valid session identifier.
+// @param userIDs(type=table) A list of userIDs to follow.
+// @return error(error) An optional error value if an error occurred.
+func (n *RuntimeLuaNakamaModule) statusFollow(l *lua.LState) int {
+	sid := l.CheckString(1)
+
+	suid, err := uuid.FromString(sid)
+	if err != nil {
+		l.ArgError(1, "expects a valid session id")
+		return 0
+	}
+
+	uidsIn := l.CheckTable(2)
+
+	uidsTable, ok := RuntimeLuaConvertLuaValue(uidsIn).([]interface{})
+	if !ok {
+		l.ArgError(2, "invalid user ids list")
+		return 0
+	}
+
+	uids := make(map[uuid.UUID]struct{}, len(uidsTable))
+	for _, id := range uidsTable {
+		ids, ok := id.(string)
+		if !ok || ids == "" {
+			l.ArgError(2, "each user id must be a string")
+			return 0
+		}
+		uid, err := uuid.FromString(ids)
+		if err != nil {
+			l.ArgError(2, "each user id must be a valid id")
+			return 0
+		}
+		uids[uid] = struct{}{}
+	}
+
+	n.statusRegistry.Follow(suid, uids)
+
+	return 0
+}
+
+// @group status
+// @summary Unfollow a player's status changes on a given session.
+// @param sessionID(type=string) A valid session identifier.
+// @param userIDs(type=table) A list of userIDs to unfollow.
+// @return error(error) An optional error value if an error occurred.
+func (n *RuntimeLuaNakamaModule) statusUnfollow(l *lua.LState) int {
+	sid := l.CheckString(1)
+
+	suid, err := uuid.FromString(sid)
+	if err != nil {
+		l.ArgError(1, "expects a valid session id")
+		return 0
+	}
+
+	uidsIn := l.CheckTable(2)
+
+	uidsTable, ok := RuntimeLuaConvertLuaValue(uidsIn).([]interface{})
+	if !ok {
+		l.ArgError(2, "invalid user ids list")
+		return 0
+	}
+
+	uids := make([]uuid.UUID, 0, len(uidsTable))
+	for _, id := range uidsTable {
+		ids, ok := id.(string)
+		if !ok || ids == "" {
+			l.ArgError(2, "each user id must be a string")
+			return 0
+		}
+		uid, err := uuid.FromString(ids)
+		if err != nil {
+			l.ArgError(2, "each user id must be a valid id")
+			return 0
+		}
+		uids = append(uids, uid)
+	}
+
+	n.statusRegistry.Unfollow(suid, uids)
+
+	return 0
 }
 
 // @group storage
@@ -5823,7 +6081,7 @@ func (n *RuntimeLuaNakamaModule) storageList(l *lua.LState) int {
 
 	objectList, _, err := StorageListObjects(l.Context(), n.logger, n.db, callerID, userID, collection, limit, cursor)
 	if err != nil {
-		l.RaiseError(fmt.Sprintf("failed to list storage objects: %s", err.Error()))
+		l.RaiseError("failed to list storage objects: %s", err.Error())
 		return 0
 	}
 
@@ -5846,7 +6104,7 @@ func (n *RuntimeLuaNakamaModule) storageList(l *lua.LState) int {
 		valueMap := make(map[string]interface{})
 		err = json.Unmarshal([]byte(v.Value), &valueMap)
 		if err != nil {
-			l.RaiseError(fmt.Sprintf("failed to convert value to json: %s", err.Error()))
+			l.RaiseError("failed to convert value to json: %s", err.Error())
 			return 0
 		}
 		valueTable := RuntimeLuaConvertMap(l, valueMap)
@@ -5971,7 +6229,7 @@ func (n *RuntimeLuaNakamaModule) storageRead(l *lua.LState) int {
 
 	objects, err := StorageReadObjects(l.Context(), n.logger, n.db, uuid.Nil, objectIDs)
 	if err != nil {
-		l.RaiseError(fmt.Sprintf("failed to read storage objects: %s", err.Error()))
+		l.RaiseError("failed to read storage objects: %s", err.Error())
 		return 0
 	}
 
@@ -5994,7 +6252,7 @@ func (n *RuntimeLuaNakamaModule) storageRead(l *lua.LState) int {
 		valueMap := make(map[string]interface{})
 		err = json.Unmarshal([]byte(v.Value), &valueMap)
 		if err != nil {
-			l.RaiseError(fmt.Sprintf("failed to convert value to json: %s", err.Error()))
+			l.RaiseError("failed to convert value to json: %s", err.Error())
 			return 0
 		}
 		valueTable := RuntimeLuaConvertMap(l, valueMap)
@@ -6031,7 +6289,7 @@ func (n *RuntimeLuaNakamaModule) storageWrite(l *lua.LState) int {
 
 	acks, _, err := StorageWriteObjects(l.Context(), n.logger, n.db, n.metrics, n.storageIndex, true, ops)
 	if err != nil {
-		l.RaiseError(fmt.Sprintf("failed to write storage objects: %s", err.Error()))
+		l.RaiseError("failed to write storage objects: %s", err.Error())
 		return 0
 	}
 
@@ -6207,7 +6465,7 @@ func storageOpWritesToTable(l *lua.LState, ops StorageOpWrites) (*lua.LTable, er
 		valueMap := make(map[string]interface{})
 		err := json.Unmarshal([]byte(v.Object.Value), &valueMap)
 		if err != nil {
-			l.RaiseError(fmt.Sprintf("failed to convert value to json: %s", err.Error()))
+			l.RaiseError("failed to convert value to json: %s", err.Error())
 			return nil, err
 		}
 		valueTable := RuntimeLuaConvertMap(l, valueMap)
@@ -6332,7 +6590,7 @@ func (n *RuntimeLuaNakamaModule) storageDelete(l *lua.LState) int {
 	}
 
 	if _, err := StorageDeleteObjects(l.Context(), n.logger, n.db, n.storageIndex, true, ops); err != nil {
-		l.RaiseError(fmt.Sprintf("failed to remove storage: %s", err.Error()))
+		l.RaiseError("failed to remove storage: %s", err.Error())
 	}
 
 	return 0
@@ -6992,7 +7250,7 @@ func (n *RuntimeLuaNakamaModule) leaderboardList(l *lua.LState) int {
 	for i, t := range list.Leaderboards {
 		tt, err := leaderboardToLuaTable(l, t)
 		if err != nil {
-			l.RaiseError(err.Error())
+			l.RaiseError("error converting leaderboards: %s", err.Error())
 			return 0
 		}
 		leaderboards.RawSetInt(i+1, tt)
@@ -7019,7 +7277,7 @@ func (n *RuntimeLuaNakamaModule) leaderboardRanksDisable(l *lua.LState) int {
 	}
 
 	if err := disableLeaderboardRanks(l.Context(), n.logger, n.db, n.leaderboardCache, n.rankCache, id); err != nil {
-		l.RaiseError(err.Error())
+		l.RaiseError("error disabling leaderboard ranks: %s", err.Error())
 	}
 
 	return 0
@@ -7123,8 +7381,8 @@ func (n *RuntimeLuaNakamaModule) leaderboardRecordsListCursorFromRank(l *lua.LSt
 	expiryOverride := l.OptInt64(3, 0)
 
 	leaderboard := n.leaderboardCache.Get(id)
-	if l == nil {
-		l.RaiseError(ErrLeaderboardNotFound.Error())
+	if leaderboard == nil {
+		l.RaiseError("error listing leaderboard records: %s", ErrLeaderboardNotFound.Error())
 		return 0
 	}
 
@@ -7242,7 +7500,7 @@ func (n *RuntimeLuaNakamaModule) leaderboardRecordWrite(l *lua.LState) int {
 
 	recordTable, err := recordToLuaTable(l, record)
 	if err != nil {
-		l.RaiseError(err.Error())
+		l.RaiseError("error converting leaderboard records: %s", err.Error())
 		return 0
 	}
 
@@ -7364,7 +7622,7 @@ func (n *RuntimeLuaNakamaModule) leaderboardsGetId(l *lua.LState) int {
 	for i, leaderboard := range leaderboards {
 		lt, err := leaderboardToLuaTable(l, leaderboard)
 		if err != nil {
-			l.RaiseError(err.Error())
+			l.RaiseError("error converting leaderboards: %s", err.Error())
 			return 0
 		}
 		leaderboardsTable.RawSetInt(i+1, lt)
@@ -7426,7 +7684,7 @@ func (n *RuntimeLuaNakamaModule) purchaseValidateApple(l *lua.LState) int {
 	}
 
 	receipt := l.CheckString(2)
-	if input == "" {
+	if receipt == "" {
 		l.ArgError(2, "expects receipt")
 		return 0
 	}
@@ -7473,7 +7731,7 @@ func (n *RuntimeLuaNakamaModule) purchaseValidateGoogle(l *lua.LState) int {
 	}
 
 	receipt := l.CheckString(2)
-	if input == "" {
+	if receipt == "" {
 		l.ArgError(2, "expects receipt")
 		return 0
 	}
@@ -7524,13 +7782,13 @@ func (n *RuntimeLuaNakamaModule) purchaseValidateHuawei(l *lua.LState) int {
 	}
 
 	signature := l.CheckString(2)
-	if input == "" {
+	if signature == "" {
 		l.ArgError(2, "expects signature")
 		return 0
 	}
 
 	receipt := l.CheckString(3)
-	if input == "" {
+	if receipt == "" {
 		l.ArgError(3, "expects receipt")
 		return 0
 	}
@@ -7572,7 +7830,7 @@ func (n *RuntimeLuaNakamaModule) purchaseValidateFacebookInstant(l *lua.LState) 
 	}
 
 	signedRequest := l.CheckString(2)
-	if input == "" {
+	if signedRequest == "" {
 		l.ArgError(2, "expects signedRequest")
 		return 0
 	}
@@ -7690,7 +7948,7 @@ func (n *RuntimeLuaNakamaModule) subscriptionValidateApple(l *lua.LState) int {
 	}
 
 	receipt := l.CheckString(2)
-	if input == "" {
+	if receipt == "" {
 		l.ArgError(2, "expects receipt")
 		return 0
 	}
@@ -7737,7 +7995,7 @@ func (n *RuntimeLuaNakamaModule) subscriptionValidateGoogle(l *lua.LState) int {
 	}
 
 	receipt := l.CheckString(2)
-	if input == "" {
+	if receipt == "" {
 		l.ArgError(2, "expects receipt")
 		return 0
 	}
@@ -8091,7 +8349,7 @@ func (n *RuntimeLuaNakamaModule) tournamentsGetId(l *lua.LState) int {
 	// Get the tournaments.
 	list, err := TournamentsGet(l.Context(), n.logger, n.db, n.leaderboardCache, tournamentIDStrings)
 	if err != nil {
-		l.RaiseError(fmt.Sprintf("failed to get tournaments: %s", err.Error()))
+		l.RaiseError("failed to get tournaments: %s", err.Error())
 		return 0
 	}
 
@@ -8099,7 +8357,7 @@ func (n *RuntimeLuaNakamaModule) tournamentsGetId(l *lua.LState) int {
 	for i, t := range list {
 		tt, err := tournamentToLuaTable(l, t)
 		if err != nil {
-			l.RaiseError(err.Error())
+			l.RaiseError("error converting tournaments: %s", err.Error())
 			return 0
 		}
 
@@ -8234,7 +8492,7 @@ func leaderboardRecordsToLua(l *lua.LState, records, ownerRecords []*api.Leaderb
 	for i, record := range records {
 		recordTable, err := recordToLuaTable(l, record)
 		if err != nil {
-			l.RaiseError(err.Error())
+			l.RaiseError("error converting leaderboard records: %s", err.Error())
 			return 0
 		}
 
@@ -8248,7 +8506,7 @@ func leaderboardRecordsToLua(l *lua.LState, records, ownerRecords []*api.Leaderb
 		for i, record := range ownerRecords {
 			recordTable, err := recordToLuaTable(l, record)
 			if err != nil {
-				l.RaiseError(err.Error())
+				l.RaiseError("error converting leaderboard records: %s", err.Error())
 				return 0
 			}
 
@@ -8398,7 +8656,7 @@ func (n *RuntimeLuaNakamaModule) tournamentList(l *lua.LState) int {
 	for i, t := range list.Tournaments {
 		tt, err := tournamentToLuaTable(l, t)
 		if err != nil {
-			l.RaiseError(err.Error())
+			l.RaiseError("error converting tournaments: %s", err.Error())
 			return 0
 		}
 
@@ -8427,7 +8685,7 @@ func (n *RuntimeLuaNakamaModule) tournamentRanksDisable(l *lua.LState) int {
 	}
 
 	if err := disableLeaderboardRanks(l.Context(), n.logger, n.db, n.leaderboardCache, n.rankCache, id); err != nil {
-		l.RaiseError(err.Error())
+		l.RaiseError("error disabling tournament ranks: %s", err.Error())
 	}
 
 	return 0
@@ -8489,7 +8747,7 @@ func (n *RuntimeLuaNakamaModule) tournamentRecordWrite(l *lua.LState) int {
 
 	recordTable, err := recordToLuaTable(l, record)
 	if err != nil {
-		l.RaiseError(err.Error())
+		l.RaiseError("error converting tournament records: %s", err.Error())
 		return 0
 	}
 
@@ -8611,7 +8869,7 @@ func (n *RuntimeLuaNakamaModule) groupsGetId(l *lua.LState) int {
 	// Get the groups.
 	groups, err := GetGroups(l.Context(), n.logger, n.db, groupIDStrings)
 	if err != nil {
-		l.RaiseError(fmt.Sprintf("failed to get groups: %s", err.Error()))
+		l.RaiseError("failed to get groups: %s", err.Error())
 		return 0
 	}
 
@@ -8633,7 +8891,7 @@ func (n *RuntimeLuaNakamaModule) groupsGetId(l *lua.LState) int {
 		metadataMap := make(map[string]interface{})
 		err = json.Unmarshal([]byte(g.Metadata), &metadataMap)
 		if err != nil {
-			l.RaiseError(fmt.Sprintf("failed to convert metadata to json: %s", err.Error()))
+			l.RaiseError("failed to convert metadata to json: %s", err.Error())
 			return 0
 		}
 		metadataTable := RuntimeLuaConvertMap(l, metadataMap)
@@ -8721,7 +8979,7 @@ func (n *RuntimeLuaNakamaModule) groupCreate(l *lua.LState) int {
 	metadataMap := make(map[string]interface{})
 	err = json.Unmarshal([]byte(group.Metadata), &metadataMap)
 	if err != nil {
-		l.RaiseError(fmt.Sprintf("failed to convert metadata to json: %s", err.Error()))
+		l.RaiseError("failed to convert metadata to json: %s", err.Error())
 		return 0
 	}
 	metadataTable := RuntimeLuaConvertMap(l, metadataMap)
@@ -9263,7 +9521,7 @@ func (n *RuntimeLuaNakamaModule) groupsList(l *lua.LState) int {
 	for i, group := range groups.Groups {
 		gt, err := groupToLuaTable(l, group)
 		if err != nil {
-			l.RaiseError(err.Error())
+			l.RaiseError("error converting groups: %s", err.Error())
 			return 0
 		}
 
@@ -9294,7 +9552,7 @@ func (n *RuntimeLuaNakamaModule) groupsGetRandom(l *lua.LState) int {
 
 	groups, err := GetRandomGroups(l.Context(), n.logger, n.db, count)
 	if err != nil {
-		l.RaiseError(fmt.Sprintf("failed to get groups: %s", err.Error()))
+		l.RaiseError("failed to get groups: %s", err.Error())
 		return 0
 	}
 
@@ -9303,7 +9561,7 @@ func (n *RuntimeLuaNakamaModule) groupsGetRandom(l *lua.LState) int {
 	for i, group := range groups {
 		userTable, err := groupToLuaTable(l, group)
 		if err != nil {
-			l.RaiseError(err.Error())
+			l.RaiseError("error converting groups: %s", err.Error())
 			return 0
 		}
 		groupsTable.RawSetInt(i+1, userTable)
@@ -9390,7 +9648,7 @@ func (n *RuntimeLuaNakamaModule) groupUsersList(l *lua.LState) int {
 		metadataMap := make(map[string]interface{})
 		err = json.Unmarshal([]byte(u.Metadata), &metadataMap)
 		if err != nil {
-			l.RaiseError(fmt.Sprintf("failed to convert metadata to json: %s", err.Error()))
+			l.RaiseError("failed to convert metadata to json: %s", err.Error())
 			return 0
 		}
 		metadataTable := RuntimeLuaConvertMap(l, metadataMap)
@@ -9469,7 +9727,7 @@ func (n *RuntimeLuaNakamaModule) userGroupsList(l *lua.LState) int {
 		metadataMap := make(map[string]interface{})
 		err = json.Unmarshal([]byte(g.Metadata), &metadataMap)
 		if err != nil {
-			l.RaiseError(fmt.Sprintf("failed to convert metadata to json: %s", err.Error()))
+			l.RaiseError("failed to convert metadata to json: %s", err.Error())
 			return 0
 		}
 		metadataTable := RuntimeLuaConvertMap(l, metadataMap)
@@ -9664,7 +9922,7 @@ func (n *RuntimeLuaNakamaModule) friendsList(l *lua.LState) int {
 
 		fut, err := userToLuaTable(l, u)
 		if err != nil {
-			l.RaiseError(fmt.Sprintf("failed to convert user data to lua table: %s", err.Error()))
+			l.RaiseError("failed to convert user data to lua table: %s", err.Error())
 			return 0
 		}
 
@@ -9721,7 +9979,7 @@ func (n *RuntimeLuaNakamaModule) friendsOfFriendsList(l *lua.LState) int {
 
 		fut, err := userToLuaTable(l, u)
 		if err != nil {
-			l.RaiseError(fmt.Sprintf("failed to convert user data to lua table: %s", err.Error()))
+			l.RaiseError("failed to convert user data to lua table: %s", err.Error())
 			return 0
 		}
 
@@ -9835,7 +10093,7 @@ func (n *RuntimeLuaNakamaModule) friendsAdd(l *lua.LState) int {
 
 	err = AddFriends(l.Context(), n.logger, n.db, n.tracker, n.router, userID, username, allIDs)
 	if err != nil {
-		l.RaiseError(err.Error())
+		l.RaiseError("error adding friends: %s", err.Error())
 		return 0
 	}
 
@@ -9935,7 +10193,7 @@ func (n *RuntimeLuaNakamaModule) friendsDelete(l *lua.LState) int {
 
 	err = DeleteFriends(l.Context(), n.logger, n.db, userID, allIDs)
 	if err != nil {
-		l.RaiseError(err.Error())
+		l.RaiseError("error deleting friends: %s", err.Error())
 		return 0
 	}
 
@@ -10035,7 +10293,7 @@ func (n *RuntimeLuaNakamaModule) friendsBlock(l *lua.LState) int {
 
 	err = BlockFriends(l.Context(), n.logger, n.db, n.tracker, userID, allIDs)
 	if err != nil {
-		l.RaiseError(err.Error())
+		l.RaiseError("error blocking friends: %s", err.Error())
 		return 0
 	}
 
@@ -10058,18 +10316,18 @@ func (n *RuntimeLuaNakamaModule) fileRead(l *lua.LState) int {
 
 	f, err := FileRead(rootPath, relPath)
 	if err != nil {
-		l.RaiseError(fmt.Sprintf("failed to open file: %s", err.Error()))
+		l.RaiseError("failed to open file: %s", err.Error())
 		return 0
 	}
 	defer f.Close()
 
 	fileContent, err := io.ReadAll(f)
 	if err != nil {
-		l.RaiseError(fmt.Sprintf("failed to read file: %s", err.Error()))
+		l.RaiseError("failed to read file: %s", err.Error())
 		return 0
 	}
 
-	l.Push(lua.LString(string(fileContent)))
+	l.Push(lua.LString(fileContent))
 	return 1
 }
 
@@ -10118,7 +10376,7 @@ func (n *RuntimeLuaNakamaModule) channelMessageSend(l *lua.LState) int {
 
 	channelIdToStreamResult, err := ChannelIdToStream(channelId)
 	if err != nil {
-		l.RaiseError(err.Error())
+		l.RaiseError("error converting channel identifier to stream: %s", err.Error())
 		return 0
 	}
 
@@ -10193,7 +10451,7 @@ func (n *RuntimeLuaNakamaModule) channelMessageUpdate(l *lua.LState) int {
 
 	channelIdToStreamResult, err := ChannelIdToStream(channelId)
 	if err != nil {
-		l.RaiseError(err.Error())
+		l.RaiseError("error converting channel identifier to stream: %s", err.Error())
 		return 0
 	}
 
@@ -10251,7 +10509,7 @@ func (n *RuntimeLuaNakamaModule) channelMessageRemove(l *lua.LState) int {
 
 	channelIdToStreamResult, err := ChannelIdToStream(channelId)
 	if err != nil {
-		l.RaiseError(err.Error())
+		l.RaiseError("error converting channel identifier to stream: %s", err.Error())
 		return 0
 	}
 
@@ -10299,7 +10557,7 @@ func (n *RuntimeLuaNakamaModule) channelMessagesList(l *lua.LState) int {
 
 	channelIdToStreamResult, err := ChannelIdToStream(channelId)
 	if err != nil {
-		l.RaiseError(err.Error())
+		l.RaiseError("error converting leaderboard records: %s", err.Error())
 		return 0
 	}
 
@@ -10383,7 +10641,7 @@ func (n *RuntimeLuaNakamaModule) channelIdBuild(l *lua.LState) int {
 			l.ArgError(2, err.Error())
 			return 0
 		}
-		l.RaiseError(err.Error())
+		l.RaiseError("error building channel identifier: %s", err.Error())
 		return 0
 	}
 
@@ -10434,7 +10692,7 @@ func (n *RuntimeLuaNakamaModule) storageIndexList(l *lua.LState) int {
 
 	objectList, newCursor, err := n.storageIndex.List(l.Context(), callerID, idxName, queryString, limit, order, cursor)
 	if err != nil {
-		l.RaiseError(err.Error())
+		l.RaiseError("error in storage index list: %s", err.Error())
 		return 0
 	}
 
@@ -10457,7 +10715,7 @@ func (n *RuntimeLuaNakamaModule) storageIndexList(l *lua.LState) int {
 		valueMap := make(map[string]interface{})
 		err = json.Unmarshal([]byte(v.Value), &valueMap)
 		if err != nil {
-			l.RaiseError(fmt.Sprintf("failed to convert value to json: %s", err.Error()))
+			l.RaiseError("failed to convert value to json: %s", err.Error())
 			return 0
 		}
 		valueTable := RuntimeLuaConvertMap(l, valueMap)
@@ -10474,6 +10732,115 @@ func (n *RuntimeLuaNakamaModule) storageIndexList(l *lua.LState) int {
 	}
 
 	return 2
+}
+
+// @group configuration
+// @summary Get a subset of the Nakama configuration values.
+// @return config(table) A number of Nakama configuration values.
+// @return error(error) An optional error value if an error occurred.
+func (n *RuntimeLuaNakamaModule) getConfig(l *lua.LState) int {
+	rnc, err := n.config.GetRuntimeConfig()
+	if err != nil {
+		l.RaiseError("failed to get config: %s", err.Error())
+		return 0
+	}
+
+	cfgObj := l.CreateTable(0, 10)
+	cfgObj.RawSetString("name", lua.LString(rnc.GetName()))
+	cfgObj.RawSetString("shutdown_grace_sec", lua.LNumber(rnc.GetShutdownGraceSec()))
+
+	lgCfg := l.CreateTable(0, 1)
+	lgCfg.RawSetString("level", lua.LString(rnc.GetLogger().GetLevel()))
+	cfgObj.RawSetString("logger", lgCfg)
+
+	sessCfg := l.CreateTable(0, 8)
+	sessCfg.RawSetString("encryption_key", lua.LString(rnc.GetSession().GetEncryptionKey()))
+	sessCfg.RawSetString("token_expiry_sec", lua.LNumber(rnc.GetSession().GetTokenExpirySec()))
+	sessCfg.RawSetString("refresh_encryption_key", lua.LString(rnc.GetSession().GetRefreshEncryptionKey()))
+	sessCfg.RawSetString("refresh_token_expiry_sec", lua.LNumber(rnc.GetSession().GetRefreshTokenExpirySec()))
+	sessCfg.RawSetString("single_socket", lua.LBool(rnc.GetSession().GetSingleSocket()))
+	sessCfg.RawSetString("single_match", lua.LBool(rnc.GetSession().GetSingleMatch()))
+	sessCfg.RawSetString("single_party", lua.LBool(rnc.GetSession().GetSingleParty()))
+	sessCfg.RawSetString("single_session", lua.LBool(rnc.GetSession().GetSingleSession()))
+	cfgObj.RawSetString("session", sessCfg)
+
+	socketCfg := l.CreateTable(0, 4)
+	socketCfg.RawSetString("server_key", lua.LString(rnc.GetSocket().GetServerKey()))
+	socketCfg.RawSetString("port", lua.LNumber(rnc.GetSocket().GetPort()))
+	socketCfg.RawSetString("address", lua.LString(rnc.GetSocket().GetAddress()))
+	socketCfg.RawSetString("protocol", lua.LString(rnc.GetSocket().GetProtocol()))
+	cfgObj.RawSetString("socket", socketCfg)
+
+	// Social
+	steamCfg := l.CreateTable(0, 2)
+	steamCfg.RawSetString("publisher_key", lua.LString(rnc.GetSocial().GetSteam().GetPublisherKey()))
+	steamCfg.RawSetString("app_id", lua.LNumber(rnc.GetSocial().GetSteam().GetAppID()))
+
+	fbInstantCfg := l.CreateTable(0, 1)
+	fbInstantCfg.RawSetString("app_secret", lua.LString(rnc.GetSocial().GetFacebookInstantGame().GetAppSecret()))
+
+	fbLimitedCfg := l.CreateTable(0, 1)
+	fbLimitedCfg.RawSetString("app_id", lua.LString(rnc.GetSocial().GetFacebookLimitedLogin().GetAppId()))
+
+	appleCfg := l.CreateTable(0, 1)
+	appleCfg.RawSetString("bundle_id", lua.LString(rnc.GetSocial().GetApple().GetBundleId()))
+
+	socialCfg := l.CreateTable(0, 4)
+	socialCfg.RawSetString("steam", steamCfg)
+	socialCfg.RawSetString("facebook_instant_game", fbInstantCfg)
+	socialCfg.RawSetString("facebook_limited_login", fbLimitedCfg)
+	socialCfg.RawSetString("apple", appleCfg)
+	cfgObj.RawSetString("social", socialCfg)
+
+	runtimeCfg := l.CreateTable(0, 2)
+	envTable := l.CreateTable(0, len(rnc.GetRuntime().GetEnv()))
+	for _, e := range rnc.GetRuntime().GetEnv() {
+		envTable.Append(lua.LString(e))
+	}
+	runtimeCfg.RawSetString("env", envTable)
+	runtimeCfg.RawSetString("http_key", lua.LString(rnc.GetRuntime().GetHTTPKey()))
+	cfgObj.RawSetString("runtime", runtimeCfg)
+
+	// IAP
+	iapAppleCfg := l.CreateTable(0, 2)
+	iapAppleCfg.RawSetString("shared_password", lua.LString(rnc.GetIAP().GetApple().GetSharedPassword()))
+	iapAppleCfg.RawSetString("notifications_endpoint_id", lua.LString(rnc.GetIAP().GetApple().GetNotificationsEndpointId()))
+
+	iapGoogleCfg := l.CreateTable(0, 5)
+	iapGoogleCfg.RawSetString("client_email", lua.LString(rnc.GetIAP().GetGoogle().GetClientEmail()))
+	iapGoogleCfg.RawSetString("private_key", lua.LString(rnc.GetIAP().GetGoogle().GetPrivateKey()))
+	iapGoogleCfg.RawSetString("notifications_endpoint_id", lua.LString(rnc.GetIAP().GetGoogle().GetNotificationsEndpointId()))
+	iapGoogleCfg.RawSetString("refund_check_period_min", lua.LNumber(rnc.GetIAP().GetGoogle().GetRefundCheckPeriodMin()))
+	iapGoogleCfg.RawSetString("package_name", lua.LString(rnc.GetIAP().GetGoogle().GetPackageName()))
+
+	iapHuaweiCfg := l.CreateTable(0, 3)
+	iapHuaweiCfg.RawSetString("public_key", lua.LString(rnc.GetIAP().GetHuawei().GetPublicKey()))
+	iapHuaweiCfg.RawSetString("client_id", lua.LString(rnc.GetIAP().GetHuawei().GetClientID()))
+	iapHuaweiCfg.RawSetString("client_secret", lua.LString(rnc.GetIAP().GetHuawei().GetClientSecret()))
+
+	iapFacebookInstantCfg := l.CreateTable(0, 1)
+	iapFacebookInstantCfg.RawSetString("app_secret", lua.LString(rnc.GetIAP().GetFacebookInstant().GetAppSecret()))
+	iapCfg := l.CreateTable(0, 4)
+	iapCfg.RawSetString("apple", iapAppleCfg)
+	iapCfg.RawSetString("google", iapGoogleCfg)
+	iapCfg.RawSetString("huawei", iapHuaweiCfg)
+	iapCfg.RawSetString("facebook_instant", iapFacebookInstantCfg)
+	cfgObj.RawSetString("iap", iapCfg)
+
+	googleAuthCfg := l.CreateTable(0, 1)
+	googleAuthCfg.RawSetString("credentials_json", lua.LString(rnc.GetGoogleAuth().GetCredentialsJSON()))
+	cfgObj.RawSetString("google_auth", googleAuthCfg)
+
+	satoriCfg := l.CreateTable(0, 4)
+	satoriCfg.RawSetString("url", lua.LString(rnc.GetSatori().GetUrl()))
+	satoriCfg.RawSetString("api_key_name", lua.LString(rnc.GetSatori().GetApiKeyName()))
+	satoriCfg.RawSetString("api_key", lua.LString(rnc.GetSatori().GetApiKey()))
+	satoriCfg.RawSetString("signing_key", lua.LString(rnc.GetSatori().GetSigningKey()))
+	cfgObj.RawSetString("satori", satoriCfg)
+
+	l.Push(cfgObj)
+
+	return 1
 }
 
 // @group satori
@@ -10516,7 +10883,7 @@ func (n *RuntimeLuaNakamaModule) satoriAuthenticate(l *lua.LState) int {
 		var err error
 		defaultPropsMap, err = RuntimeLuaConvertLuaTableString(defaultProps)
 		if err != nil {
-			l.RaiseError(fmt.Sprintf("failed to convert default properties table to map: %s", err.Error()))
+			l.RaiseError("failed to convert default properties table to map: %s", err.Error())
 			return 0
 		}
 	}
@@ -10527,7 +10894,7 @@ func (n *RuntimeLuaNakamaModule) satoriAuthenticate(l *lua.LState) int {
 		var err error
 		customPropsMap, err = RuntimeLuaConvertLuaTableString(customProps)
 		if err != nil {
-			l.RaiseError(fmt.Sprintf("failed to convert custom properties table to map: %s", err.Error()))
+			l.RaiseError("failed to convert custom properties table to map: %s", err.Error())
 			return 0
 		}
 	}
