@@ -111,8 +111,8 @@ github.com/dop251/goja/ftoa/internal/fast
 github.com/dop251/goja/parser
 github.com/dop251/goja/token
 github.com/dop251/goja/unistring
-# github.com/doublemo/nakama-common v1.34.0
-## explicit; go 1.19
+# github.com/doublemo/nakama-common v1.34.0 => ../nakama-common
+## explicit; go 1.23.3
 github.com/doublemo/nakama-common/api
 github.com/doublemo/nakama-common/rtapi
 github.com/doublemo/nakama-common/runtime
@@ -526,3 +526,4 @@ gopkg.in/natefinch/lumberjack.v2
 # gopkg.in/yaml.v3 v3.0.1
 ## explicit
 gopkg.in/yaml.v3
+# github.com/doublemo/nakama-common => ../nakama-common
