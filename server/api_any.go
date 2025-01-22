@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -82,16 +83,8 @@ func (s *ApiServer) AnyHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	start := time.Now()
-	var success bool
 	var recvBytes, sentBytes int
 	var err error
-	var id string
-
-	// After this point the RPC will be captured in metrics.
-	defer func() {
-		s.metrics.ApiRpc(id, time.Since(start), int64(recvBytes), int64(sentBytes), !success)
-	}()
-
 	// Check the RPC function ID.
 	maybeID := mux.Vars(r)["cid"]
 	maybeName, ok := mux.Vars(r)["name"]
@@ -105,6 +98,12 @@ func (s *ApiServer) AnyHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+
+	var success bool
+	// After this point the RPC will be captured in metrics.
+	defer func() {
+		s.metrics.ApiRpc(maybeID+"/"+maybeName, time.Since(start), int64(recvBytes), int64(sentBytes), !success)
+	}()
 
 	in := api.Request{
 		Cid:    maybeID,
@@ -189,12 +188,12 @@ func (s *ApiServer) AnyHTTP(w http.ResponseWriter, r *http.Request) {
 			code = status.New(codes.Internal, err.Error())
 		}
 
-		response, _ := json.Marshal(map[string]interface{}{"error": err.Error(), "message": code.Message(), "code": code.Code()})
+		response := fmt.Sprintf(`{"error": "%s", "message": "%s", "code": %d}`, err.Error(), code.Message(), code.Code())
 		w.Header().Set("content-type", "application/json")
 		w.WriteHeader(grpcgw.HTTPStatusFromCode(code.Code()))
-		sentBytes, err = w.Write(response)
+		sentBytes, err = w.Write([]byte(response))
 		if err != nil {
-			s.logger.Debug("Error writing response to client", zap.Error(err))
+			s.logger.Debug("Error writing response to client", zap.String("response", response))
 		}
 		return
 	}
