@@ -25,7 +25,7 @@ import (
 	"github.com/doublemo/nakama-common/rtapi"
 	"github.com/doublemo/nakama-common/runtime"
 	"github.com/gofrs/uuid/v5"
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/types/known/timestamppb"

@@ -49,7 +49,7 @@ import (
 	"github.com/doublemo/nakama-plus/v3/internal/satori"
 	"github.com/doublemo/nakama-plus/v3/social"
 	"github.com/gofrs/uuid/v5"
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
 	"google.golang.org/protobuf/encoding/protojson"

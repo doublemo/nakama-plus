@@ -11,7 +11,7 @@ require (
 	github.com/doublemo/nakama-common v1.35.0
 	github.com/doublemo/nakama-kit v1.0.2
 	github.com/gofrs/uuid/v5 v5.3.0
-	github.com/golang-jwt/jwt/v4 v4.5.0
+	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/gorilla/handlers v1.5.2
 	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/websocket v1.5.1
