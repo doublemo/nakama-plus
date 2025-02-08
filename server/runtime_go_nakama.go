@@ -32,7 +32,6 @@ import (
 	"github.com/doublemo/nakama-common/rtapi"
 	"github.com/doublemo/nakama-common/runtime"
 	"github.com/doublemo/nakama-plus/v3/internal/cronexpr"
-	"github.com/doublemo/nakama-plus/v3/internal/satori"
 	"github.com/doublemo/nakama-plus/v3/social"
 	"github.com/gofrs/uuid/v5"
 	"go.uber.org/zap"
@@ -67,7 +66,7 @@ type RuntimeGoNakamaModule struct {
 	storageIndex         StorageIndex
 }
 
-func NewRuntimeGoNakamaModule(logger *zap.Logger, db *sql.DB, protojsonMarshaler *protojson.MarshalOptions, config Config, socialClient *social.Client, leaderboardCache LeaderboardCache, leaderboardRankCache LeaderboardRankCache, leaderboardScheduler LeaderboardScheduler, sessionRegistry SessionRegistry, sessionCache SessionCache, statusRegistry StatusRegistry, matchRegistry MatchRegistry, tracker Tracker, metrics Metrics, streamManager StreamManager, router MessageRouter, storageIndex StorageIndex) *RuntimeGoNakamaModule {
+func NewRuntimeGoNakamaModule(logger *zap.Logger, db *sql.DB, protojsonMarshaler *protojson.MarshalOptions, config Config, socialClient *social.Client, leaderboardCache LeaderboardCache, leaderboardRankCache LeaderboardRankCache, leaderboardScheduler LeaderboardScheduler, sessionRegistry SessionRegistry, sessionCache SessionCache, statusRegistry StatusRegistry, matchRegistry MatchRegistry, tracker Tracker, metrics Metrics, streamManager StreamManager, router MessageRouter, storageIndex StorageIndex, satoriClient runtime.Satori) *RuntimeGoNakamaModule {
 	return &RuntimeGoNakamaModule{
 		logger:               logger,
 		db:                   db,
@@ -89,14 +88,7 @@ func NewRuntimeGoNakamaModule(logger *zap.Logger, db *sql.DB, protojsonMarshaler
 
 		node: config.GetName(),
 
-		satori: satori.NewSatoriClient(
-			logger,
-			config.GetSatori().Url,
-			config.GetSatori().ApiKeyName,
-			config.GetSatori().ApiKey,
-			config.GetSatori().SigningKey,
-			config.GetSession().TokenExpirySec,
-		),
+		satori: satoriClient,
 	}
 }
 
