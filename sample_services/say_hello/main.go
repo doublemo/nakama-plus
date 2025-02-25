@@ -46,10 +46,10 @@ func (s *sayHello) Call(ctx context.Context, in *pb.Request) (*pb.ResponseWriter
 		},
 		Payload: &pb.ResponseWriter_Envelope{
 			Envelope: &rtapi.Envelope{
-				Message: &rtapi.Envelope_ResponseWriter{
-					ResponseWriter: &api.ResponseWriter{
+				Message: &rtapi.Envelope_AnyResponseWriter{
+					AnyResponseWriter: &api.AnyResponseWriter{
 						Header: map[string]string{"111": "333"},
-						Body:   &api.ResponseWriter_StringValue{StringValue: `{"name":"111"}`},
+						Body:   &api.AnyResponseWriter_StringContent{StringContent: `{"name":"111"}`},
 					}}}},
 	}, nil
 }

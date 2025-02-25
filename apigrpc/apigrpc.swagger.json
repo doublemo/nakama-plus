@@ -1302,7 +1302,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/apiResponseWriter"
+              "$ref": "#/definitions/apiAnyResponseWriter"
             }
           },
           "default": {
@@ -1339,20 +1339,14 @@
             "required": false
           },
           {
-            "name": "httpKey",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "bytesValue",
+            "name": "bytesContent",
             "in": "query",
             "required": false,
             "type": "string",
             "format": "byte"
           },
           {
-            "name": "stringValue",
+            "name": "stringContent",
             "in": "query",
             "required": false,
             "type": "string"
@@ -1360,12 +1354,6 @@
         ],
         "tags": [
           "Nakama"
-        ],
-        "security": [
-          {
-            "BearerJwt": [],
-            "HttpKeyAuth": []
-          }
         ]
       },
       "post": {
@@ -1375,7 +1363,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/apiResponseWriter"
+              "$ref": "#/definitions/apiAnyResponseWriter"
             }
           },
           "default": {
@@ -1414,17 +1402,14 @@
                 "query": {
                   "type": "object",
                   "additionalProperties": {
-                    "$ref": "#/definitions/apiQuery"
+                    "$ref": "#/definitions/apiAnyQuery"
                   }
                 },
-                "httpKey": {
-                  "type": "string"
-                },
-                "bytesValue": {
+                "bytesContent": {
                   "type": "string",
                   "format": "byte"
                 },
-                "stringValue": {
+                "stringContent": {
                   "type": "string"
                 }
               }
@@ -1433,12 +1418,6 @@
         ],
         "tags": [
           "Nakama"
-        ],
-        "security": [
-          {
-            "BearerJwt": [],
-            "HttpKeyAuth": []
-          }
         ]
       }
     },
@@ -1664,6 +1643,13 @@
               "type": "string"
             },
             "collectionFormat": "multi"
+          },
+          {
+            "name": "metadata",
+            "description": "Optional metadata to add to friends.",
+            "in": "query",
+            "required": false,
+            "type": "string"
           }
         ],
         "tags": [
@@ -4125,6 +4111,36 @@
       },
       "description": "Send a Steam token to the server. Used with authenticate/link/unlink."
     },
+    "apiAnyQuery": {
+      "type": "object",
+      "properties": {
+        "value": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "title": "微服务请求结构"
+    },
+    "apiAnyResponseWriter": {
+      "type": "object",
+      "properties": {
+        "header": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "bytesContent": {
+          "type": "string",
+          "format": "byte"
+        },
+        "stringContent": {
+          "type": "string"
+        }
+      }
+    },
     "apiChannelMessage": {
       "type": "object",
       "properties": {
@@ -4317,6 +4333,10 @@
           "type": "string",
           "format": "date-time",
           "description": "Time of the latest relationship update."
+        },
+        "metadata": {
+          "type": "string",
+          "description": "Metadata."
         }
       },
       "description": "A friend of a user."
@@ -4724,17 +4744,6 @@
       "default": "NO_OVERRIDE",
       "description": "Operator that can be used to override the one set in the leaderboard.\n\n - NO_OVERRIDE: Do not override the leaderboard operator.\n - BEST: Override the leaderboard operator with BEST.\n - SET: Override the leaderboard operator with SET.\n - INCREMENT: Override the leaderboard operator with INCREMENT.\n - DECREMENT: Override the leaderboard operator with DECREMENT."
     },
-    "apiQuery": {
-      "type": "object",
-      "properties": {
-        "value": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        }
-      }
-    },
     "apiReadStorageObjectId": {
       "type": "object",
       "properties": {
@@ -4766,27 +4775,6 @@
         }
       },
       "description": "Batch get storage objects."
-    },
-    "apiResponseWriter": {
-      "type": "object",
-      "properties": {
-        "cid": {
-          "type": "string"
-        },
-        "header": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "string"
-          }
-        },
-        "bytesValue": {
-          "type": "string",
-          "format": "byte"
-        },
-        "stringValue": {
-          "type": "string"
-        }
-      }
     },
     "apiRpc": {
       "type": "object",

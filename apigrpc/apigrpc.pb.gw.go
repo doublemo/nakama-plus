@@ -4046,7 +4046,7 @@ func local_request_Nakama_WriteTournamentRecord_1(ctx context.Context, marshaler
 }
 
 func request_Nakama_Any_0(ctx context.Context, marshaler runtime.Marshaler, client NakamaClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq api.Request
+	var protoReq api.AnyRequest
 	var metadata runtime.ServerMetadata
 
 	newReader, berr := utilities.IOReaderFactory(req.Body)
@@ -4090,7 +4090,7 @@ func request_Nakama_Any_0(ctx context.Context, marshaler runtime.Marshaler, clie
 }
 
 func local_request_Nakama_Any_0(ctx context.Context, marshaler runtime.Marshaler, server NakamaServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq api.Request
+	var protoReq api.AnyRequest
 	var metadata runtime.ServerMetadata
 
 	newReader, berr := utilities.IOReaderFactory(req.Body)
@@ -4138,7 +4138,7 @@ var (
 )
 
 func request_Nakama_Any_1(ctx context.Context, marshaler runtime.Marshaler, client NakamaClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq api.Request
+	var protoReq api.AnyRequest
 	var metadata runtime.ServerMetadata
 
 	var (
@@ -4181,7 +4181,7 @@ func request_Nakama_Any_1(ctx context.Context, marshaler runtime.Marshaler, clie
 }
 
 func local_request_Nakama_Any_1(ctx context.Context, marshaler runtime.Marshaler, server NakamaServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq api.Request
+	var protoReq api.AnyRequest
 	var metadata runtime.ServerMetadata
 
 	var (

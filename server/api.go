@@ -234,7 +234,6 @@ func StartApiServer(logger *zap.Logger, startupLogger *zap.Logger, db *sql.DB, p
 	// Another nested router to hijack RPC requests bound for GRPC Gateway.
 	grpcGatewayMux := mux.NewRouter()
 	grpcGatewayMux.HandleFunc("/v2/rpc/{id:.*}", s.RpcFuncHttp).Methods(http.MethodGet, http.MethodPost)
-	grpcGatewayMux.HandleFunc("/v2/any/{name}/{cid:.*}", s.AnyHTTP).Methods(http.MethodGet, http.MethodPost)
 	for _, handler := range runtime.httpHandlers {
 		if handler == nil {
 			continue
@@ -412,13 +411,13 @@ func securityInterceptorFunc(logger *zap.Logger, config Config, sessionCache Ses
 		}
 		if !ok {
 			// Neither "authorization" nor "grpc-authorization" were supplied. Try to validate HTTP key instead.
-			in, ok := req.(*api.Request)
+			in, ok := req.(*api.AnyRequest)
 			if !ok {
 				logger.Error("Cannot extract Any from incoming request")
 				return nil, status.Error(codes.FailedPrecondition, "Auth token or HTTP key required")
 			}
 
-			httpKey := in.HttpKey
+			httpKey := ""
 			if m, ok := in.Query["http_key"]; ok && m != nil && len(m.Value) > 0 {
 				httpKey = m.Value[0]
 			}

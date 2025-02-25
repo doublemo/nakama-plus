@@ -23,6 +23,7 @@ import "google/api/annotations.proto";
 import "google/protobuf/empty.proto";
 import "protoc-gen-openapiv2/options/annotations.proto";
 import "github.com/doublemo/nakama-common/api/api.proto";
+import "github.com/doublemo/nakama-common/api/api_any.proto";
 
 option go_package = "github.com/doublemo/nakama-plus/v3/apigrpc";
 
@@ -754,7 +755,7 @@ service Nakama {
   }
 
   // Any Call services
-  rpc Any (api.Request) returns (api.ResponseWriter) {
+  rpc Any (api.AnyRequest) returns (api.AnyResponseWriter) {
     option (google.api.http) = {
       post: "/v2/any/{name}/{cid}",
       body: "*",
@@ -762,18 +763,18 @@ service Nakama {
         get: "/v2/any/{name}/{cid}"
       }
     };
-    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
-      // Either HTTP key in query param or Bearer authentication.
-      security: {
-        security_requirement: {
-          key: "HttpKeyAuth";
-          value: {};
-        }
-        security_requirement: {
-          key: "BearerJwt";
-          value: {};
-        }
-      }
-    };
+    // option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+    //   // Either HTTP key in query param or Bearer authentication.
+    //   security: {
+    //     security_requirement: {
+    //       key: "HttpKeyAuth";
+    //       value: {};
+    //     }
+    //     security_requirement: {
+    //       key: "BearerJwt";
+    //       value: {};
+    //     }
+    //   }
+    // };
   }
 }

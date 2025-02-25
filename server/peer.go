@@ -49,10 +49,10 @@ type (
 		NumMembers() int
 		Member(name string) (Endpoint, bool)
 		Members() []Endpoint
-		Broadcast(msg *pb.Request, reliable bool)
+		Broadcast(msg *pb.Peer_Envelope, reliable bool)
 		BroadcastBinaryLog(b *pb.BinaryLog, toQueue bool)
-		Send(endpoint Endpoint, msg *pb.Request, reliable bool) error
-		Request(ctx context.Context, endpoint Endpoint, msg *pb.Request) (*pb.ResponseWriter, error)
+		Send(endpoint Endpoint, msg *pb.Peer_Envelope, reliable bool) error
+		Request(ctx context.Context, endpoint Endpoint, msg *pb.Peer_Envelope) (*pb.Peer_Envelope, error)
 		GetServiceRegistry() kit.ServiceRegistry
 		Version() (map[string][2]uint64, int)
 		MatchmakerAdd(extract *pb.MatchmakerExtract)
@@ -499,12 +499,12 @@ func (s *LocalPeer) GetServiceRegistry() kit.ServiceRegistry {
 	return s.serviceRegistry
 }
 
-func (s *LocalPeer) Broadcast(msg *pb.Request, reliable bool) {
+func (s *LocalPeer) Broadcast(msg *pb.Peer_Envelope, reliable bool) {
 	request := &pb.Frame{
 		Id:        uuid.Must(uuid.NewV4()).String(),
 		Node:      s.endpoint.Name(),
 		Timestamp: timestamppb.New(time.Now().UTC()),
-		Payload:   &pb.Frame_Request{Request: msg},
+		Payload:   &pb.Frame_Envelope{Envelope: msg},
 	}
 
 	b, _ := proto.Marshal(request)
@@ -529,12 +529,12 @@ func (s *LocalPeer) Broadcast(msg *pb.Request, reliable bool) {
 	})
 }
 
-func (s *LocalPeer) Send(endpoint Endpoint, msg *pb.Request, reliable bool) error {
+func (s *LocalPeer) Send(endpoint Endpoint, msg *pb.Peer_Envelope, reliable bool) error {
 	request := &pb.Frame{
 		Id:        uuid.Must(uuid.NewV4()).String(),
 		Node:      s.endpoint.Name(),
 		Timestamp: timestamppb.New(time.Now().UTC()),
-		Payload:   &pb.Frame_Request{Request: msg},
+		Payload:   &pb.Frame_Envelope{Envelope: msg},
 	}
 
 	b, err := proto.Marshal(request)
@@ -550,7 +550,7 @@ func (s *LocalPeer) Send(endpoint Endpoint, msg *pb.Request, reliable bool) erro
 	return s.memberlist.SendReliable(endpoint.MemberlistNode(), b)
 }
 
-func (s *LocalPeer) Request(ctx context.Context, endpoint Endpoint, msg *pb.Request) (*pb.ResponseWriter, error) {
+func (s *LocalPeer) Request(ctx context.Context, endpoint Endpoint, msg *pb.Peer_Envelope) (*pb.Peer_Envelope, error) {
 	if endpoint == nil {
 		return nil, status.Error(codes.NotFound, "endpoint is not found")
 	}
@@ -567,13 +567,14 @@ func (s *LocalPeer) Request(ctx context.Context, endpoint Endpoint, msg *pb.Requ
 		}
 	}
 
+	msg.Cid = "REQ"
 	inbox := uuid.Must(uuid.NewV4())
 	request := &pb.Frame{
 		Id:        uuid.Must(uuid.NewV4()).String(),
 		Inbox:     inbox.String(),
 		Node:      s.endpoint.Name(),
 		Timestamp: timestamppb.New(time.Now().UTC()),
-		Payload:   &pb.Frame_Request{Request: msg},
+		Payload:   &pb.Frame_Envelope{Envelope: msg},
 	}
 
 	b, err := proto.Marshal(request)
@@ -581,7 +582,6 @@ func (s *LocalPeer) Request(ctx context.Context, endpoint Endpoint, msg *pb.Requ
 		return nil, err
 	}
 	//s.metrics.PeerSent(int64(len(b)))
-
 	replyChan := make(chan *pb.Frame, 1)
 	s.inbox.Register(request.Inbox, replyChan)
 	defer func() {
@@ -599,12 +599,17 @@ func (s *LocalPeer) Request(ctx context.Context, endpoint Endpoint, msg *pb.Requ
 			return nil, status.Error(codes.DeadlineExceeded, "DeadlineExceeded")
 		}
 
-		writer := m.GetResponseWriter()
-		switch writer.Payload.(type) {
-		case *pb.ResponseWriter_Envelope:
-			if err := writer.GetEnvelope().GetError(); err != nil {
+		writer := m.GetEnvelope()
+		if writer == nil {
+			return nil, status.Error(codes.InvalidArgument, "InvalidArgument")
+		}
+
+		switch v := writer.Payload.(type) {
+		case *pb.Peer_Envelope_Error:
+			if err := v.Error; err != nil {
 				return nil, status.Error(codes.Code(err.Code), err.Message)
 			}
+
 		default:
 		}
 		return writer, nil
@@ -788,7 +793,7 @@ func (s *LocalPeer) onServiceUpdate() {
 		}
 		return true
 	})
-	s.logger.Info("updated service", zap.Strings("nodes", nodesname), zap.Strings("removed", nodesremoved))
+	s.logger.Info("updated services", zap.Strings("nodes", nodesname), zap.Strings("removed", nodesremoved))
 }
 
 func (s *LocalPeer) onNotifyMsg(msg []byte) {
@@ -798,15 +803,26 @@ func (s *LocalPeer) onNotifyMsg(msg []byte) {
 		return
 	}
 
-	switch frame.Payload.(type) {
+	switch v := frame.Payload.(type) {
 	case *pb.Frame_BinaryLog:
 		s.onBinaryLog(frame.GetBinaryLog())
 
-	case *pb.Frame_Request:
-		s.onRequest(&frame)
+	case *pb.Frame_Envelope:
+		if v.Envelope == nil {
+			return
+		}
 
-	case *pb.Frame_ResponseWriter:
-		s.onResponseWriter(&frame)
+		cid := v.Envelope.GetCid()
+		switch cid {
+		case "REQ":
+			s.onRequest(&frame)
+
+		case "RESP":
+			s.onResponseWriter(&frame)
+
+		default:
+			s.logger.Error("", zap.String("No corresponding CID found.", cid))
+		}
 	}
 }
 

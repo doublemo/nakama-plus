@@ -295,7 +295,7 @@ type NakamaClient interface {
 	// Write a record to a tournament.
 	WriteTournamentRecord(ctx context.Context, in *api.WriteTournamentRecordRequest, opts ...grpc.CallOption) (*api.LeaderboardRecord, error)
 	// Any Call services
-	Any(ctx context.Context, in *api.Request, opts ...grpc.CallOption) (*api.ResponseWriter, error)
+	Any(ctx context.Context, in *api.AnyRequest, opts ...grpc.CallOption) (*api.AnyResponseWriter, error)
 }
 
 type nakamaClient struct {
@@ -1053,8 +1053,8 @@ func (c *nakamaClient) WriteTournamentRecord(ctx context.Context, in *api.WriteT
 	return out, nil
 }
 
-func (c *nakamaClient) Any(ctx context.Context, in *api.Request, opts ...grpc.CallOption) (*api.ResponseWriter, error) {
-	out := new(api.ResponseWriter)
+func (c *nakamaClient) Any(ctx context.Context, in *api.AnyRequest, opts ...grpc.CallOption) (*api.AnyResponseWriter, error) {
+	out := new(api.AnyResponseWriter)
 	err := c.cc.Invoke(ctx, Nakama_Any_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -1233,7 +1233,7 @@ type NakamaServer interface {
 	// Write a record to a tournament.
 	WriteTournamentRecord(context.Context, *api.WriteTournamentRecordRequest) (*api.LeaderboardRecord, error)
 	// Any Call services
-	Any(context.Context, *api.Request) (*api.ResponseWriter, error)
+	Any(context.Context, *api.AnyRequest) (*api.AnyResponseWriter, error)
 	mustEmbedUnimplementedNakamaServer()
 }
 
@@ -1490,7 +1490,7 @@ func (UnimplementedNakamaServer) WriteStorageObjects(context.Context, *api.Write
 func (UnimplementedNakamaServer) WriteTournamentRecord(context.Context, *api.WriteTournamentRecordRequest) (*api.LeaderboardRecord, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method WriteTournamentRecord not implemented")
 }
-func (UnimplementedNakamaServer) Any(context.Context, *api.Request) (*api.ResponseWriter, error) {
+func (UnimplementedNakamaServer) Any(context.Context, *api.AnyRequest) (*api.AnyResponseWriter, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Any not implemented")
 }
 func (UnimplementedNakamaServer) mustEmbedUnimplementedNakamaServer() {}
@@ -3001,7 +3001,7 @@ func _Nakama_WriteTournamentRecord_Handler(srv interface{}, ctx context.Context,
 }
 
 func _Nakama_Any_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(api.Request)
+	in := new(api.AnyRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -3013,7 +3013,7 @@ func _Nakama_Any_Handler(srv interface{}, ctx context.Context, dec func(interfac
 		FullMethod: Nakama_Any_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NakamaServer).Any(ctx, req.(*api.Request))
+		return srv.(NakamaServer).Any(ctx, req.(*api.AnyRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }

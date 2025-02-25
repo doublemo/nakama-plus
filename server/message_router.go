@@ -127,12 +127,14 @@ func (r *LocalMessageRouter) SendToPresenceIDs(logger *zap.Logger, presenceIDs [
 			continue
 		}
 
-		m := &pb.Request{
-			Payload: &pb.Request_Out{Out: &pb.ResponseWriter{
-				Recipient: sessions,
-				Payload:   &pb.ResponseWriter_Envelope{Envelope: envelope},
-			}},
-		}
+		// m := &pb.Request{
+		// 	Payload: &pb.Request_Out{Out: &pb.ResponseWriter{
+		// 		Recipient: sessions,
+		// 		Payload:   &pb.ResponseWriter_Envelope{Envelope: envelope},
+		// 	}},
+		// }
+
+		m := &pb.Peer_Envelope{}
 
 		if err := r.peer.Send(endpoint, m, reliable); err != nil {
 			logger.Error("Failed to route message", zap.String("node", remoteNode), zap.Error(err))

@@ -20,7 +20,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func (s *LocalPeer) handler(client kit.Client, msg *pb.ResponseWriter) {
+func (s *LocalPeer) handler(client kit.Client, msg *pb.Peer_Envelope) {
 	if client != nil {
 		s.logger.Debug("recv info", zap.String("name", client.Name()), zap.String("Role", client.Name()))
 	} else {
@@ -28,18 +28,56 @@ func (s *LocalPeer) handler(client kit.Client, msg *pb.ResponseWriter) {
 	}
 
 	switch msg.Payload.(type) {
-	case *pb.ResponseWriter_Envelope:
-		s.toClient(msg)
+	case *pb.Peer_Envelope_NkEnvelope:
+		s.toClient(msg.GetNkEnvelope(), msg.GetRecipient())
 	default:
 	}
 }
 
-func (s *LocalPeer) toClient(w *pb.ResponseWriter) {
-	recipients := w.GetRecipient()
+func (s *LocalPeer) toClientByPeerResponseWriter(w *pb.Peer_ResponseWriter) {
+	msgData := &api.AnyResponseWriter{
+		Header: make(map[string]string),
+	}
+
+	for k, v := range w.GetHeader() {
+		msgData.Header[k] = v
+	}
+	msgData.Header["cid"] = w.GetCid()
+	msgData.Header["name"] = w.GetName()
+	switch v := w.GetPayload().(type) {
+	case *pb.Peer_ResponseWriter_BytesContent:
+		size := len(v.BytesContent)
+		body := &api.AnyResponseWriter_BytesContent{BytesContent: make([]byte, size)}
+		if size > 0 {
+			copy(body.BytesContent, v.BytesContent)
+		}
+		msgData.Body = body
+
+	case *pb.Peer_ResponseWriter_StringContent:
+		msgData.Body = &api.AnyResponseWriter_StringContent{StringContent: v.StringContent}
+	default:
+	}
+	s.toClientByApiResponseWriter(msgData, w.GetRecipient())
+}
+
+func (s *LocalPeer) toClientByApiResponseWriter(w *api.AnyResponseWriter, recipients []*pb.Recipienter) {
+	envelope := &rtapi.Envelope{
+		Message: &rtapi.Envelope_AnyResponseWriter{AnyResponseWriter: w},
+	}
+
+	s.toClient(envelope, recipients)
+}
+
+func (s *LocalPeer) toClient(envelope *rtapi.Envelope, recipients []*pb.Recipienter) {
+	if envelope == nil {
+		s.logger.Warn("toClient: envelope is nil")
+		return
+	}
+
 	size := len(recipients)
 	if size < 1 {
 		s.sessionRegistry.Range(func(session Session) bool {
-			_ = session.Send(w.GetEnvelope(), true)
+			_ = session.Send(envelope, true)
 			return true
 		})
 		return
@@ -49,19 +87,19 @@ func (s *LocalPeer) toClient(w *pb.ResponseWriter) {
 		switch recipient.Action {
 		case pb.Recipienter_USERID:
 			presenceIDs := s.tracker.ListLocalPresenceIDByStream(PresenceStream{Mode: StreamModeNotifications, Subject: uuid.FromStringOrNil(recipient.GetToken())})
-			s.messageRouter.SendToPresenceIDs(s.logger, presenceIDs, w.GetEnvelope(), true)
+			s.messageRouter.SendToPresenceIDs(s.logger, presenceIDs, envelope, true)
 
 		case pb.Recipienter_SESSIONID:
 			session := s.sessionRegistry.Get(uuid.FromStringOrNil(recipient.GetToken()))
 			if session != nil {
-				_ = session.Send(w.GetEnvelope(), true)
+				_ = session.Send(envelope, true)
 			}
 
 		case pb.Recipienter_CHANNEL:
 			fallthrough
 		case pb.Recipienter_STREAM:
 			presenceIDs := s.tracker.ListLocalPresenceIDByStream(pb2PresenceStream(recipient.GetStream()))
-			s.messageRouter.SendToPresenceIDs(s.logger, presenceIDs, w.GetEnvelope(), true)
+			s.messageRouter.SendToPresenceIDs(s.logger, presenceIDs, envelope, true)
 
 		default:
 		}
@@ -126,7 +164,7 @@ func (s *LocalPeer) disconnect(w *pb.Disconnect) {
 	}
 }
 
-func newEnvelopeError(err error) *rtapi.Envelope {
+func newEnvelopeError(err error) *pb.Peer_Envelope_Error {
 	errMessage := &rtapi.Error{
 		Code:    int32(codes.Unknown),
 		Message: err.Error(),
@@ -136,5 +174,5 @@ func newEnvelopeError(err error) *rtapi.Envelope {
 		errMessage.Code = int32(code.Code())
 		errMessage.Message = code.Message()
 	}
-	return &rtapi.Envelope{Message: &rtapi.Envelope_Error{Error: errMessage}}
+	return &pb.Peer_Envelope_Error{Error: errMessage}
 }

@@ -1,8 +1,11 @@
 module github.com/doublemo/nakama-plus/v3
 
-go 1.23.3
+go 1.24.0
 
-replace github.com/doublemo/nakama-common v1.35.0 => ../nakama-common
+replace (
+	github.com/doublemo/nakama-common v1.35.0 => ../nakama-common
+	github.com/doublemo/nakama-kit v1.0.2 => ../nakama-kit
+)
 
 require (
 	github.com/blugelabs/bluge v0.2.2
@@ -32,7 +35,7 @@ require (
 	golang.org/x/crypto v0.31.0
 	golang.org/x/oauth2 v0.24.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20250115164207-1a7da9e5054f
-	google.golang.org/grpc v1.69.4
+	google.golang.org/grpc v1.70.0
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.5.1
 	google.golang.org/protobuf v1.36.4
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1

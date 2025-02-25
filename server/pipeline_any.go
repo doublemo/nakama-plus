@@ -25,7 +25,7 @@ import (
 )
 
 func (p *Pipeline) any(logger *zap.Logger, session Session, envelope *rtapi.Envelope) (bool, *rtapi.Envelope) {
-	req := envelope.GetRequest()
+	req := envelope.GetAnyRequest()
 	if req.Name == "" {
 		_ = session.Send(&rtapi.Envelope{Cid: envelope.Cid, Message: &rtapi.Envelope_Error{Error: &rtapi.Error{
 			Code:    int32(rtapi.Error_BAD_INPUT),
