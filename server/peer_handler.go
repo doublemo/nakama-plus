@@ -29,7 +29,7 @@ func (s *LocalPeer) handlerByPeerEnvelope(client kit.Client, msg *pb.Peer_Envelo
 
 	switch msg.Payload.(type) {
 	case *pb.Peer_Envelope_NkEnvelope:
-		s.toClient(msg.GetNkEnvelope(), msg.GetRecipient())
+		s.ToClient(msg.GetNkEnvelope(), msg.GetRecipient())
 	default:
 	}
 }
@@ -64,6 +64,10 @@ func (s *LocalPeer) toClientByPeerResponseWriter(w *pb.Peer_ResponseWriter) {
 
 	case *pb.Peer_ResponseWriter_StringContent:
 		msgData.Body = &api.AnyResponseWriter_StringContent{StringContent: v.StringContent}
+
+	case *pb.Peer_ResponseWriter_Notifications:
+		s.ToClient(&rtapi.Envelope{Message: &rtapi.Envelope_Notifications{Notifications: v.Notifications}}, w.GetRecipient())
+		return
 	default:
 	}
 	s.toClientByApiResponseWriter(msgData, w.GetRecipient())
@@ -74,10 +78,10 @@ func (s *LocalPeer) toClientByApiResponseWriter(w *api.AnyResponseWriter, recipi
 		Message: &rtapi.Envelope_AnyResponseWriter{AnyResponseWriter: w},
 	}
 
-	s.toClient(envelope, recipients)
+	s.ToClient(envelope, recipients)
 }
 
-func (s *LocalPeer) toClient(envelope *rtapi.Envelope, recipients []*pb.Recipienter) {
+func (s *LocalPeer) ToClient(envelope *rtapi.Envelope, recipients []*pb.Recipienter) {
 	if envelope == nil {
 		s.logger.Warn("toClient: envelope is nil")
 		return

@@ -14,6 +14,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/doublemo/nakama-common/rtapi"
 	"github.com/doublemo/nakama-common/runtime"
 	"github.com/doublemo/nakama-kit/kit"
 	"github.com/doublemo/nakama-kit/pb"
@@ -62,6 +63,7 @@ type (
 		MatchmakerRemovePartyAll(partyID string)
 		MatchmakerRemoveAll(node string)
 		MatchmakerRemove(tickets []string)
+		ToClient(envelope *rtapi.Envelope, recipients []*pb.Recipienter)
 	}
 
 	peerMsg struct {

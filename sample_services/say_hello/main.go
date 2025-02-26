@@ -9,13 +9,17 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/doublemo/nakama-common/api"
+	"github.com/doublemo/nakama-common/rtapi"
 	"github.com/doublemo/nakama-kit/kit"
 	"github.com/doublemo/nakama-kit/pb"
 	"github.com/doublemo/nakama-plus/v3/flags"
 	"github.com/doublemo/nakama-plus/v3/server"
+	"github.com/gofrs/uuid/v5"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 var (
@@ -38,6 +42,30 @@ type sayHello struct {
 func (s *sayHello) Call(ctx context.Context, in *pb.Peer_Request) (*pb.Peer_ResponseWriter, error) {
 	s.logger.Info("收到请求CALL", zap.Any("request", in))
 	fmt.Println("--d----", in.Context)
+
+	if in.GetCid() == "msg" {
+		return &pb.Peer_ResponseWriter{
+			Context: map[string]string{
+				"test": "msg",
+			},
+			Payload: &pb.Peer_ResponseWriter_Notifications{
+				Notifications: &rtapi.Notifications{
+					Notifications: []*api.Notification{
+						{
+							Id:         uuid.Must(uuid.NewV4()).String(),
+							Subject:    "single_socket",
+							Content:    "{}",
+							Code:       100001,
+							SenderId:   "",
+							CreateTime: &timestamppb.Timestamp{Seconds: time.Now().Unix()},
+							Persistent: false,
+						},
+					},
+				},
+			},
+		}, nil
+	}
+
 	return &pb.Peer_ResponseWriter{
 		Context: map[string]string{
 			"test": "test",

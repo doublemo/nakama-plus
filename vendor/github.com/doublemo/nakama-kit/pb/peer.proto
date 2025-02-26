@@ -64,6 +64,7 @@ message Peer{
         oneof payload {
             bytes bytesContent = 6;
             string stringContent = 7;
+            realtime.Notifications notifications = 8;
         }
     }
 

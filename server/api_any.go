@@ -69,8 +69,7 @@ func (s *ApiServer) Any(ctx context.Context, in *api.AnyRequest) (*api.AnyRespon
 	if resp == nil {
 		return &api.AnyResponseWriter{}, nil
 	}
-
-	return toAnyResponseWriter(resp), nil
+	return toAnyResponseWriter(resp, s.runtime.GetPeer()), nil
 }
 
 func (s *ApiServer) internalRemoteCall(ctx context.Context, in *pb.Peer_Request) (*pb.Peer_ResponseWriter, error) {
