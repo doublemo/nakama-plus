@@ -45,6 +45,12 @@ func (s *sayHello) Call(ctx context.Context, in *pb.Peer_Request) (*pb.Peer_Resp
 
 	if in.GetCid() == "msg" {
 		return &pb.Peer_ResponseWriter{
+			Recipient: []*pb.Recipienter{
+				{
+					Action:  pb.Recipienter_USERID,
+					Payload: &pb.Recipienter_Token{Token: "56b58143-498a-435b-9efb-dfcb7fb89727"},
+				},
+			},
 			Context: map[string]string{
 				"test": "msg",
 			},
@@ -129,6 +135,27 @@ func main() {
 					if state == kit.ConnectorState_WAITRETRY {
 						fmt.Println("服务等待连接恢复中", c.ID())
 					}
+
+					c.Write(&pb.Peer_ResponseWriter{
+						Context: map[string]string{
+							"test": "msggogog",
+						},
+						Payload: &pb.Peer_ResponseWriter_Notifications{
+							Notifications: &rtapi.Notifications{
+								Notifications: []*api.Notification{
+									{
+										Id:         uuid.Must(uuid.NewV4()).String(),
+										Subject:    "定时推送测试",
+										Content:    "{}",
+										Code:       100002,
+										SenderId:   "",
+										CreateTime: &timestamppb.Timestamp{Seconds: time.Now().Unix()},
+										Persistent: false,
+									},
+								},
+							},
+						},
+					})
 
 					// c.Write(&pb.Bombus_ResponseWriter{Context: map[string]*pb.OneofValue{
 					// 	"test": &pb.OneofValue{Payload: &pb.OneofValue_StringValue{StringValue: "test"}},

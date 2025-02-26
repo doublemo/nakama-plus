@@ -62,9 +62,9 @@ func (s *LocalPeer) onRequest(frame *pb.Frame) {
 		w(&pb.Peer_Envelope{Payload: &pb.Peer_Envelope_Pong{Pong: "PONG"}})
 		return
 
-	// case *pb.Request_Out:
-	// 	s.handler(nil, request.GetOut())
-	// 	return
+	case *pb.Peer_Envelope_NkEnvelope:
+		s.ToClient(request.GetNkEnvelope(), request.GetRecipient())
+		return
 
 	case *pb.Peer_Envelope_SingleSocket:
 		s.singleSocket(request.GetSingleSocket())
@@ -242,7 +242,7 @@ func (s *LocalPeer) onRequest(frame *pb.Frame) {
 			w(&pb.Peer_Envelope{Payload: newEnvelopeError(status.Error(codes.NotFound, "Not Found"))})
 			return
 		}
-		v, err := s.matchRegistry.Signal(s.ctx, sig.Id, sig.Data)
+		v, err := s.matchRegistry.Signal(s.ctx, sig.GetId(), sig.GetData())
 		if err != nil {
 			w(&pb.Peer_Envelope{Payload: newEnvelopeError(err)})
 			return

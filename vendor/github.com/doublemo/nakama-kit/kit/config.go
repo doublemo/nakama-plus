@@ -242,7 +242,7 @@ func NewGrpcConfig() *GrpcConfig {
 		InitialConnWindowSize: grpcpool.InitialConnWindowSize,
 		MaxSendMsgSize:        grpcpool.MaxSendMsgSize,
 		MaxRecvMsgSize:        grpcpool.MaxRecvMsgSize,
-		MaxIdle:               1,
+		MaxIdle:               100,
 		MaxActive:             65535,
 		MaxConcurrentStreams:  65535,
 		Reuse:                 true,

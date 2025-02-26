@@ -6,6 +6,7 @@
 package server
 
 import (
+	"context"
 	"time"
 
 	"github.com/doublemo/nakama-common/api"
@@ -20,65 +21,19 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func (s *LocalPeer) handlerByPeerEnvelope(client kit.Client, msg *pb.Peer_Envelope) {
-	if client != nil {
-		s.logger.Debug("recv info", zap.String("name", client.Name()), zap.String("Role", client.Name()))
-	} else {
-		s.logger.Debug("recv info")
-	}
-
-	switch msg.Payload.(type) {
-	case *pb.Peer_Envelope_NkEnvelope:
-		s.ToClient(msg.GetNkEnvelope(), msg.GetRecipient())
-	default:
-	}
-}
-
 func (s *LocalPeer) handlerByPeerResponseWriter(client kit.Client, msg *pb.Peer_ResponseWriter) {
 	if client != nil {
 		s.logger.Debug("recv info", zap.String("name", client.Name()), zap.String("Role", client.Name()))
 	} else {
 		s.logger.Debug("recv info")
 	}
-	s.toClientByPeerResponseWriter(msg)
-}
 
-func (s *LocalPeer) toClientByPeerResponseWriter(w *pb.Peer_ResponseWriter) {
-	msgData := &api.AnyResponseWriter{
-		Header: make(map[string]string),
-	}
-
-	for k, v := range w.GetHeader() {
-		msgData.Header[k] = v
-	}
-	msgData.Header["cid"] = w.GetCid()
-	msgData.Header["name"] = w.GetName()
-	switch v := w.GetPayload().(type) {
-	case *pb.Peer_ResponseWriter_BytesContent:
-		size := len(v.BytesContent)
-		body := &api.AnyResponseWriter_BytesContent{BytesContent: make([]byte, size)}
-		if size > 0 {
-			copy(body.BytesContent, v.BytesContent)
-		}
-		msgData.Body = body
-
-	case *pb.Peer_ResponseWriter_StringContent:
-		msgData.Body = &api.AnyResponseWriter_StringContent{StringContent: v.StringContent}
-
-	case *pb.Peer_ResponseWriter_Notifications:
-		s.ToClient(&rtapi.Envelope{Message: &rtapi.Envelope_Notifications{Notifications: v.Notifications}}, w.GetRecipient())
+	anyResponseWriter, ns := toAnyResponseWriter(msg)
+	if ns != nil {
+		_ = SendAnyResponseWriter(context.Background(), s.logger, s.db, s.tracker, s.messageRouter, nil, ns, msg.GetRecipient())
 		return
-	default:
 	}
-	s.toClientByApiResponseWriter(msgData, w.GetRecipient())
-}
-
-func (s *LocalPeer) toClientByApiResponseWriter(w *api.AnyResponseWriter, recipients []*pb.Recipienter) {
-	envelope := &rtapi.Envelope{
-		Message: &rtapi.Envelope_AnyResponseWriter{AnyResponseWriter: w},
-	}
-
-	s.ToClient(envelope, recipients)
+	_ = SendAnyResponseWriter(context.Background(), s.logger, s.db, s.tracker, s.messageRouter, anyResponseWriter, nil, msg.GetRecipient())
 }
 
 func (s *LocalPeer) ToClient(envelope *rtapi.Envelope, recipients []*pb.Recipienter) {

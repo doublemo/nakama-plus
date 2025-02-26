@@ -7,6 +7,8 @@ package server
 
 import (
 	"context"
+	"database/sql"
+	"fmt"
 	"math"
 	coreruntime "runtime"
 	"strconv"
@@ -95,13 +97,14 @@ type (
 		wk                   *worker.WorkerPool
 		protojsonMarshaler   *protojson.MarshalOptions
 		protojsonUnmarshaler *protojson.UnmarshalOptions
+		db                   *sql.DB
 
 		once sync.Once
 		sync.Mutex
 	}
 )
 
-func NewLocalPeer(logger *zap.Logger, name string, metadata map[string]string, metrics Metrics, sessionRegistry SessionRegistry, tracker Tracker, messageRouter MessageRouter, matchRegistry MatchRegistry, matchmaker Matchmaker, partyRegistry PartyRegistry, protojsonMarshaler *protojson.MarshalOptions, protojsonUnmarshaler *protojson.UnmarshalOptions, c *PeerConfig) Peer {
+func NewLocalPeer(db *sql.DB, logger *zap.Logger, name string, metadata map[string]string, metrics Metrics, sessionRegistry SessionRegistry, tracker Tracker, messageRouter MessageRouter, matchRegistry MatchRegistry, matchmaker Matchmaker, partyRegistry PartyRegistry, protojsonMarshaler *protojson.MarshalOptions, protojsonUnmarshaler *protojson.UnmarshalOptions, c *PeerConfig) Peer {
 	ctx, ctxCancelFn := context.WithCancel(context.Background())
 	if metadata == nil {
 		metadata = make(map[string]string)
@@ -128,6 +131,7 @@ func NewLocalPeer(logger *zap.Logger, name string, metadata map[string]string, m
 		messageRouter:        messageRouter,
 		protojsonMarshaler:   protojsonMarshaler,
 		protojsonUnmarshaler: protojsonUnmarshaler,
+		db:                   db,
 	}
 
 	cfg := toMemberlistConfig(s, name, c)
@@ -509,6 +513,9 @@ func (s *LocalPeer) Broadcast(msg *pb.Peer_Envelope, reliable bool) {
 		Payload:   &pb.Frame_Envelope{Envelope: msg},
 	}
 
+	if msg.Cid == "" {
+		msg.Cid = "REQ"
+	}
 	b, _ := proto.Marshal(request)
 	//s.metrics.PeerSent(int64(len(b)))
 
@@ -805,10 +812,13 @@ func (s *LocalPeer) onNotifyMsg(msg []byte) {
 		return
 	}
 
+	fmt.Println("onNotifyMsg:", frame)
+
 	switch v := frame.Payload.(type) {
 	case *pb.Frame_BinaryLog:
 		s.onBinaryLog(frame.GetBinaryLog())
 
+	case *pb.Frame_Status:
 	case *pb.Frame_Envelope:
 		if v.Envelope == nil {
 			return
@@ -816,7 +826,7 @@ func (s *LocalPeer) onNotifyMsg(msg []byte) {
 
 		cid := v.Envelope.GetCid()
 		switch cid {
-		case "REQ":
+		case "REQ", "":
 			s.onRequest(&frame)
 
 		case "RESP":
