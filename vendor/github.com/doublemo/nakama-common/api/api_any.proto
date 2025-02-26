@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package nakama.api;
+
+option go_package = "github.com/doublemo/nakama-common/api";
+
+option java_multiple_files = true;
+option java_outer_classname = "NakamaApi";
+option java_package = "com.heroiclabs.nakama.api";
+
+option csharp_namespace = "Nakama.Protobuf";
+
+// 微服务请求结构
+message AnyQuery {
+    repeated string value = 1; 
+}
+
+message AnyRequest {
+    string cid = 1;
+    string name = 2;
+    map<string, string> header = 3;
+    map<string, AnyQuery> query = 4;
+    string http_key = 5;
+    oneof body {
+        bytes bytesContent = 6;
+        string stringContent = 7;
+    }
+}
+
+message AnyResponseWriter {
+    map<string, string> header = 1;
+    oneof body {
+        bytes bytesContent = 2;
+        string stringContent = 3;
+    }
+}

@@ -1,0 +1,445 @@
+// Copyright 2024 The Nakama Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+/**
+ * The realtime protocol for Nakama server.
+ */
+ syntax = "proto3";
+
+ package nakama.peer;
+ 
+ import "google/protobuf/timestamp.proto";
+ import "google/protobuf/wrappers.proto";
+ import "api/api.proto";
+ import "api/api_any.proto";
+ import "rtapi/realtime.proto";
+ 
+ option go_package = "github.com/doublemo/nakama-kit/pb";
+ 
+ option java_multiple_files = true;
+ option java_outer_classname = "NakamaPeer";
+ option java_package = "com.doublemo.nakamakit.pb";
+ 
+ option csharp_namespace = "Nakama.Protobuf";
+
+ service PeerApi {
+    rpc Call(Peer.Request) returns(Peer.ResponseWriter);
+    rpc Stream(stream Peer.Request) returns(stream Peer.ResponseWriter);
+}
+
+message Peer{
+    message Query {
+        repeated string value = 1;
+    }
+
+    message Request {
+        string cid = 1;
+        string name = 2;
+        map<string, string> header = 3;
+        map<string, Query> query = 4;
+        map<string, string> context = 5;
+        oneof payload {
+            bytes bytesContent = 6;
+            string stringContent = 7;
+        }
+    }
+
+    message ResponseWriter {
+        string cid = 1;
+        string name = 2;
+        map<string, string> header = 3;
+        map<string, string> context = 4;
+        repeated Recipienter recipient = 5;
+        oneof payload {
+            bytes bytesContent = 6;
+            string stringContent = 7;
+        }
+    }
+
+    message Envelope{
+        string cid = 1;
+        map<string, string> context = 2;
+        repeated Recipienter recipient = 3;
+        oneof payload {
+            string singleSocket = 4;
+            Disconnect disconnect = 5;
+            Party.JoinRequest partyJoinRequest = 6;
+            bool partyJoinRequestReply = 7;
+            Party.Promote partyPromote = 8;
+            Party.Accept partyAccept = 9;
+            Party.Remove partyRemove = 10;
+            Party.Close partyClose = 11;
+            Party.JoinRequestList partyJoinRequestList = 12;
+            Party.JoinRequestListReply partyJoinRequestListReply = 13;
+            Party.MatchmakerAdd partyMatchmakerAdd = 14;
+            Party.MatchmakerAddReply PartyMatchmakerAddReply = 15;
+            Party.MatchmakerRemove partyMatchmakerRemove = 16;
+            Party.DataSend partyDataSend = 17;
+            string matchId = 18;
+            Match.JoinAttempt matchJoinAttempt = 19;
+            Match.JoinAttemptReply mathJoinAttemptReply = 20;
+            Match.SendData matchSendData = 21;
+            Match.Signal matchSignal = 22;
+            string matchState = 23;
+            api.Match match = 24;
+            realtime.Error error = 25;
+            string ping = 26;
+            string pong = 27;
+            string matchSignalReply = 28;
+            Match.State matchStateReply = 29;
+            realtime.Envelope nkEnvelope = 30;
+        }
+    }
+}
+
+message Recipienter {
+    enum Role {
+        SESSIONID = 0;
+        CHANNEL = 1;
+        STREAM = 2;
+        USERID = 3;
+    }
+
+    Role action = 1;
+    oneof payload {
+        string token = 2;
+        PresenceStream stream = 3;
+    }
+}
+
+message Frame {
+    string id = 1;
+    string inbox = 2;
+    string node = 3;
+    google.protobuf.Timestamp timestamp = 4;
+    oneof payload {
+        Peer.Envelope envelope = 5;
+        BinaryLog binaryLog = 6;
+        Status status = 7;
+    }
+}
+
+message Disconnect {
+    string sessionID = 1;
+    bool ban = 2;
+    uint32 reason = 3;
+}
+
+message State {
+    string node = 1;
+    repeated BinaryLog binaryLog = 2;
+    repeated Presence Presences = 3; 
+    CheckPoint checkPoint = 4;
+    uint64 version = 5;
+    repeated MatchmakerExtract matchmaker = 6;
+}
+
+message Status {
+    string name = 1;
+    int32  health = 2;
+    int32 sessionCount = 3;
+    int32 presenceCount = 4;
+    int32 matchCount = 5;
+    int32 goroutineCount = 6;
+    double avgLatencyMs = 7;
+    double avgRateSec = 8;
+    double avgInputKbs = 9;
+    double avgOutputKbs = 10;
+}
+
+message PresenceID {
+    string sessionID = 1;
+    string node = 2;
+}
+
+message Presence {
+    string sessionID = 1;
+    string userID = 2;
+    repeated PresenceStream  stream = 3;
+    repeated PresenceMeta meta = 4;
+    string node = 5;
+}
+
+message PresenceStream {
+    uint32 mode        = 1;
+    string subject     = 2;
+    string subcontext  = 3;
+    string label       = 4;
+}
+
+message PresenceMeta {
+    uint32 sessionFormat = 1;
+    bool   hidden = 2;
+    bool   persistence  = 3;
+    string username = 4;    
+    string status = 5;      
+    uint32 reason = 6;      
+}
+
+message NodeMeta {
+    enum Status {
+        // 节点已停止
+        STOPED = 0;
+
+        // 节点正常
+        OK = 1;
+
+        // 节点维护中
+        MAINTENANCE = 2;
+    }
+
+    enum Balancer {
+        // 随机
+        RANDOM = 0;
+
+        // 循环
+        ROUNDROBIN = 1;
+
+        // HASHRING
+        HASHRING = 2;
+    }
+
+    // 节点名称
+    string name = 1;
+
+    // 节点参数
+    map<string, string> vars = 2;
+
+    // 节点IP
+    string ip = 3;
+
+    // 节点端口
+    uint32 port = 4;
+
+    // 节点服务角色
+    string role = 5;
+
+    // 节点状态
+    Status status = 6;
+
+    // 节点权重
+    int32 weight = 7;
+
+    // 节点负载方式
+    Balancer balancer = 8;
+
+    // 允许流连接
+    bool allowStream = 9;
+}
+
+message BanValue {
+    repeated string values = 1;
+}
+
+message UntrackValue {
+    string sessionID = 1;
+    string userID = 2;
+    repeated PresenceStream  stream = 3;
+    repeated uint32 modes = 4;
+    PresenceStream skip = 5;
+    uint32 reason  = 6;
+}
+
+message MatchBatch {
+    repeated bytes documents = 1;
+    repeated string ids = 2;
+}
+
+message BinaryLog {
+    uint64 id = 1;
+    string node = 2;
+    google.protobuf.Timestamp timestamp = 3;
+    oneof payload {
+        Presence track = 4;
+        UntrackValue untrack = 5;
+        BanValue ban = 6;
+        Presence updateTrack = 7;
+        MatchmakerExtract MatchmakerAdd = 8;
+        MatchmakerExtract MatchmakerRemoveSession = 9;
+        MatchmakerExtract MatchmakerRemoveSessionAll = 10;
+        MatchmakerExtract MatchmakerRemoveParty = 11;
+        MatchmakerExtract MatchmakerRemovePartyAll = 12;
+        MatchmakerExtract MatchmakerRemoveAll = 13;
+        PartyMatchmakerRemove MatchmakerRemove = 14;
+    }
+
+
+    message PartyMatchmakerRemove {
+        repeated string ticket = 1;
+    }
+}
+
+message Point {
+    map<string, uint64> point = 1;
+}
+
+message CheckPoint {
+    map<string, Point> value = 1;
+}
+
+
+message MatchmakerPresence{
+    string userId = 1;
+    string sessionId = 2;
+    string username = 3;
+    string node = 4;
+}
+
+message MatchmakerExtract{
+    repeated MatchmakerPresence presences = 1;
+    string sessionId = 2;
+    string partyId = 3;
+    string query = 4;
+    int32 minCount = 5;
+    int32 maxCount = 6;
+    int32 countMultiple = 7;
+    map<string, string> stringProperties = 8;
+    map<string, double> numericProperties = 9;
+    string ticket = 10;
+    int32 count = 11;
+    int32 intervals = 12;
+    int64 createdAt = 13;
+    string node = 14;
+}
+
+message MatchPresence{
+    string userId = 1;
+    string sessionId = 2;
+    string username = 3;
+    string node = 4;
+    uint32 reason = 5;
+}
+
+message Party {
+    message JoinRequest{
+        string id = 1;
+        Presence presence = 2;
+    }
+
+    message Promote{
+        string id = 1;
+        string sessionID = 2;
+        string fromNode = 3;
+        realtime.UserPresence userPresence = 4;
+    }
+
+    message Accept{
+        string id = 1;
+        string sessionID = 2;
+        string fromNode = 3;
+        realtime.UserPresence userPresence = 4;
+    }
+
+    message Remove{
+        string id = 1;
+        string sessionID = 2;
+        string fromNode = 3;
+        realtime.UserPresence userPresence = 4;
+    }
+
+    message Close{
+        string id = 1;
+        string sessionID = 2;
+        string fromNode = 3;
+    }
+
+    message JoinRequestList{
+        string id = 1;
+        string sessionID = 2;
+        string fromNode = 3;
+    }
+
+    message JoinRequestListReply{
+        repeated realtime.UserPresence userPresence = 1;
+    }
+
+    message MatchmakerAdd{
+        string id = 1;
+        string sessionID = 2;
+        string fromNode = 3;
+        string query = 4;
+        int32 minCount = 5;
+        int32 maxCount = 6;
+        int32 countMultiple = 7;
+        map<string, string> stringProperties = 8;
+        map<string, double> numericProperties = 9;
+    }
+
+    message MatchmakerAddReply {
+        string ticket = 1;
+        repeated PresenceID presenceID = 2;
+    }
+
+    message MatchmakerRemove{
+        string id = 1;
+        string sessionID = 2;
+        string fromNode = 3;
+        string ticket = 4;
+    }
+
+    message DataSend {
+        string id = 1;
+        string sessionID = 2;
+        string fromNode = 3;
+        int64 opCode = 4;
+        bytes data = 5;
+    }
+}
+
+message Match {
+    message JoinAttempt{
+        string id = 1;
+        string userId = 2;
+        string sessionId = 3;
+        string username = 4;
+        int64 sessionExpiry = 5;
+        map<string, string> vars = 6;
+        string clientIP = 7;
+        string clientPort = 8;
+        string fromNode = 9;
+        map<string, string> metadata = 20;
+    }
+
+    message JoinAttemptReply {
+        bool found = 1;
+        bool allow = 2;
+        bool isNew = 3;
+        string reason = 4;
+        string label = 5;
+        repeated MatchPresence presences = 6;
+    }
+
+    message SendData {
+        string id = 1;
+        string userId = 2;
+        string sessionId = 3;
+        string username = 4;
+        string fromNode = 5;
+        int64 opCode = 6;
+        bytes data = 7;
+        bool reliable = 8;
+        int64 receiveTime = 9;
+    }
+
+    message Signal {
+        string id = 1;
+        string data = 2;
+    }
+
+    message State {
+        repeated realtime.UserPresence userPresence = 1;
+        int64 tick = 2;
+        string state = 3;
+    }
+}

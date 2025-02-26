@@ -113,25 +113,23 @@ func (p *LocalPartyRegistry) PartyJoinRequest(ctx context.Context, id uuid.UUID,
 		}
 
 		//remote node
-		ret, err := peer.Request(ctx, endpoint, &pb.Request{
-			Payload: &pb.Request_PartyJoinRequest{
-				PartyJoinRequest: &pb.Party_JoinRequest{
-					Id: id.String(),
-					Presence: &pb.Presence{
-						SessionID: presence.GetSessionId(),
-						UserID:    presence.GetUserId(),
-						Stream:    []*pb.PresenceStream{presenceStream2PB(presence.Stream)},
-						Meta:      []*pb.PresenceMeta{presenceMeta2PB(presence.Meta)},
-						Node:      presence.GetNodeId(),
-					},
+		ret, err := peer.Request(ctx, endpoint, &pb.Peer_Envelope{Payload: &pb.Peer_Envelope_PartyJoinRequest{
+			PartyJoinRequest: &pb.Party_JoinRequest{
+				Id: id.String(),
+				Presence: &pb.Presence{
+					SessionID: presence.GetSessionId(),
+					UserID:    presence.GetUserId(),
+					Stream:    []*pb.PresenceStream{presenceStream2PB(presence.Stream)},
+					Meta:      []*pb.PresenceMeta{presenceMeta2PB(presence.Meta)},
+					Node:      presence.GetNodeId(),
 				},
 			},
-		})
+		}})
 
 		if err != nil {
 			return false, err
 		}
-		return ret.GetPartyJoinRequest(), nil
+		return ret.GetPartyJoinRequestReply(), nil
 	}
 
 	ph, found := p.parties.Load(id)
@@ -150,8 +148,8 @@ func (p *LocalPartyRegistry) PartyPromote(ctx context.Context, id uuid.UUID, nod
 		}
 
 		//remote node
-		_, err := peer.Request(ctx, endpoint, &pb.Request{
-			Payload: &pb.Request_PartyPromote{
+		_, err := peer.Request(ctx, endpoint, &pb.Peer_Envelope{
+			Payload: &pb.Peer_Envelope_PartyPromote{
 				PartyPromote: &pb.Party_Promote{
 					Id:           id.String(),
 					SessionID:    sessionID,
@@ -179,8 +177,8 @@ func (p *LocalPartyRegistry) PartyAccept(ctx context.Context, id uuid.UUID, node
 		}
 
 		//remote node
-		_, err := peer.Request(ctx, endpoint, &pb.Request{
-			Payload: &pb.Request_PartyAccept{
+		_, err := peer.Request(ctx, endpoint, &pb.Peer_Envelope{
+			Payload: &pb.Peer_Envelope_PartyAccept{
 				PartyAccept: &pb.Party_Accept{
 					Id:           id.String(),
 					SessionID:    sessionID,
@@ -209,8 +207,8 @@ func (p *LocalPartyRegistry) PartyRemove(ctx context.Context, id uuid.UUID, node
 		}
 
 		//remote node
-		_, err := peer.Request(ctx, endpoint, &pb.Request{
-			Payload: &pb.Request_PartyRemove{
+		_, err := peer.Request(ctx, endpoint, &pb.Peer_Envelope{
+			Payload: &pb.Peer_Envelope_PartyRemove{
 				PartyRemove: &pb.Party_Remove{
 					Id:           id.String(),
 					SessionID:    sessionID,
@@ -239,8 +237,8 @@ func (p *LocalPartyRegistry) PartyClose(ctx context.Context, id uuid.UUID, node,
 		}
 
 		//remote node
-		_, err := peer.Request(ctx, endpoint, &pb.Request{
-			Payload: &pb.Request_PartyClose{
+		_, err := peer.Request(ctx, endpoint, &pb.Peer_Envelope{
+			Payload: &pb.Peer_Envelope_PartyClose{
 				PartyClose: &pb.Party_Close{
 					Id:        id.String(),
 					SessionID: sessionID,
@@ -267,8 +265,8 @@ func (p *LocalPartyRegistry) PartyJoinRequestList(ctx context.Context, id uuid.U
 		}
 
 		//remote node
-		ret, err := peer.Request(ctx, endpoint, &pb.Request{
-			Payload: &pb.Request_PartyJoinRequestList{
+		ret, err := peer.Request(ctx, endpoint, &pb.Peer_Envelope{
+			Payload: &pb.Peer_Envelope_PartyJoinRequestList{
 				PartyJoinRequestList: &pb.Party_JoinRequestList{
 					Id:        id.String(),
 					SessionID: sessionID,
@@ -281,7 +279,7 @@ func (p *LocalPartyRegistry) PartyJoinRequestList(ctx context.Context, id uuid.U
 			return nil, err
 		}
 
-		list := ret.GetPartyJoinRequestList()
+		list := ret.GetPartyJoinRequestListReply()
 		if list == nil {
 			return make([]*rtapi.UserPresence, 0), nil
 		}
@@ -304,8 +302,8 @@ func (p *LocalPartyRegistry) PartyMatchmakerAdd(ctx context.Context, id uuid.UUI
 		}
 
 		//remote node
-		ret, err := peer.Request(ctx, endpoint, &pb.Request{
-			Payload: &pb.Request_PartyMatchmakerAdd{
+		ret, err := peer.Request(ctx, endpoint, &pb.Peer_Envelope{
+			Payload: &pb.Peer_Envelope_PartyMatchmakerAdd{
 				PartyMatchmakerAdd: &pb.Party_MatchmakerAdd{
 					Id:                id.String(),
 					SessionID:         sessionID,
@@ -323,7 +321,7 @@ func (p *LocalPartyRegistry) PartyMatchmakerAdd(ctx context.Context, id uuid.UUI
 			return "", nil, err
 		}
 
-		matchmaker := ret.GetPartyMatchmakerAdd()
+		matchmaker := ret.GetPartyMatchmakerAddReply()
 		if matchmaker == nil {
 			return "", nil, ErrPartyNotFound
 		}
@@ -355,8 +353,8 @@ func (p *LocalPartyRegistry) PartyMatchmakerRemove(ctx context.Context, id uuid.
 		}
 
 		//remote node
-		_, err := peer.Request(ctx, endpoint, &pb.Request{
-			Payload: &pb.Request_PartyMatchmakerRemove{
+		_, err := peer.Request(ctx, endpoint, &pb.Peer_Envelope{
+			Payload: &pb.Peer_Envelope_PartyMatchmakerRemove{
 				PartyMatchmakerRemove: &pb.Party_MatchmakerRemove{
 					Id:        id.String(),
 					SessionID: sessionID,
@@ -384,8 +382,8 @@ func (p *LocalPartyRegistry) PartyDataSend(ctx context.Context, id uuid.UUID, no
 		}
 
 		//remote node
-		_, err := peer.Request(ctx, endpoint, &pb.Request{
-			Payload: &pb.Request_PartyDataSend{
+		_, err := peer.Request(ctx, endpoint, &pb.Peer_Envelope{
+			Payload: &pb.Peer_Envelope_PartyDataSend{
 				PartyDataSend: &pb.Party_DataSend{
 					Id:        id.String(),
 					SessionID: sessionID,

@@ -9,8 +9,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/doublemo/nakama-common/api"
-	"github.com/doublemo/nakama-common/rtapi"
 	"github.com/doublemo/nakama-kit/kit"
 	"github.com/doublemo/nakama-kit/pb"
 	"github.com/doublemo/nakama-plus/v3/flags"
@@ -37,27 +35,23 @@ type sayHello struct {
 	logger *zap.Logger
 }
 
-func (s *sayHello) Call(ctx context.Context, in *pb.Request) (*pb.ResponseWriter, error) {
+func (s *sayHello) Call(ctx context.Context, in *pb.Peer_Request) (*pb.Peer_ResponseWriter, error) {
 	s.logger.Info("收到请求CALL", zap.Any("request", in))
 	fmt.Println("--d----", in.Context)
-	return &pb.ResponseWriter{
+	return &pb.Peer_ResponseWriter{
 		Context: map[string]string{
 			"test": "test",
 		},
-		Payload: &pb.ResponseWriter_Envelope{
-			Envelope: &rtapi.Envelope{
-				Message: &rtapi.Envelope_AnyResponseWriter{
-					AnyResponseWriter: &api.AnyResponseWriter{
-						Header: map[string]string{"111": "333"},
-						Body:   &api.AnyResponseWriter_StringContent{StringContent: `{"name":"111"}`},
-					}}}},
+		Payload: &pb.Peer_ResponseWriter_StringContent{
+			StringContent: "99998888",
+		},
 	}, nil
 }
 
-func (s *sayHello) NotifyMsg(conn kit.Connector, in *pb.Request) {
+func (s *sayHello) NotifyMsg(conn kit.Connector, in *pb.Peer_Request) {
 	s.logger.Info("收到请求NotifyMsg", zap.String("name", conn.ID()), zap.String("role", conn.Role()), zap.Any("request", in))
 
-	if err := conn.Write(&pb.ResponseWriter{
+	if err := conn.Write(&pb.Peer_ResponseWriter{
 		Context: map[string]string{"test": "test"},
 	}); err != nil {
 		fmt.Println("发送信息失败", err)

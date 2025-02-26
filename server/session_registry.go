@@ -154,7 +154,7 @@ func (r *LocalSessionRegistry) Disconnect(ctx context.Context, sessionID uuid.UU
 		return nil
 	}
 
-	r.peer.Broadcast(&pb.Request{Payload: &pb.Request_Disconnect{
+	r.peer.Broadcast(&pb.Peer_Envelope{Payload: &pb.Peer_Envelope_Disconnect{
 		Disconnect: &pb.Disconnect{
 			SessionID: sessionID.String(),
 			Ban:       ban,
@@ -195,7 +195,7 @@ func (r *LocalSessionRegistry) SingleSession(ctx context.Context, tracker Tracke
 	}
 
 	if r.peer != nil {
-		r.peer.Broadcast(&pb.Request{Payload: &pb.Request_SingleSocket{SingleSocket: userID.String()}}, true)
+		r.peer.Broadcast(&pb.Peer_Envelope{Payload: &pb.Peer_Envelope_SingleSocket{SingleSocket: userID.String()}}, true)
 	}
 }
 

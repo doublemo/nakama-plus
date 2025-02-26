@@ -399,7 +399,7 @@ func securityInterceptorFunc(logger *zap.Logger, config Config, sessionCache Ses
 			return nil, status.Error(codes.Unauthenticated, "Server key invalid")
 		}
 	case "/nakama.api.Nakama/Any":
-		// RPC allows full user authentication or HTTP key authentication.
+		// ANY allows full user authentication or HTTP key authentication.
 		md, ok := metadata.FromIncomingContext(ctx)
 		if !ok {
 			logger.Error("Cannot extract metadata from incoming context")
@@ -417,7 +417,7 @@ func securityInterceptorFunc(logger *zap.Logger, config Config, sessionCache Ses
 				return nil, status.Error(codes.FailedPrecondition, "Auth token or HTTP key required")
 			}
 
-			httpKey := ""
+			httpKey := in.GetHttpKey()
 			if m, ok := in.Query["http_key"]; ok && m != nil && len(m.Value) > 0 {
 				httpKey = m.Value[0]
 			}

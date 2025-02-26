@@ -127,15 +127,11 @@ func (r *LocalMessageRouter) SendToPresenceIDs(logger *zap.Logger, presenceIDs [
 			continue
 		}
 
-		// m := &pb.Request{
-		// 	Payload: &pb.Request_Out{Out: &pb.ResponseWriter{
-		// 		Recipient: sessions,
-		// 		Payload:   &pb.ResponseWriter_Envelope{Envelope: envelope},
-		// 	}},
-		// }
-
-		m := &pb.Peer_Envelope{}
-
+		m := &pb.Peer_Envelope{
+			Cid:       "",
+			Recipient: sessions,
+			Payload:   &pb.Peer_Envelope_NkEnvelope{NkEnvelope: envelope},
+		}
 		if err := r.peer.Send(endpoint, m, reliable); err != nil {
 			logger.Error("Failed to route message", zap.String("node", remoteNode), zap.Error(err))
 		}
@@ -155,13 +151,9 @@ func (r *LocalMessageRouter) SendToStream(logger *zap.Logger, stream PresenceStr
 		Payload: &pb.Recipienter_Stream{Stream: presenceStream2PB(stream)},
 	}
 
-	r.peer.Broadcast(&pb.Request{
-		Payload: &pb.Request_Out{
-			Out: &pb.ResponseWriter{
-				Recipient: []*pb.Recipienter{recipient},
-				Payload:   &pb.ResponseWriter_Envelope{Envelope: envelope},
-			},
-		},
+	r.peer.Broadcast(&pb.Peer_Envelope{
+		Recipient: []*pb.Recipienter{recipient},
+		Payload:   &pb.Peer_Envelope_NkEnvelope{NkEnvelope: envelope},
 	}, reliable)
 }
 
@@ -213,13 +205,9 @@ func (r *LocalMessageRouter) SendToAll(logger *zap.Logger, envelope *rtapi.Envel
 		return
 	}
 
-	r.peer.Broadcast(&pb.Request{
-		Payload: &pb.Request_Out{
-			Out: &pb.ResponseWriter{
-				Recipient: make([]*pb.Recipienter, 0),
-				Payload:   &pb.ResponseWriter_Envelope{Envelope: envelope},
-			},
-		},
+	r.peer.Broadcast(&pb.Peer_Envelope{
+		Recipient: make([]*pb.Recipienter, 0),
+		Payload:   &pb.Peer_Envelope_NkEnvelope{NkEnvelope: envelope},
 	}, reliable)
 }
 

@@ -20,7 +20,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func (s *LocalPeer) handler(client kit.Client, msg *pb.Peer_Envelope) {
+func (s *LocalPeer) handlerByPeerEnvelope(client kit.Client, msg *pb.Peer_Envelope) {
 	if client != nil {
 		s.logger.Debug("recv info", zap.String("name", client.Name()), zap.String("Role", client.Name()))
 	} else {
@@ -32,6 +32,15 @@ func (s *LocalPeer) handler(client kit.Client, msg *pb.Peer_Envelope) {
 		s.toClient(msg.GetNkEnvelope(), msg.GetRecipient())
 	default:
 	}
+}
+
+func (s *LocalPeer) handlerByPeerResponseWriter(client kit.Client, msg *pb.Peer_ResponseWriter) {
+	if client != nil {
+		s.logger.Debug("recv info", zap.String("name", client.Name()), zap.String("Role", client.Name()))
+	} else {
+		s.logger.Debug("recv info")
+	}
+	s.toClientByPeerResponseWriter(msg)
 }
 
 func (s *LocalPeer) toClientByPeerResponseWriter(w *pb.Peer_ResponseWriter) {

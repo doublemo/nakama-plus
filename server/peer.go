@@ -740,7 +740,7 @@ func (s *LocalPeer) onServiceUpdate() {
 			nodes[md.Role][md.Name] = true
 		}
 
-		client, err := s.serviceRegistry.Register(&md, s.handler)
+		client, err := s.serviceRegistry.Register(&md, s.handlerByPeerResponseWriter)
 		if err != nil {
 			s.logger.Error("failed to register service", zap.Error(err), zap.String("md", v))
 			continue

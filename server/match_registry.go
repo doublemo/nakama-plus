@@ -307,11 +307,10 @@ func (r *LocalMatchRegistry) GetMatch(ctx context.Context, id string) (*api.Matc
 			return nil, "", nil
 		}
 
-		resp, err := peer.Request(ctx, endpoint, &pb.Request{Payload: &pb.Request_MatchId{MatchId: id}})
+		resp, err := peer.Request(ctx, endpoint, &pb.Peer_Envelope{Payload: &pb.Peer_Envelope_MatchId{MatchId: id}})
 		if err != nil {
 			return nil, "", err
 		}
-
 		return resp.GetMatch(), idComponents[1], nil
 	}
 
@@ -714,7 +713,7 @@ func (r *LocalMatchRegistry) JoinAttempt(ctx context.Context, id uuid.UUID, node
 			return false, false, false, "", "", nil
 		}
 
-		resp, err := peer.Request(ctx, endpoint, &pb.Request{Payload: &pb.Request_MatchJoinAttempt{
+		resp, err := peer.Request(ctx, endpoint, &pb.Peer_Envelope{Payload: &pb.Peer_Envelope_MatchJoinAttempt{
 			MatchJoinAttempt: &pb.Match_JoinAttempt{
 				Id:            id.String(),
 				UserId:        userID.String(),
@@ -732,7 +731,7 @@ func (r *LocalMatchRegistry) JoinAttempt(ctx context.Context, id uuid.UUID, node
 			return false, false, false, "", "", nil
 		}
 
-		ret := resp.GetMathJoinAttempt()
+		ret := resp.GetMathJoinAttemptReply()
 		presences := make([]*MatchPresence, len(ret.Presences))
 		for k, v := range ret.Presences {
 			presences[k] = &MatchPresence{
@@ -812,7 +811,7 @@ func (r *LocalMatchRegistry) SendData(id uuid.UUID, node string, userID, session
 			return
 		}
 
-		_, err := peer.Request(context.Background(), endpoint, &pb.Request{Payload: &pb.Request_MatchSendData{
+		_, err := peer.Request(context.Background(), endpoint, &pb.Peer_Envelope{Payload: &pb.Peer_Envelope_MatchSendData{
 			MatchSendData: &pb.Match_SendData{
 				Id:          id.String(),
 				UserId:      userID.String(),
@@ -823,7 +822,8 @@ func (r *LocalMatchRegistry) SendData(id uuid.UUID, node string, userID, session
 				Data:        data,
 				Reliable:    reliable,
 				ReceiveTime: receiveTime,
-			}}})
+			},
+		}})
 
 		if err != nil {
 			r.logger.Error("Failed to SendData", zap.Error(err))
@@ -871,7 +871,7 @@ func (r *LocalMatchRegistry) Signal(ctx context.Context, id, data string) (strin
 			return "", runtime.ErrMatchNotFound
 		}
 
-		resp, err := peer.Request(context.Background(), endpoint, &pb.Request{Payload: &pb.Request_MatchSignal{
+		resp, err := peer.Request(context.Background(), endpoint, &pb.Peer_Envelope{Payload: &pb.Peer_Envelope_MatchSignal{
 			MatchSignal: &pb.Match_Signal{
 				Id:   id,
 				Data: data,
@@ -882,7 +882,7 @@ func (r *LocalMatchRegistry) Signal(ctx context.Context, id, data string) (strin
 			r.logger.Error("Failed to send Signal", zap.Error(err))
 			return "", err
 		}
-		return resp.GetMatchSignal(), nil
+		return resp.GetMatchSignalReply(), nil
 	}
 
 	mh, ok := r.matches.Load(matchID)
@@ -925,7 +925,7 @@ func (r *LocalMatchRegistry) GetState(ctx context.Context, id uuid.UUID, node st
 			return nil, 0, "", nil
 		}
 
-		resp, err := peer.Request(context.Background(), endpoint, &pb.Request{Payload: &pb.Request_MatchState{
+		resp, err := peer.Request(context.Background(), endpoint, &pb.Peer_Envelope{Payload: &pb.Peer_Envelope_MatchState{
 			MatchState: id.String(),
 		}})
 
@@ -934,7 +934,7 @@ func (r *LocalMatchRegistry) GetState(ctx context.Context, id uuid.UUID, node st
 			return nil, 0, "", err
 		}
 
-		ret := resp.GetMatchState()
+		ret := resp.GetMatchStateReply()
 		return ret.GetUserPresence(), ret.GetTick(), ret.GetState(), nil
 	}
 
