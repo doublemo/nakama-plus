@@ -320,6 +320,7 @@ func (n *RuntimeLuaNakamaModule) Loader(l *lua.LState) int {
 		"storage_index_list":                        n.storageIndexList,
 		"get_config":                                n.getConfig,
 		"get_satori":                                n.getSatori,
+		"get_peer":                                  n.getPeer,
 	}
 
 	mod := l.SetFuncs(l.CreateTable(0, len(functions)), functions)
@@ -11427,6 +11428,136 @@ func (n *RuntimeLuaNakamaModule) satoriMessageDelete(l *lua.LState) int {
 	}
 
 	return 0
+}
+
+// @group peer
+// @summary Get the peer client.
+// @return peer(table) The peer client.
+// @return error(error) An optional error value if an error occurred.
+func (n *RuntimeLuaNakamaModule) getPeer(l *lua.LState) int {
+	peerFunctions := map[string]lua.LGFunction{
+		"invokeMS": n.peerInvokeMS,
+		"sendMS":   n.peerSendMS,
+	}
+
+	peerMod := l.SetFuncs(l.CreateTable(0, len(peerFunctions)), peerFunctions)
+	l.Push(peerMod)
+	return 1
+}
+
+func (n *RuntimeLuaNakamaModule) peerInvokeMS(l *lua.LState) int {
+	cid := l.CheckString(1)
+	name := l.CheckString(2)
+	header := l.OptTable(3, nil)
+	query := l.OptTable(4, nil)
+	ctx := l.OptTable(5, nil)
+	content := l.CheckString(6)
+
+	req := &api.AnyRequest{
+		Cid:     cid,
+		Name:    name,
+		Header:  make(map[string]string),
+		Query:   make(map[string]*api.AnyQuery),
+		Context: make(map[string]string),
+		Body: &api.AnyRequest_StringContent{
+			StringContent: content,
+		},
+	}
+
+	if header != nil {
+		headerMap, err := RuntimeLuaConvertLuaTableString(header)
+		if err == nil {
+			req.Header = headerMap
+		}
+	}
+
+	if query != nil {
+		for k, v := range RuntimeLuaConvertLuaTable(query) {
+			if vv, ok := v.([]string); ok {
+				req.Query[k] = &api.AnyQuery{Value: vv}
+			}
+		}
+	}
+
+	if ctx != nil {
+		ctxMap, err := RuntimeLuaConvertLuaTableString(ctx)
+		if err == nil {
+			req.Context = ctxMap
+		}
+	}
+
+	peer, ok := n.router.GetPeer()
+	if !ok {
+		l.RaiseError("Service Unavailable")
+		return 0
+	}
+
+	resp, err := peer.InvokeMS(context.Background(), req)
+	if err != nil {
+		l.RaiseError("Failed to invoke the remote service interface. Please check the network connection or service status. %s", err)
+		return 0
+	}
+
+	respTable := l.CreateTable(0, 2)
+	respTable.RawSetString("header", RuntimeLuaConvertMapString(l, resp.GetHeader()))
+	respTable.RawSetString("body", lua.LString(resp.GetStringContent()))
+	l.Push(respTable)
+	return 1
+}
+
+func (n *RuntimeLuaNakamaModule) peerSendMS(l *lua.LState) int {
+	cid := l.CheckString(1)
+	name := l.CheckString(2)
+	header := l.OptTable(3, nil)
+	query := l.OptTable(4, nil)
+	ctx := l.OptTable(5, nil)
+	content := l.CheckString(6)
+
+	req := &api.AnyRequest{
+		Cid:     cid,
+		Name:    name,
+		Header:  make(map[string]string),
+		Query:   make(map[string]*api.AnyQuery),
+		Context: make(map[string]string),
+		Body: &api.AnyRequest_StringContent{
+			StringContent: content,
+		},
+	}
+
+	if header != nil {
+		headerMap, err := RuntimeLuaConvertLuaTableString(header)
+		if err == nil {
+			req.Header = headerMap
+		}
+	}
+
+	if query != nil {
+		for k, v := range RuntimeLuaConvertLuaTable(query) {
+			if vv, ok := v.([]string); ok {
+				req.Query[k] = &api.AnyQuery{Value: vv}
+			}
+		}
+	}
+
+	if ctx != nil {
+		ctxMap, err := RuntimeLuaConvertLuaTableString(ctx)
+		if err == nil {
+			req.Context = ctxMap
+		}
+	}
+
+	peer, ok := n.router.GetPeer()
+	if !ok {
+		l.RaiseError("Service Unavailable")
+		return 0
+	}
+
+	err := peer.SendMS(context.Background(), req)
+	if err != nil {
+		l.RaiseError("Failed to invoke the remote service interface. Please check the network connection or service status. %s", err)
+		return 0
+	}
+	return 1
 }
 
 func RuntimeLuaConvertLuaTableString(vars *lua.LTable) (map[string]string, error) {
