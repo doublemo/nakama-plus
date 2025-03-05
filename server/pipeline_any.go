@@ -15,6 +15,7 @@
 package server
 
 import (
+	"context"
 	"strconv"
 
 	"github.com/doublemo/nakama-common/rtapi"
@@ -33,21 +34,18 @@ func (p *Pipeline) any(logger *zap.Logger, session Session, envelope *rtapi.Enve
 		return false, nil
 	}
 
-	in := toPeerRequest(req)
-	for k, v := range p.config.GetRuntime().Environment {
-		in.Context[k] = v
-	}
-	in.Context["client_ip"] = session.ClientIP()
-	in.Context["client_port"] = session.ClientPort()
-	in.Context["userId"] = session.UserID().String()
-	in.Context["username"] = session.Username()
-	in.Context["expiry"] = strconv.FormatInt(session.Expiry(), 10)
+	req.Context = make(map[string]string)
+	req.Context["client_ip"] = session.ClientIP()
+	req.Context["client_port"] = session.ClientPort()
+	req.Context["userId"] = session.UserID().String()
+	req.Context["username"] = session.Username()
+	req.Context["expiry"] = strconv.FormatInt(session.Expiry(), 10)
 	for k, v := range session.Vars() {
-		in.Context["vars_"+k] = v
+		req.Context["vars_"+k] = v
 	}
 
-	peer := p.runtime.GetPeer()
-	if peer == nil {
+	peer, ok := p.runtime.GetPeer()
+	if ok {
 		_ = session.Send(&rtapi.Envelope{Cid: envelope.Cid, Message: &rtapi.Envelope_Error{Error: &rtapi.Error{
 			Code:    int32(codes.Unavailable),
 			Message: "Service Unavailable",
@@ -55,16 +53,7 @@ func (p *Pipeline) any(logger *zap.Logger, session Session, envelope *rtapi.Enve
 		return false, nil
 	}
 
-	endpoint, ok := peer.GetServiceRegistry().Get(req.Name)
-	if !ok {
-		_ = session.Send(&rtapi.Envelope{Cid: envelope.Cid, Message: &rtapi.Envelope_Error{Error: &rtapi.Error{
-			Code:    int32(codes.Unavailable),
-			Message: "Service Unavailable",
-		}}}, true)
-		return false, nil
-	}
-
-	if err := endpoint.Send(in); err != nil {
+	if err := peer.SendMS(context.Background(), req); err != nil {
 		code, ok := status.FromError(err)
 		if !ok {
 			code = status.New(codes.Internal, err.Error())

@@ -4466,3 +4466,14 @@ func (n *RuntimeGoNakamaModule) GetSatori() runtime.Satori {
 func (n *RuntimeGoNakamaModule) GetFleetManager() runtime.FleetManager {
 	return n.fleetManager
 }
+
+// @group peer
+// @summary Get the peer client.
+// @return peer(runtime.Peer) The Peer client.
+func (n *RuntimeGoNakamaModule) GetPeer() (runtime.Peer, bool) {
+	peer, ok := n.router.GetPeer()
+	if !ok {
+		return nil, false
+	}
+	return peer.(runtime.Peer), true
+}

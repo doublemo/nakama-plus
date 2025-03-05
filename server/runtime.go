@@ -240,6 +240,9 @@ type (
 	RuntimeEventSessionStartFunction func(userID, username string, vars map[string]string, expiry int64, sessionID, clientIP, clientPort, lang string, evtTimeSec int64)
 	RuntimeEventSessionEndFunction   func(userID, username string, vars map[string]string, expiry int64, sessionID, clientIP, clientPort, lang string, evtTimeSec int64, reason string)
 	RuntimeShutdownFunction          func(ctx context.Context)
+
+	RuntimeBeforeAnyFunction func(ctx context.Context, logger *zap.Logger, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.AnyRequest) (*api.AnyRequest, error, codes.Code)
+	RuntimeAfterAnyFunction  func(ctx context.Context, logger *zap.Logger, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, out *api.AnyResponseWriter, in *api.AnyRequest) error
 )
 
 type RuntimeHttpHandler struct {
@@ -433,6 +436,7 @@ type RuntimeBeforeReqFunctions struct {
 	beforeListSubscriptionsFunction                 RuntimeBeforeListSubscriptionsFunction
 	beforeGetSubscriptionFunction                   RuntimeBeforeGetSubscriptionFunction
 	beforeGetMatchmakerStatsFunction                RuntimeBeforeGetMatchmakerStatsFunction
+	beforeAnyFunction                               RuntimeBeforeAnyFunction
 }
 
 type RuntimeAfterReqFunctions struct {
@@ -517,6 +521,7 @@ type RuntimeAfterReqFunctions struct {
 	afterListSubscriptionsFunction                 RuntimeAfterListSubscriptionsFunction
 	afterGetSubscriptionFunction                   RuntimeAfterGetSubscriptionFunction
 	afterGetMatchmakerStatsFunction                RuntimeAfterGetMatchmakerStatsFunction
+	afterAnyFunction                               RuntimeAfterAnyFunction
 }
 
 type Runtime struct {
@@ -552,7 +557,7 @@ type Runtime struct {
 
 	fleetManager runtime.FleetManager
 
-	peer Peer
+	peer *atomic.Value
 }
 
 type MatchNamesListFunction func() []string
@@ -1652,6 +1657,10 @@ func NewRuntime(ctx context.Context, logger, startupLogger *zap.Logger, db *sql.
 		allBeforeReqFunctions.beforeEventFunction = goBeforeReqFns.beforeEventFunction
 		startupLogger.Info("Registered Go runtime Before custom events function invocation")
 	}
+	if goBeforeReqFns.beforeAnyFunction != nil {
+		allBeforeReqFunctions.beforeAnyFunction = goBeforeReqFns.beforeAnyFunction
+		startupLogger.Info("Registered Go runtime Before function events function invocation", zap.String("id", "any"))
+	}
 
 	allAfterReqFunctions := jsAfterReqFns
 	// Register JavaScript After req functions
@@ -2517,23 +2526,27 @@ func NewRuntime(ctx context.Context, logger, startupLogger *zap.Logger, db *sql.
 	}
 	if goAfterReqFns.afterValidateSubscriptionAppleFunction != nil {
 		allAfterReqFunctions.afterValidateSubscriptionAppleFunction = goAfterReqFns.afterValidateSubscriptionAppleFunction
-		startupLogger.Info("Registered Go runtime Before function invocation", zap.String("id", "validatesubscriptionapple"))
+		startupLogger.Info("Registered Go runtime After function invocation", zap.String("id", "validatesubscriptionapple"))
 	}
 	if goAfterReqFns.afterValidateSubscriptionGoogleFunction != nil {
 		allAfterReqFunctions.afterValidateSubscriptionGoogleFunction = goAfterReqFns.afterValidateSubscriptionGoogleFunction
-		startupLogger.Info("Registered Go runtime Before function invocation", zap.String("id", "validatesubscriptiongoogle"))
+		startupLogger.Info("Registered Go runtime After function invocation", zap.String("id", "validatesubscriptiongoogle"))
 	}
 	if goAfterReqFns.afterGetSubscriptionFunction != nil {
 		allAfterReqFunctions.afterGetSubscriptionFunction = goAfterReqFns.afterGetSubscriptionFunction
-		startupLogger.Info("Registered Go runtime Before function invocation", zap.String("id", "getsubscription"))
+		startupLogger.Info("Registered Go runtime After function invocation", zap.String("id", "getsubscription"))
 	}
 	if goAfterReqFns.afterListSubscriptionsFunction != nil {
 		allAfterReqFunctions.afterListSubscriptionsFunction = goAfterReqFns.afterListSubscriptionsFunction
-		startupLogger.Info("Registered Go runtime Before function invocation", zap.String("id", "listsubscriptions"))
+		startupLogger.Info("Registered Go runtime After function invocation", zap.String("id", "listsubscriptions"))
 	}
 	if goAfterReqFns.afterEventFunction != nil {
 		allAfterReqFunctions.afterEventFunction = goAfterReqFns.afterEventFunction
 		startupLogger.Info("Registered Go runtime After custom events function invocation")
+	}
+	if goAfterReqFns.afterAnyFunction != nil {
+		allAfterReqFunctions.afterAnyFunction = goAfterReqFns.afterAnyFunction
+		startupLogger.Info("Registered Go runtime After function invocation", zap.String("id", "any"))
 	}
 
 	var allMatchmakerMatchedFunction RuntimeMatchmakerMatchedFunction
@@ -2719,6 +2732,8 @@ func NewRuntime(ctx context.Context, logger, startupLogger *zap.Logger, db *sql.
 		fleetManager: fleetManager,
 
 		eventFunctions: allEventFns,
+
+		peer: &atomic.Value{},
 	}, rInfo, nil
 }
 
@@ -3505,9 +3520,21 @@ func (r *Runtime) EventSessionEnd() RuntimeEventSessionEndFunction {
 }
 
 func (r *Runtime) SetPeer(peer Peer) {
-	r.peer = peer
+	r.peer.Store(peer)
 }
 
-func (r *Runtime) GetPeer() Peer {
-	return r.peer
+func (r *Runtime) GetPeer() (Peer, bool) {
+	peer := r.peer.Load()
+	if peer == nil {
+		return nil, false
+	}
+	return peer.(Peer), true
+}
+
+func (r *Runtime) BeforeAny() RuntimeBeforeAnyFunction {
+	return r.beforeReqFunctions.beforeAnyFunction
+}
+
+func (r *Runtime) AfterAny() RuntimeAfterAnyFunction {
+	return r.afterReqFunctions.afterAnyFunction
 }

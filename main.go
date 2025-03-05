@@ -217,7 +217,7 @@ func main() {
 	pipeline := server.NewPipeline(logger, config, db, jsonpbMarshaler, jsonpbUnmarshaler, sessionRegistry, statusRegistry, matchRegistry, partyRegistry, matchmaker, tracker, router, runtime)
 	statusHandler := server.NewLocalStatusHandler(logger, sessionRegistry, matchRegistry, tracker, metrics, config.GetName())
 
-	peer := server.NewLocalPeer(db, logger, config.GetName(), make(map[string]string), metrics, sessionRegistry, tracker, router, matchRegistry, matchmaker, partyRegistry, jsonpbMarshaler, jsonpbUnmarshaler, config.GetCluster())
+	peer := server.NewLocalPeer(db, logger, config.GetName(), make(map[string]string), metrics, sessionRegistry, tracker, router, matchRegistry, matchmaker, partyRegistry, jsonpbMarshaler, jsonpbUnmarshaler, config)
 	sessionRegistry.SetPeer(peer)
 	statusHandler.SetPeer(peer)
 	matchRegistry.SetPeer(peer)

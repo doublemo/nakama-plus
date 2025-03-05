@@ -201,6 +201,9 @@ func (s *testMessageRouter) SendToStream(*zap.Logger, PresenceStream, *rtapi.Env
 func (s *testMessageRouter) SendDeferred(*zap.Logger, []*DeferredMessage)                    {}
 func (s *testMessageRouter) SendToAll(*zap.Logger, *rtapi.Envelope, bool)                    {}
 func (s *testMessageRouter) SetPeer(peer Peer)                                               {}
+func (s *testMessageRouter) GetPeer() (Peer, bool) {
+	return nil, false
+}
 
 // testTracker implements the Tracker interface and does nothing
 type testTracker struct{}

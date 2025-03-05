@@ -12,10 +12,14 @@ import (
 	"math"
 	coreruntime "runtime"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"maps"
+
+	"github.com/doublemo/nakama-common/api"
 	"github.com/doublemo/nakama-common/rtapi"
 	"github.com/doublemo/nakama-common/runtime"
 	"github.com/doublemo/nakama-kit/kit"
@@ -66,6 +70,8 @@ type (
 		MatchmakerRemoveAll(node string)
 		MatchmakerRemove(tickets []string)
 		ToClient(envelope *rtapi.Envelope, recipients []*pb.Recipienter)
+		InvokeMS(ctx context.Context, in *api.AnyRequest) (*api.AnyResponseWriter, error)
+		SendMS(ctx context.Context, in *api.AnyRequest) error
 	}
 
 	peerMsg struct {
@@ -78,6 +84,7 @@ type (
 		ctxCancelFn          context.CancelFunc
 		logger               *zap.Logger
 		config               *PeerConfig
+		runtimeConfig        *RuntimeConfig
 		memberlist           *memberlist.Memberlist
 		transmitLimitedQueue *memberlist.TransmitLimitedQueue
 		members              *MapOf[string, Endpoint]
@@ -104,17 +111,18 @@ type (
 	}
 )
 
-func NewLocalPeer(db *sql.DB, logger *zap.Logger, name string, metadata map[string]string, metrics Metrics, sessionRegistry SessionRegistry, tracker Tracker, messageRouter MessageRouter, matchRegistry MatchRegistry, matchmaker Matchmaker, partyRegistry PartyRegistry, protojsonMarshaler *protojson.MarshalOptions, protojsonUnmarshaler *protojson.UnmarshalOptions, c *PeerConfig) Peer {
+func NewLocalPeer(db *sql.DB, logger *zap.Logger, name string, metadata map[string]string, metrics Metrics, sessionRegistry SessionRegistry, tracker Tracker, messageRouter MessageRouter, matchRegistry MatchRegistry, matchmaker Matchmaker, partyRegistry PartyRegistry, protojsonMarshaler *protojson.MarshalOptions, protojsonUnmarshaler *protojson.UnmarshalOptions, config Config) Peer {
 	ctx, ctxCancelFn := context.WithCancel(context.Background())
 	if metadata == nil {
 		metadata = make(map[string]string)
 	}
-
+	c := config.GetCluster()
 	endpoint := NewPeerEndpont(name, metadata, int32(pb.NodeMeta_OK), c.Weight, c.Balancer, protojsonMarshaler)
 	s := &LocalPeer{
 		ctx:                  ctx,
 		ctxCancelFn:          ctxCancelFn,
 		config:               c,
+		runtimeConfig:        config.GetRuntime(),
 		logger:               logger,
 		members:              &MapOf[string, Endpoint]{},
 		endpoint:             endpoint,
@@ -669,6 +677,90 @@ func (s *LocalPeer) BroadcastBinaryLog(b *pb.BinaryLog, toQueue bool) {
 	})
 
 	// s.metrics.PeerSent(int64(len(bytes)))
+}
+
+func (s *LocalPeer) InvokeMS(ctx context.Context, in *api.AnyRequest) (*api.AnyResponseWriter, error) {
+	if in.Name == "" {
+		return nil, status.Error(codes.InvalidArgument, "Invalid Argument")
+	}
+
+	request := toPeerRequest(in)
+	maps.Copy(request.Context, s.runtimeConfig.Environment)
+	maps.Copy(request.Context, in.GetContext())
+	md, ok := metadata.FromIncomingContext(ctx)
+	if ok {
+		for k, v := range md {
+			size := len(v)
+			if !strings.HasPrefix(k, "q_") {
+				if size > 0 {
+					request.Header[k] = v[0]
+				} else {
+					request.Header[k] = ""
+				}
+			} else {
+				values := &pb.Peer_Query{Value: make([]string, size)}
+				if size > 0 {
+					copy(values.Value, v)
+				}
+				request.Query[k[2:]] = values
+			}
+		}
+	}
+
+	endpoint, ok := s.GetServiceRegistry().Get(in.Name)
+	if !ok {
+		return nil, status.Error(codes.Unavailable, "Service Unavailable")
+	}
+
+	resp, err := endpoint.Do(ctx, request)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp == nil {
+		return &api.AnyResponseWriter{}, nil
+	}
+
+	w, ns := toAnyResponseWriter(resp)
+	if ns != nil {
+		_ = SendAnyResponseWriter(context.Background(), s.logger, s.db, s.tracker, s.messageRouter, nil, ns, resp.GetRecipient())
+	}
+	return w, nil
+}
+
+func (s *LocalPeer) SendMS(ctx context.Context, in *api.AnyRequest) error {
+	if in.Name == "" {
+		return status.Error(codes.InvalidArgument, "Invalid Argument")
+	}
+
+	request := toPeerRequest(in)
+	maps.Copy(request.Context, s.runtimeConfig.Environment)
+	maps.Copy(request.Context, in.GetContext())
+	md, ok := metadata.FromIncomingContext(ctx)
+	if ok {
+		for k, v := range md {
+			size := len(v)
+			if !strings.HasPrefix(k, "q_") {
+				if size > 0 {
+					request.Header[k] = v[0]
+				} else {
+					request.Header[k] = ""
+				}
+			} else {
+				values := &pb.Peer_Query{Value: make([]string, size)}
+				if size > 0 {
+					copy(values.Value, v)
+				}
+				request.Query[k[2:]] = values
+			}
+		}
+	}
+
+	endpoint, ok := s.GetServiceRegistry().Get(in.Name)
+	if !ok {
+		return status.Error(codes.Unavailable, "Service Unavailable")
+	}
+	return endpoint.Send(request)
 }
 
 func (s *LocalPeer) processIncoming() {

@@ -882,6 +882,12 @@ type Initializer interface {
 
 	// RegisterHttp attaches a new HTTP handler to a specified path on the main client API server endpoint.
 	RegisterHttp(pathPattern string, handler func(http.ResponseWriter, *http.Request), methods ...string) error
+
+	// RegisterBeforeAny can be used to execute additional business logic before invoking the microservice interface.
+	RegisterBeforeAny(fn func(ctx context.Context, logger Logger, db *sql.DB, nk NakamaModule, in *api.AnyRequest) (*api.AnyRequest, error)) error
+
+	// RegisterAfterAny can be used to execute additional business logic after invoking the microservice interface.
+	RegisterAfterAny(fn func(ctx context.Context, logger Logger, db *sql.DB, nk NakamaModule, out *api.AnyResponseWriter, in *api.AnyRequest) error) error
 }
 
 type PresenceReason uint8
@@ -1220,6 +1226,7 @@ type NakamaModule interface {
 
 	GetSatori() Satori
 	GetFleetManager() FleetManager
+	GetPeer() (Peer, bool)
 }
 
 /*

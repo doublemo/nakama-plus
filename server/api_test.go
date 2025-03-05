@@ -69,6 +69,9 @@ func (d *DummyMessageRouter) SendToPresenceIDs(*zap.Logger, []*PresenceID, *rtap
 func (d *DummyMessageRouter) SendToStream(*zap.Logger, PresenceStream, *rtapi.Envelope, bool) {}
 func (d *DummyMessageRouter) SendToAll(*zap.Logger, *rtapi.Envelope, bool)                    {}
 func (d *DummyMessageRouter) SetPeer(peer Peer)                                               {}
+func (d *DummyMessageRouter) GetPeer() (Peer, bool) {
+	return nil, false
+}
 
 type DummySession struct {
 	messages []*rtapi.Envelope
