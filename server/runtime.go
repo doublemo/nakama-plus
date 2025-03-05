@@ -1335,6 +1335,10 @@ func NewRuntime(ctx context.Context, logger, startupLogger *zap.Logger, db *sql.
 		allBeforeReqFunctions.beforeEventFunction = luaBeforeReqFns.beforeEventFunction
 		startupLogger.Info("Registered Lua runtime Before custom events function invocation")
 	}
+	if luaBeforeReqFns.beforeAnyFunction != nil {
+		allBeforeReqFunctions.beforeAnyFunction = luaBeforeReqFns.beforeAnyFunction
+		startupLogger.Info("Registered Lua runtime Before function invocation", zap.String("id", "any"))
+	}
 
 	// Register Go Before Req functions
 	if goBeforeReqFns.beforeGetAccountFunction != nil {
@@ -2221,6 +2225,10 @@ func NewRuntime(ctx context.Context, logger, startupLogger *zap.Logger, db *sql.
 	if luaAfterReqFns.afterEventFunction != nil {
 		allAfterReqFunctions.afterEventFunction = luaAfterReqFns.afterEventFunction
 		startupLogger.Info("Registered Lua runtime After custom events function invocation")
+	}
+	if luaAfterReqFns.afterAnyFunction != nil {
+		allAfterReqFunctions.afterAnyFunction = luaAfterReqFns.afterAnyFunction
+		startupLogger.Info("Registered Lua runtime After function invocation", zap.String("id", "any"))
 	}
 
 	// Register Go After req functions
