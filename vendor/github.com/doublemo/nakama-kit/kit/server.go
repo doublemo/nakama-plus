@@ -83,7 +83,7 @@ func NewServer(logger *zap.Logger, md map[string]string, handler ServerHandler, 
 			PermitWithoutStream: true,
 		}),
 		grpc.KeepaliveParams(keepalive.ServerParameters{
-			MaxConnectionIdle: 15 * time.Second,
+			MaxConnectionIdle: 500 * time.Second,
 			//MaxConnectionAge:      30 * time.Second,
 			MaxConnectionAgeGrace: 5 * time.Second,
 			Time:                  time.Duration(c.GetGrpc().KeepAliveTime) * time.Second,
