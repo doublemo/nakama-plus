@@ -217,7 +217,7 @@ func (r *LocalMessageRouter) SendToAll(logger *zap.Logger, envelope *rtapi.Envel
 }
 
 func (r *LocalMessageRouter) SetPeer(peer Peer) {
-	r.peer.Store(&peer)
+	r.peer.Store(peer)
 }
 
 func (r *LocalMessageRouter) GetPeer() (Peer, bool) {

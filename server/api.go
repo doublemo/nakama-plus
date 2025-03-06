@@ -431,22 +431,21 @@ func securityInterceptorFunc(logger *zap.Logger, config Config, sessionCache Ses
 				// Value of HTTP key username component did not match.
 				return nil, status.Error(codes.Unauthenticated, "HTTP key invalid")
 			}
-
-			return ctx, nil
+		} else {
+			if len(auth) != 1 {
+				// Value of "authorization" or "grpc-authorization" was empty or repeated.
+				return nil, status.Error(codes.Unauthenticated, "Auth token invalid")
+			}
+			userID, username, vars, exp, tokenId, tokenIssuedAt, ok := parseBearerAuth([]byte(config.GetSession().EncryptionKey), auth[0])
+			if !ok {
+				// Value of "authorization" or "grpc-authorization" was malformed or expired.
+				return nil, status.Error(codes.Unauthenticated, "Auth token invalid")
+			}
+			if !sessionCache.IsValidSession(userID, exp, tokenId) {
+				return nil, status.Error(codes.Unauthenticated, "Auth token invalid")
+			}
+			ctx = context.WithValue(context.WithValue(context.WithValue(context.WithValue(context.WithValue(context.WithValue(ctx, ctxUserIDKey{}, userID), ctxUsernameKey{}, username), ctxVarsKey{}, vars), ctxExpiryKey{}, exp), ctxTokenIDKey{}, tokenId), ctxTokenIssuedAtKey{}, tokenIssuedAt)
 		}
-		if len(auth) != 1 {
-			// Value of "authorization" or "grpc-authorization" was empty or repeated.
-			return nil, status.Error(codes.Unauthenticated, "Auth token invalid")
-		}
-		userID, username, vars, exp, tokenId, tokenIssuedAt, ok := parseBearerAuth([]byte(config.GetSession().EncryptionKey), auth[0])
-		if !ok {
-			// Value of "authorization" or "grpc-authorization" was malformed or expired.
-			return nil, status.Error(codes.Unauthenticated, "Auth token invalid")
-		}
-		if !sessionCache.IsValidSession(userID, exp, tokenId) {
-			return nil, status.Error(codes.Unauthenticated, "Auth token invalid")
-		}
-		ctx = context.WithValue(context.WithValue(context.WithValue(context.WithValue(context.WithValue(context.WithValue(ctx, ctxUserIDKey{}, userID), ctxUsernameKey{}, username), ctxVarsKey{}, vars), ctxExpiryKey{}, exp), ctxTokenIDKey{}, tokenId), ctxTokenIssuedAtKey{}, tokenIssuedAt)
 
 	case "/nakama.api.Nakama/RpcFunc":
 		// RPC allows full user authentication or HTTP key authentication.

@@ -136,26 +136,26 @@ func main() {
 						fmt.Println("服务等待连接恢复中", c.ID())
 					}
 
-					c.Write(&pb.Peer_ResponseWriter{
-						Context: map[string]string{
-							"test": "msggogog",
-						},
-						Payload: &pb.Peer_ResponseWriter_Notifications{
-							Notifications: &rtapi.Notifications{
-								Notifications: []*api.Notification{
-									{
-										Id:         uuid.Must(uuid.NewV4()).String(),
-										Subject:    "定时推送测试",
-										Content:    "{}",
-										Code:       100002,
-										SenderId:   "",
-										CreateTime: &timestamppb.Timestamp{Seconds: time.Now().Unix()},
-										Persistent: false,
-									},
-								},
-							},
-						},
-					})
+					// c.Write(&pb.Peer_ResponseWriter{
+					// 	Context: map[string]string{
+					// 		"test": "msggogog",
+					// 	},
+					// 	Payload: &pb.Peer_ResponseWriter_Notifications{
+					// 		Notifications: &rtapi.Notifications{
+					// 			Notifications: []*api.Notification{
+					// 				{
+					// 					Id:         uuid.Must(uuid.NewV4()).String(),
+					// 					Subject:    "定时推送测试",
+					// 					Content:    "{}",
+					// 					Code:       100002,
+					// 					SenderId:   "",
+					// 					CreateTime: &timestamppb.Timestamp{Seconds: time.Now().Unix()},
+					// 					Persistent: false,
+					// 				},
+					// 			},
+					// 		},
+					// 	},
+					// })
 
 					// c.Write(&pb.Bombus_ResponseWriter{Context: map[string]*pb.OneofValue{
 					// 	"test": &pb.OneofValue{Payload: &pb.OneofValue_StringValue{StringValue: "test"}},

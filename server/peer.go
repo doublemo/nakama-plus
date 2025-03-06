@@ -12,7 +12,6 @@ import (
 	"math"
 	coreruntime "runtime"
 	"strconv"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -687,26 +686,6 @@ func (s *LocalPeer) InvokeMS(ctx context.Context, in *api.AnyRequest) (*api.AnyR
 	request := toPeerRequest(in)
 	maps.Copy(request.Context, s.runtimeConfig.Environment)
 	maps.Copy(request.Context, in.GetContext())
-	md, ok := metadata.FromIncomingContext(ctx)
-	if ok {
-		for k, v := range md {
-			size := len(v)
-			if !strings.HasPrefix(k, "q_") {
-				if size > 0 {
-					request.Header[k] = v[0]
-				} else {
-					request.Header[k] = ""
-				}
-			} else {
-				values := &pb.Peer_Query{Value: make([]string, size)}
-				if size > 0 {
-					copy(values.Value, v)
-				}
-				request.Query[k[2:]] = values
-			}
-		}
-	}
-
 	endpoint, ok := s.GetServiceRegistry().Get(in.Name)
 	if !ok {
 		return nil, status.Error(codes.Unavailable, "Service Unavailable")
@@ -736,26 +715,6 @@ func (s *LocalPeer) SendMS(ctx context.Context, in *api.AnyRequest) error {
 	request := toPeerRequest(in)
 	maps.Copy(request.Context, s.runtimeConfig.Environment)
 	maps.Copy(request.Context, in.GetContext())
-	md, ok := metadata.FromIncomingContext(ctx)
-	if ok {
-		for k, v := range md {
-			size := len(v)
-			if !strings.HasPrefix(k, "q_") {
-				if size > 0 {
-					request.Header[k] = v[0]
-				} else {
-					request.Header[k] = ""
-				}
-			} else {
-				values := &pb.Peer_Query{Value: make([]string, size)}
-				if size > 0 {
-					copy(values.Value, v)
-				}
-				request.Query[k[2:]] = values
-			}
-		}
-	}
-
 	endpoint, ok := s.GetServiceRegistry().Get(in.Name)
 	if !ok {
 		return status.Error(codes.Unavailable, "Service Unavailable")
