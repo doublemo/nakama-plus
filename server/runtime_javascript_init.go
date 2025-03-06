@@ -276,6 +276,8 @@ func (im *RuntimeJavascriptInitModule) mappings(r *goja.Runtime) map[string]func
 		"registerAfterEvent":                              im.registerAfterEvent(r),
 		"registerStorageIndex":                            im.registerStorageIndex(r),
 		"registerStorageIndexFilter":                      im.registerStorageIndexFilter(r),
+		"registerBeforeAny":                               im.registerBeforeAny(r),
+		"registerAfterAny":                                im.registerAfterAny(r),
 	}
 }
 
@@ -1137,6 +1139,14 @@ func (im *RuntimeJavascriptInitModule) registerBeforeEvent(r *goja.Runtime) func
 
 func (im *RuntimeJavascriptInitModule) registerAfterEvent(r *goja.Runtime) func(goja.FunctionCall) goja.Value {
 	return im.registerHook(r, RuntimeExecutionModeAfter, "registerAfterEvent", "event")
+}
+
+func (im *RuntimeJavascriptInitModule) registerBeforeAny(r *goja.Runtime) func(goja.FunctionCall) goja.Value {
+	return im.registerHook(r, RuntimeExecutionModeBefore, "registerBeforeAny", "any")
+}
+
+func (im *RuntimeJavascriptInitModule) registerAfterAny(r *goja.Runtime) func(goja.FunctionCall) goja.Value {
+	return im.registerHook(r, RuntimeExecutionModeAfter, "registerBeforeAny", "any")
 }
 
 func (im *RuntimeJavascriptInitModule) registerStorageIndex(r *goja.Runtime) func(call goja.FunctionCall) goja.Value {

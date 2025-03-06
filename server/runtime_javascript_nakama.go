@@ -37,6 +37,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -9331,25 +9332,27 @@ func (n *RuntimeJavascriptNakamaModule) satoriMessageDelete(r *goja.Runtime) fun
 func (n *RuntimeJavascriptNakamaModule) invokeMS(r *goja.Runtime) func(goja.FunctionCall) goja.Value {
 	return func(f goja.FunctionCall) goja.Value {
 		req := &api.AnyRequest{
-			Cid:     getJsString(r, f.Argument(1)),
-			Name:    getJsString(r, f.Argument(2)),
-			Header:  getJsStringMap(r, f.Argument(3)),
+			Cid:     getJsString(r, f.Argument(0)),
+			Name:    getJsString(r, f.Argument(1)),
+			Header:  getJsStringMap(r, f.Argument(2)),
 			Query:   make(map[string]*api.AnyQuery),
-			Context: getJsStringMap(r, f.Argument(5)),
+			Context: getJsStringMap(r, f.Argument(4)),
 			Body: &api.AnyRequest_StringContent{
-				StringContent: getJsString(r, f.Argument(6)),
+				StringContent: getJsString(r, f.Argument(5)),
 			},
 		}
 
-		m, ok := f.Argument(4).Export().(map[string]interface{})
+		m, ok := f.Argument(3).Export().(map[string]interface{})
 		if !ok {
 			panic(r.NewTypeError("expects object with string keys and values"))
 		}
 
 		for k, v := range m {
-			s, ok := v.([]string)
-			if ok {
-				req.Query[k] = &api.AnyQuery{Value: s}
+			if s, ok := v.([]interface{}); ok {
+				req.Query[k] = &api.AnyQuery{Value: make([]string, 0, len(s))}
+				for _, vv := range s {
+					req.Query[k].Value = append(req.Query[k].Value, toString(vv))
+				}
 			}
 		}
 
@@ -9373,25 +9376,27 @@ func (n *RuntimeJavascriptNakamaModule) invokeMS(r *goja.Runtime) func(goja.Func
 func (n *RuntimeJavascriptNakamaModule) sendMS(r *goja.Runtime) func(goja.FunctionCall) goja.Value {
 	return func(f goja.FunctionCall) goja.Value {
 		req := &api.AnyRequest{
-			Cid:     getJsString(r, f.Argument(1)),
-			Name:    getJsString(r, f.Argument(2)),
-			Header:  getJsStringMap(r, f.Argument(3)),
+			Cid:     getJsString(r, f.Argument(0)),
+			Name:    getJsString(r, f.Argument(1)),
+			Header:  getJsStringMap(r, f.Argument(2)),
 			Query:   make(map[string]*api.AnyQuery),
-			Context: getJsStringMap(r, f.Argument(5)),
+			Context: getJsStringMap(r, f.Argument(4)),
 			Body: &api.AnyRequest_StringContent{
-				StringContent: getJsString(r, f.Argument(6)),
+				StringContent: getJsString(r, f.Argument(5)),
 			},
 		}
 
-		m, ok := f.Argument(4).Export().(map[string]interface{})
+		m, ok := f.Argument(3).Export().(map[string]interface{})
 		if !ok {
 			panic(r.NewTypeError("expects object with string keys and values"))
 		}
 
 		for k, v := range m {
-			s, ok := v.([]string)
-			if ok {
-				req.Query[k] = &api.AnyQuery{Value: s}
+			if s, ok := v.([]interface{}); ok {
+				req.Query[k] = &api.AnyQuery{Value: make([]string, 0, len(s))}
+				for _, vv := range s {
+					req.Query[k].Value = append(req.Query[k].Value, toString(vv))
+				}
 			}
 		}
 
@@ -9805,4 +9810,34 @@ func exportToSlice[S ~[]E, E any](v goja.Value) (S, error) {
 	}
 
 	return results, nil
+}
+
+func toString(value interface{}) string {
+	switch v := value.(type) {
+	case int:
+		return strconv.Itoa(v)
+	case int8:
+		return strconv.Itoa(int(v))
+	case int32:
+		return strconv.FormatInt(int64(v), 10)
+	case int64:
+		return strconv.FormatInt(v, 10)
+	case uint:
+		return strconv.FormatUint(uint64(v), 10)
+	case uint8:
+		return strconv.FormatUint(uint64(v), 10)
+	case uint32:
+		return strconv.FormatUint(uint64(v), 10)
+	case uint64:
+		return strconv.FormatUint(v, 10)
+	case float32:
+		return strconv.FormatFloat(float64(v), 'f', 4, 32)
+	case float64:
+		return strconv.FormatFloat(float64(v), 'f', 4, 64)
+	case string:
+		return v
+	case []byte:
+		return string(v)
+	}
+	return ""
 }
