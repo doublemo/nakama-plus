@@ -73,11 +73,12 @@ func (s *ApiServer) Any(ctx context.Context, in *api.AnyRequest) (*api.AnyRespon
 		}
 	}
 
+	clientIP, clientPort := extractClientAddressFromContext(s.logger, ctx)
+	in.Header["client_ip"] = clientIP
+	in.Header["client_port"] = clientPort
 	// Before hook.
 	if fn := s.runtime.BeforeAny(); fn != nil {
 		beforeFn := func(clientIP, clientPort string) error {
-			in.Header["client_ip"] = clientIP
-			in.Header["client_port"] = clientPort
 			result, err, code := fn(ctx, s.logger, userId, username, vars, expiry, clientIP, clientPort, in)
 			if err != nil {
 				return status.Error(code, err.Error())
