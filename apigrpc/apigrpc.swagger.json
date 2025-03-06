@@ -1339,6 +1339,13 @@
             "required": false
           },
           {
+            "name": "context",
+            "description": "This is a request variable of the map type. The query format is \"map_name[key]=value\", e.g. If the map name is Age, the key type is string, and the value type is integer, the query parameter is expressed as Age[\"bob\"]=18",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
             "name": "httpKey",
             "in": "query",
             "required": false,
@@ -1360,12 +1367,6 @@
         ],
         "tags": [
           "Nakama"
-        ],
-        "security": [
-          {
-            "BearerJwt": [],
-            "HttpKeyAuth": []
-          }
         ]
       },
       "post": {
@@ -1417,6 +1418,12 @@
                     "$ref": "#/definitions/apiAnyQuery"
                   }
                 },
+                "context": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                },
                 "httpKey": {
                   "type": "string"
                 },
@@ -1433,12 +1440,6 @@
         ],
         "tags": [
           "Nakama"
-        ],
-        "security": [
-          {
-            "BearerJwt": [],
-            "HttpKeyAuth": []
-          }
         ]
       }
     },
@@ -2789,7 +2790,7 @@
     },
     "/v2/leaderboard/{leaderboardId}/owner/{ownerId}": {
       "get": {
-        "summary": "List leaderboard records that belong to a user.",
+        "summary": "List leaderboard records around the target ownerId.",
         "operationId": "Nakama_ListLeaderboardRecordsAroundOwner",
         "responses": {
           "200": {
