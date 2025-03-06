@@ -1897,22 +1897,22 @@ func NewRuntime(ctx context.Context, logger, startupLogger *zap.Logger, db *sql.
 		startupLogger.Info("Registered JavaScript runtime After function invocation", zap.String("id", "validatepurchasefacebookinstant"))
 	}
 	if allAfterReqFunctions.afterValidateSubscriptionAppleFunction != nil {
-		startupLogger.Info("Registered JavaScript runtime Before function invocation", zap.String("id", "validatesubscriptionapple"))
+		startupLogger.Info("Registered JavaScript runtime After function invocation", zap.String("id", "validatesubscriptionapple"))
 	}
 	if allAfterReqFunctions.afterValidateSubscriptionGoogleFunction != nil {
-		startupLogger.Info("Registered JavaScript runtime Before function invocation", zap.String("id", "validatesubscriptiongoogle"))
+		startupLogger.Info("Registered JavaScript runtime After function invocation", zap.String("id", "validatesubscriptiongoogle"))
 	}
 	if allAfterReqFunctions.afterGetSubscriptionFunction != nil {
-		startupLogger.Info("Registered JavaScript runtime Before function invocation", zap.String("id", "getsubscription"))
+		startupLogger.Info("Registered JavaScript runtime After function invocation", zap.String("id", "getsubscription"))
 	}
 	if allAfterReqFunctions.afterListSubscriptionsFunction != nil {
-		startupLogger.Info("Registered JavaScript runtime Before function invocation", zap.String("id", "listsubscriptions"))
+		startupLogger.Info("Registered JavaScript runtime After function invocation", zap.String("id", "listsubscriptions"))
 	}
 	if allAfterReqFunctions.afterEventFunction != nil {
 		startupLogger.Info("Registered JavaScript runtime After custom events function invocation")
 	}
 	if allAfterReqFunctions.afterAnyFunction != nil {
-		startupLogger.Info("Registered JavaScript runtime Before function invocation", zap.String("id", "any"))
+		startupLogger.Info("Registered JavaScript runtime After function invocation", zap.String("id", "any"))
 	}
 
 	// Register Lua After req Functions

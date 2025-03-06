@@ -1146,7 +1146,7 @@ func (im *RuntimeJavascriptInitModule) registerBeforeAny(r *goja.Runtime) func(g
 }
 
 func (im *RuntimeJavascriptInitModule) registerAfterAny(r *goja.Runtime) func(goja.FunctionCall) goja.Value {
-	return im.registerHook(r, RuntimeExecutionModeAfter, "registerBeforeAny", "any")
+	return im.registerHook(r, RuntimeExecutionModeAfter, "registerAfterAny", "any")
 }
 
 func (im *RuntimeJavascriptInitModule) registerStorageIndex(r *goja.Runtime) func(call goja.FunctionCall) goja.Value {
