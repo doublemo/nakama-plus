@@ -13,7 +13,7 @@ local function before_any(ctx, payload)
     context: map[string]string
     content: string 内容
   ]]--
-  print(du.print_r(nk.get_peer().invokeMS("chat", "say_hello", {header = "11", htest="vvv"}, {query = {"vvvv", "cccc"}},{u8="u9"}, "gogogogo")))
+  print(du.print_r(nk.get_peer().invoke_ms("chat", "say_hello", {header = "11", htest="vvv"}, {query = {"vvvv", "cccc"}},{u8="u9"}, "gogogogo")))
   
   --[[
     sendMS, 通过GRPC进行远端流方法调用
@@ -25,7 +25,7 @@ local function before_any(ctx, payload)
     context: map[string]string
     content: string 内容
   ]]--
-  print(du.print_r(nk.get_peer().sendMS("vuuu", "say_hello", {header = "11", htest="vvv"}, {query = {"vvvv", "cccc"}},{u8="u9"}, "hhh000000")))
+  print(du.print_r(nk.get_peer().send_ms("vuuu", "say_hello", {header = "11", htest="vvv"}, {query = {"vvvv", "cccc"}},{u8="u9"}, "hhh000000")))
   return payload
 end
 

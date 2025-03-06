@@ -11436,8 +11436,8 @@ func (n *RuntimeLuaNakamaModule) satoriMessageDelete(l *lua.LState) int {
 // @return error(error) An optional error value if an error occurred.
 func (n *RuntimeLuaNakamaModule) getPeer(l *lua.LState) int {
 	peerFunctions := map[string]lua.LGFunction{
-		"invokeMS": n.peerInvokeMS,
-		"sendMS":   n.peerSendMS,
+		"invoke_ms": n.peerInvokeMS,
+		"send_ms":   n.peerSendMS,
 	}
 
 	peerMod := l.SetFuncs(l.CreateTable(0, len(peerFunctions)), peerFunctions)

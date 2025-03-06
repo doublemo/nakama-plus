@@ -1013,6 +1013,9 @@ func NewRuntime(ctx context.Context, logger, startupLogger *zap.Logger, db *sql.
 	if allBeforeReqFunctions.beforeEventFunction != nil {
 		startupLogger.Info("Registered JavaScript runtime Before custom events function invocation")
 	}
+	if allBeforeReqFunctions.beforeAnyFunction != nil {
+		startupLogger.Info("Registered JavaScript runtime Before function invocation", zap.String("id", "any"))
+	}
 
 	// Register Lua Before Req functions
 	if luaBeforeReqFns.beforeGetAccountFunction != nil {
@@ -1907,6 +1910,9 @@ func NewRuntime(ctx context.Context, logger, startupLogger *zap.Logger, db *sql.
 	}
 	if allAfterReqFunctions.afterEventFunction != nil {
 		startupLogger.Info("Registered JavaScript runtime After custom events function invocation")
+	}
+	if allAfterReqFunctions.afterAnyFunction != nil {
+		startupLogger.Info("Registered JavaScript runtime Before function invocation", zap.String("id", "any"))
 	}
 
 	// Register Lua After req Functions

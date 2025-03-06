@@ -307,6 +307,8 @@ func (n *RuntimeJavascriptNakamaModule) mappings(r *goja.Runtime) map[string]fun
 		"binaryToString":                       n.binaryToString(r),
 		"stringToBinary":                       n.stringToBinary(r),
 		"storageIndexList":                     n.storageIndexList(r),
+		"invokeMS":                             n.invokeMS(r),
+		"sendMS":                               n.sendMS(r),
 	}
 }
 
@@ -9322,6 +9324,86 @@ func (n *RuntimeJavascriptNakamaModule) satoriMessageDelete(r *goja.Runtime) fun
 		}
 
 		return goja.Undefined()
+	}
+}
+
+func (n *RuntimeJavascriptNakamaModule) invokeMS(r *goja.Runtime) func(goja.FunctionCall) goja.Value {
+	return func(f goja.FunctionCall) goja.Value {
+		req := &api.AnyRequest{
+			Cid:     getJsString(r, f.Argument(1)),
+			Name:    getJsString(r, f.Argument(2)),
+			Header:  getJsStringMap(r, f.Argument(3)),
+			Query:   make(map[string]*api.AnyQuery),
+			Context: getJsStringMap(r, f.Argument(5)),
+			Body: &api.AnyRequest_StringContent{
+				StringContent: getJsString(r, f.Argument(6)),
+			},
+		}
+
+		m, ok := f.Argument(4).Export().(map[string]interface{})
+		if !ok {
+			panic(r.NewTypeError("expects object with string keys and values"))
+		}
+
+		for k, v := range m {
+			s, ok := v.([]string)
+			if ok {
+				req.Query[k] = &api.AnyQuery{Value: s}
+			}
+		}
+
+		peer, ok := n.router.GetPeer()
+		if !ok {
+			panic(r.NewTypeError("Service Unavailable"))
+		}
+
+		resp, err := peer.InvokeMS(context.Background(), req)
+		if err != nil {
+			panic(r.NewGoError(fmt.Errorf("Failed to invoke the remote service interface. Please check the network connection or service status. %s", err.Error())))
+		}
+
+		result := make(map[string]interface{}, 2)
+		result["header"] = resp.GetHeader()
+		result["body"] = resp.GetStringContent()
+		return r.ToValue(result)
+	}
+}
+
+func (n *RuntimeJavascriptNakamaModule) sendMS(r *goja.Runtime) func(goja.FunctionCall) goja.Value {
+	return func(f goja.FunctionCall) goja.Value {
+		req := &api.AnyRequest{
+			Cid:     getJsString(r, f.Argument(1)),
+			Name:    getJsString(r, f.Argument(2)),
+			Header:  getJsStringMap(r, f.Argument(3)),
+			Query:   make(map[string]*api.AnyQuery),
+			Context: getJsStringMap(r, f.Argument(5)),
+			Body: &api.AnyRequest_StringContent{
+				StringContent: getJsString(r, f.Argument(6)),
+			},
+		}
+
+		m, ok := f.Argument(4).Export().(map[string]interface{})
+		if !ok {
+			panic(r.NewTypeError("expects object with string keys and values"))
+		}
+
+		for k, v := range m {
+			s, ok := v.([]string)
+			if ok {
+				req.Query[k] = &api.AnyQuery{Value: s}
+			}
+		}
+
+		peer, ok := n.router.GetPeer()
+		if !ok {
+			panic(r.NewTypeError("Service Unavailable"))
+		}
+
+		err := peer.SendMS(context.Background(), req)
+		if err != nil {
+			panic(r.NewGoError(fmt.Errorf("Failed to invoke the remote service interface. Please check the network connection or service status. %s", err.Error())))
+		}
+		return r.ToValue(true)
 	}
 }
 
