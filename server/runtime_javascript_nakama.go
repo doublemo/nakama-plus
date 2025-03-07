@@ -310,6 +310,7 @@ func (n *RuntimeJavascriptNakamaModule) mappings(r *goja.Runtime) map[string]fun
 		"storageIndexList":                     n.storageIndexList(r),
 		"invokeMS":                             n.invokeMS(r),
 		"sendMS":                               n.sendMS(r),
+		"eventPeer":                            n.eventPeer(r),
 	}
 }
 
@@ -9413,6 +9414,54 @@ func (n *RuntimeJavascriptNakamaModule) sendMS(r *goja.Runtime) func(goja.Functi
 	}
 }
 
+func (n *RuntimeJavascriptNakamaModule) eventPeer(r *goja.Runtime) func(goja.FunctionCall) goja.Value {
+	return func(f goja.FunctionCall) goja.Value {
+		req := &api.AnyRequest{
+			Cid:     getJsString(r, f.Argument(0)),
+			Name:    getJsString(r, f.Argument(1)),
+			Header:  getJsStringMap(r, f.Argument(2)),
+			Query:   make(map[string]*api.AnyQuery),
+			Context: getJsStringMap(r, f.Argument(4)),
+			Body: &api.AnyRequest_StringContent{
+				StringContent: getJsString(r, f.Argument(5)),
+			},
+		}
+
+		m, ok := f.Argument(3).Export().(map[string]interface{})
+		if !ok {
+			panic(r.NewTypeError("expects object with string keys and values"))
+		}
+
+		for k, v := range m {
+			if s, ok := v.([]interface{}); ok {
+				req.Query[k] = &api.AnyQuery{Value: make([]string, 0, len(s))}
+				for _, vv := range s {
+					req.Query[k].Value = append(req.Query[k].Value, toString(vv))
+				}
+			}
+		}
+
+		names := make([]string, 0)
+		nameValues, ok := f.Argument(6).Export().([]interface{})
+		if ok {
+			for _, v := range nameValues {
+				names = append(names, toString(v))
+			}
+		}
+
+		peer, ok := n.router.GetPeer()
+		if !ok {
+			panic(r.NewTypeError("Service Unavailable"))
+		}
+
+		err := peer.Event(context.Background(), req, names...)
+		if err != nil {
+			panic(r.NewGoError(fmt.Errorf("Failed to invoke the remote service interface. Please check the network connection or service status. %s", err.Error())))
+		}
+		return r.ToValue(true)
+	}
+}
+
 func getJsString(r *goja.Runtime, v goja.Value) string {
 	s, ok := v.Export().(string)
 	if !ok {
@@ -9708,6 +9757,17 @@ func subscriptionToJsObject(subscription *api.ValidatedSubscription) map[string]
 	validatedSubMap["providerNotification"] = subscription.ProviderNotification
 
 	return validatedSubMap
+}
+
+func anyRequestToJsObject(in *api.AnyRequest) map[string]interface{} {
+	anyRequest := make(map[string]interface{}, 6)
+	anyRequest["cid"] = in.GetCid()
+	anyRequest["name"] = in.GetName()
+	anyRequest["header"] = in.GetHeader()
+	anyRequest["query"] = in.GetQuery()
+	anyRequest["context"] = in.GetContext()
+	anyRequest["body"] = in.GetStringContent()
+	return anyRequest
 }
 
 func jsObjectToPresenceStream(r *goja.Runtime, streamObj map[string]interface{}) PresenceStream {

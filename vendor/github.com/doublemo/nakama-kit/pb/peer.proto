@@ -128,6 +128,7 @@ message Frame {
         Peer.Envelope envelope = 5;
         BinaryLog binaryLog = 6;
         Status status = 7;
+        api.AnyRequest event = 8;
     }
 }
 

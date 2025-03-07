@@ -77,7 +77,8 @@ type RuntimeGoInitializer struct {
 	match     map[string]func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule) (runtime.Match, error)
 	matchLock *sync.RWMutex
 
-	fmCallbackHandler runtime.FmCallbackHandler
+	fmCallbackHandler  runtime.FmCallbackHandler
+	eventPeerFunctions []RuntimeEventPeerFunction
 }
 
 func (ri *RuntimeGoInitializer) GetConfig() (runtime.Config, error) {
@@ -2845,6 +2846,11 @@ func (ri *RuntimeGoInitializer) RegisterAfterAny(fn func(ctx context.Context, lo
 	return nil
 }
 
+func (ri *RuntimeGoInitializer) RegisterEventPeer(fn func(ctx context.Context, logger runtime.Logger, evt *api.AnyRequest)) error {
+	ri.eventPeerFunctions = append(ri.eventPeerFunctions, fn)
+	return nil
+}
+
 func (ri *RuntimeGoInitializer) RegisterMatch(name string, fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule) (runtime.Match, error)) error {
 	ri.matchLock.Lock()
 	ri.match[name] = fn
@@ -2922,7 +2928,8 @@ func NewRuntimeProviderGo(ctx context.Context, logger, startupLogger *zap.Logger
 		match:     match,
 		matchLock: matchLock,
 
-		fmCallbackHandler: fmCallbackHandler,
+		fmCallbackHandler:  fmCallbackHandler,
+		eventPeerFunctions: make([]RuntimeEventPeerFunction, 0),
 	}
 
 	// The baseline context that will be passed to all InitModule calls.
@@ -2989,6 +2996,15 @@ func NewRuntimeProviderGo(ctx context.Context, logger, startupLogger *zap.Logger
 			}
 			eventQueue.Queue(func() {
 				for _, fn := range initializer.sessionEndFunctions {
+					fn(ctx, initializer.logger, evt)
+				}
+			})
+		}
+	}
+	if len(initializer.eventPeerFunctions) > 0 {
+		events.eventPeerFunction = func(ctx context.Context, logger runtime.Logger, evt *api.AnyRequest) {
+			eventQueue.Queue(func() {
+				for _, fn := range initializer.eventPeerFunctions {
 					fn(ctx, initializer.logger, evt)
 				}
 			})

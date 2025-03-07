@@ -243,6 +243,7 @@ type (
 
 	RuntimeBeforeAnyFunction func(ctx context.Context, logger *zap.Logger, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.AnyRequest) (*api.AnyRequest, error, codes.Code)
 	RuntimeAfterAnyFunction  func(ctx context.Context, logger *zap.Logger, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, out *api.AnyResponseWriter, in *api.AnyRequest) error
+	RuntimeEventPeerFunction func(ctx context.Context, logger runtime.Logger, evt *api.AnyRequest)
 )
 
 type RuntimeHttpHandler struct {
@@ -272,6 +273,7 @@ const (
 	RuntimeExecutionModeSubscriptionNotificationGoogle
 	RuntimeExecutionModeStorageIndexFilter
 	RuntimeExecutionModeShutdown
+	RuntimeExecutionModePeerEvent
 )
 
 func (e RuntimeExecutionMode) String() string {
@@ -312,6 +314,8 @@ func (e RuntimeExecutionMode) String() string {
 		return "storage_index_filter"
 	case RuntimeExecutionModeShutdown:
 		return "shutdown"
+	case RuntimeExecutionModePeerEvent:
+		return "peer_event"
 	}
 
 	return ""
@@ -338,6 +342,7 @@ type RuntimeEventFunctions struct {
 	sessionStartFunction RuntimeEventSessionStartFunction
 	sessionEndFunction   RuntimeEventSessionEndFunction
 	eventFunction        RuntimeEventCustomFunction
+	eventPeerFunction    RuntimeEventPeerFunction
 }
 
 type moduleInfo struct {
@@ -689,16 +694,22 @@ func NewRuntime(ctx context.Context, logger, startupLogger *zap.Logger, db *sql.
 		return nil, nil, err
 	}
 
-	luaModules, luaRPCFns, luaBeforeRtFns, luaAfterRtFns, luaBeforeReqFns, luaAfterReqFns, luaMatchmakerMatchedFn, luaTournamentEndFn, luaTournamentResetFn, luaLeaderboardResetFn, luaShutdownFn, luaPurchaseNotificationAppleFn, luaSubscriptionNotificationAppleFn, luaPurchaseNotificationGoogleFn, luaSubscriptionNotificationGoogleFn, luaIndexFilterFns, err := NewRuntimeProviderLua(ctx, logger, startupLogger, db, protojsonMarshaler, protojsonUnmarshaler, config, version, socialClient, leaderboardCache, leaderboardRankCache, leaderboardScheduler, sessionRegistry, sessionCache, statusRegistry, matchRegistry, tracker, metrics, streamManager, router, satoriClient, allEventFns.eventFunction, runtimeConfig.Path, paths, matchProvider, storageIndex)
+	luaModules, luaRPCFns, luaBeforeRtFns, luaAfterRtFns, luaBeforeReqFns, luaAfterReqFns, luaMatchmakerMatchedFn, luaTournamentEndFn, luaTournamentResetFn, luaLeaderboardResetFn, luaShutdownFn, luaPurchaseNotificationAppleFn, luaSubscriptionNotificationAppleFn, luaPurchaseNotificationGoogleFn, luaSubscriptionNotificationGoogleFn, luaIndexFilterFns, eventPeerFunction, err := NewRuntimeProviderLua(ctx, logger, startupLogger, db, protojsonMarshaler, protojsonUnmarshaler, config, version, socialClient, leaderboardCache, leaderboardRankCache, leaderboardScheduler, sessionRegistry, sessionCache, statusRegistry, matchRegistry, tracker, metrics, streamManager, router, satoriClient, allEventFns.eventFunction, runtimeConfig.Path, paths, matchProvider, storageIndex)
 	if err != nil {
 		startupLogger.Error("Error initialising Lua runtime provider", zap.Error(err))
 		return nil, nil, err
 	}
 
-	jsModules, jsRPCFns, jsBeforeRtFns, jsAfterRtFns, jsBeforeReqFns, jsAfterReqFns, jsMatchmakerMatchedFn, jsTournamentEndFn, jsTournamentResetFn, jsLeaderboardResetFn, jsShutdownFn, jsPurchaseNotificationAppleFn, jsSubscriptionNotificationAppleFn, jsPurchaseNotificationGoogleFn, jsSubscriptionNotificationGoogleFn, jsIndexFilterFns, err := NewRuntimeProviderJS(ctx, logger, startupLogger, db, protojsonMarshaler, protojsonUnmarshaler, config, version, socialClient, leaderboardCache, leaderboardRankCache, leaderboardScheduler, sessionRegistry, sessionCache, statusRegistry, matchRegistry, tracker, metrics, streamManager, router, satoriClient, allEventFns.eventFunction, runtimeConfig.Path, runtimeConfig.JsEntrypoint, matchProvider, storageIndex)
+	jsModules, jsRPCFns, jsBeforeRtFns, jsAfterRtFns, jsBeforeReqFns, jsAfterReqFns, jsMatchmakerMatchedFn, jsTournamentEndFn, jsTournamentResetFn, jsLeaderboardResetFn, jsShutdownFn, jsPurchaseNotificationAppleFn, jsSubscriptionNotificationAppleFn, jsPurchaseNotificationGoogleFn, jsSubscriptionNotificationGoogleFn, jsIndexFilterFns, eventPeerFunction, err := NewRuntimeProviderJS(ctx, logger, startupLogger, db, protojsonMarshaler, protojsonUnmarshaler, config, version, socialClient, leaderboardCache, leaderboardRankCache, leaderboardScheduler, sessionRegistry, sessionCache, statusRegistry, matchRegistry, tracker, metrics, streamManager, router, satoriClient, allEventFns.eventFunction, runtimeConfig.Path, runtimeConfig.JsEntrypoint, matchProvider, storageIndex)
 	if err != nil {
 		startupLogger.Error("Error initialising JavaScript runtime provider", zap.Error(err))
 		return nil, nil, err
+	}
+
+	if eventPeerFunction != nil {
+		allEventFns.eventPeerFunction = func(ctx context.Context, logger runtime.Logger, evt *api.AnyRequest) {
+			eventQueue.Queue(func() { eventPeerFunction(ctx, logger, evt) })
+		}
 	}
 
 	allModules := make([]string, 0, len(jsModules)+len(luaModules)+len(goModules))
@@ -716,6 +727,9 @@ func NewRuntime(ctx context.Context, logger, startupLogger *zap.Logger, db *sql.
 	}
 	if allEventFns.sessionEndFunction != nil {
 		startupLogger.Info("Registered event function invocation", zap.String("id", "session_end"))
+	}
+	if allEventFns.eventPeerFunction != nil {
+		startupLogger.Info("Registered event function invocation for peer events")
 	}
 
 	allRPCFunctions := make(map[string]RuntimeRpcFunction, len(goRPCFns)+len(luaRPCFns)+len(jsRPCFns))
@@ -3531,6 +3545,10 @@ func (r *Runtime) EventSessionStart() RuntimeEventSessionStartFunction {
 
 func (r *Runtime) EventSessionEnd() RuntimeEventSessionEndFunction {
 	return r.eventFunctions.sessionEndFunction
+}
+
+func (r *Runtime) EventPeer() RuntimeEventPeerFunction {
+	return r.eventFunctions.eventPeerFunction
 }
 
 func (r *Runtime) SetPeer(peer Peer) {

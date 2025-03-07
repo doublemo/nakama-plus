@@ -338,6 +338,7 @@ type Frame struct {
 	//	*Frame_Envelope
 	//	*Frame_BinaryLog
 	//	*Frame_Status
+	//	*Frame_Event
 	Payload isFrame_Payload `protobuf_oneof:"payload"`
 }
 
@@ -429,6 +430,13 @@ func (x *Frame) GetStatus() *Status {
 	return nil
 }
 
+func (x *Frame) GetEvent() *api.AnyRequest {
+	if x, ok := x.GetPayload().(*Frame_Event); ok {
+		return x.Event
+	}
+	return nil
+}
+
 type isFrame_Payload interface {
 	isFrame_Payload()
 }
@@ -445,11 +453,17 @@ type Frame_Status struct {
 	Status *Status `protobuf:"bytes,7,opt,name=status,proto3,oneof"`
 }
 
+type Frame_Event struct {
+	Event *api.AnyRequest `protobuf:"bytes,8,opt,name=event,proto3,oneof"`
+}
+
 func (*Frame_Envelope) isFrame_Payload() {}
 
 func (*Frame_BinaryLog) isFrame_Payload() {}
 
 func (*Frame_Status) isFrame_Payload() {}
+
+func (*Frame_Event) isFrame_Payload() {}
 
 type Disconnect struct {
 	state         protoimpl.MessageState
@@ -4235,7 +4249,7 @@ var file_peer_proto_rawDesc = []byte{
 	0x49, 0x44, 0x10, 0x00, 0x12, 0x0b, 0x0a, 0x07, 0x43, 0x48, 0x41, 0x4e, 0x4e, 0x45, 0x4c, 0x10,
 	0x01, 0x12, 0x0a, 0x0a, 0x06, 0x53, 0x54, 0x52, 0x45, 0x41, 0x4d, 0x10, 0x02, 0x12, 0x0a, 0x0a,
 	0x06, 0x55, 0x53, 0x45, 0x52, 0x49, 0x44, 0x10, 0x03, 0x42, 0x09, 0x0a, 0x07, 0x70, 0x61, 0x79,
-	0x6c, 0x6f, 0x61, 0x64, 0x22, 0xa7, 0x02, 0x0a, 0x05, 0x46, 0x72, 0x61, 0x6d, 0x65, 0x12, 0x0e,
+	0x6c, 0x6f, 0x61, 0x64, 0x22, 0xd7, 0x02, 0x0a, 0x05, 0x46, 0x72, 0x61, 0x6d, 0x65, 0x12, 0x0e,
 	0x0a, 0x02, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x02, 0x69, 0x64, 0x12, 0x14,
 	0x0a, 0x05, 0x69, 0x6e, 0x62, 0x6f, 0x78, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x05, 0x69,
 	0x6e, 0x62, 0x6f, 0x78, 0x12, 0x12, 0x0a, 0x04, 0x6e, 0x6f, 0x64, 0x65, 0x18, 0x03, 0x20, 0x01,
@@ -4253,7 +4267,10 @@ var file_peer_proto_rawDesc = []byte{
 	0x79, 0x4c, 0x6f, 0x67, 0x12, 0x2d, 0x0a, 0x06, 0x73, 0x74, 0x61, 0x74, 0x75, 0x73, 0x18, 0x07,
 	0x20, 0x01, 0x28, 0x0b, 0x32, 0x13, 0x2e, 0x6e, 0x61, 0x6b, 0x61, 0x6d, 0x61, 0x2e, 0x70, 0x65,
 	0x65, 0x72, 0x2e, 0x53, 0x74, 0x61, 0x74, 0x75, 0x73, 0x48, 0x00, 0x52, 0x06, 0x73, 0x74, 0x61,
-	0x74, 0x75, 0x73, 0x42, 0x09, 0x0a, 0x07, 0x70, 0x61, 0x79, 0x6c, 0x6f, 0x61, 0x64, 0x22, 0x54,
+	0x74, 0x75, 0x73, 0x12, 0x2e, 0x0a, 0x05, 0x65, 0x76, 0x65, 0x6e, 0x74, 0x18, 0x08, 0x20, 0x01,
+	0x28, 0x0b, 0x32, 0x16, 0x2e, 0x6e, 0x61, 0x6b, 0x61, 0x6d, 0x61, 0x2e, 0x61, 0x70, 0x69, 0x2e,
+	0x41, 0x6e, 0x79, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x48, 0x00, 0x52, 0x05, 0x65, 0x76,
+	0x65, 0x6e, 0x74, 0x42, 0x09, 0x0a, 0x07, 0x70, 0x61, 0x79, 0x6c, 0x6f, 0x61, 0x64, 0x22, 0x54,
 	0x0a, 0x0a, 0x44, 0x69, 0x73, 0x63, 0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x12, 0x1c, 0x0a, 0x09,
 	0x73, 0x65, 0x73, 0x73, 0x69, 0x6f, 0x6e, 0x49, 0x44, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52,
 	0x09, 0x73, 0x65, 0x73, 0x73, 0x69, 0x6f, 0x6e, 0x49, 0x44, 0x12, 0x10, 0x0a, 0x03, 0x62, 0x61,
@@ -4795,11 +4812,12 @@ var file_peer_proto_goTypes = []interface{}{
 	nil,                                     // 59: nakama.peer.Match.JoinAttempt.VarsEntry
 	nil,                                     // 60: nakama.peer.Match.JoinAttempt.MetadataEntry
 	(*timestamppb.Timestamp)(nil),           // 61: google.protobuf.Timestamp
-	(*rtapi.Notifications)(nil),             // 62: nakama.realtime.Notifications
-	(*api.Match)(nil),                       // 63: nakama.api.Match
-	(*rtapi.Error)(nil),                     // 64: nakama.realtime.Error
-	(*rtapi.Envelope)(nil),                  // 65: nakama.realtime.Envelope
-	(*rtapi.UserPresence)(nil),              // 66: nakama.realtime.UserPresence
+	(*api.AnyRequest)(nil),                  // 62: nakama.api.AnyRequest
+	(*rtapi.Notifications)(nil),             // 63: nakama.realtime.Notifications
+	(*api.Match)(nil),                       // 64: nakama.api.Match
+	(*rtapi.Error)(nil),                     // 65: nakama.realtime.Error
+	(*rtapi.Envelope)(nil),                  // 66: nakama.realtime.Envelope
+	(*rtapi.UserPresence)(nil),              // 67: nakama.realtime.UserPresence
 }
 var file_peer_proto_depIdxs = []int32{
 	0,  // 0: nakama.peer.Recipienter.action:type_name -> nakama.peer.Recipienter.Role
@@ -4808,86 +4826,87 @@ var file_peer_proto_depIdxs = []int32{
 	28, // 3: nakama.peer.Frame.envelope:type_name -> nakama.peer.Peer.Envelope
 	17, // 4: nakama.peer.Frame.binaryLog:type_name -> nakama.peer.BinaryLog
 	8,  // 5: nakama.peer.Frame.status:type_name -> nakama.peer.Status
-	17, // 6: nakama.peer.State.binaryLog:type_name -> nakama.peer.BinaryLog
-	10, // 7: nakama.peer.State.Presences:type_name -> nakama.peer.Presence
-	19, // 8: nakama.peer.State.checkPoint:type_name -> nakama.peer.CheckPoint
-	21, // 9: nakama.peer.State.matchmaker:type_name -> nakama.peer.MatchmakerExtract
-	11, // 10: nakama.peer.Presence.stream:type_name -> nakama.peer.PresenceStream
-	12, // 11: nakama.peer.Presence.meta:type_name -> nakama.peer.PresenceMeta
-	35, // 12: nakama.peer.NodeMeta.vars:type_name -> nakama.peer.NodeMeta.VarsEntry
-	1,  // 13: nakama.peer.NodeMeta.status:type_name -> nakama.peer.NodeMeta.Status
-	2,  // 14: nakama.peer.NodeMeta.balancer:type_name -> nakama.peer.NodeMeta.Balancer
-	11, // 15: nakama.peer.UntrackValue.stream:type_name -> nakama.peer.PresenceStream
-	11, // 16: nakama.peer.UntrackValue.skip:type_name -> nakama.peer.PresenceStream
-	61, // 17: nakama.peer.BinaryLog.timestamp:type_name -> google.protobuf.Timestamp
-	10, // 18: nakama.peer.BinaryLog.track:type_name -> nakama.peer.Presence
-	15, // 19: nakama.peer.BinaryLog.untrack:type_name -> nakama.peer.UntrackValue
-	14, // 20: nakama.peer.BinaryLog.ban:type_name -> nakama.peer.BanValue
-	10, // 21: nakama.peer.BinaryLog.updateTrack:type_name -> nakama.peer.Presence
-	21, // 22: nakama.peer.BinaryLog.MatchmakerAdd:type_name -> nakama.peer.MatchmakerExtract
-	21, // 23: nakama.peer.BinaryLog.MatchmakerRemoveSession:type_name -> nakama.peer.MatchmakerExtract
-	21, // 24: nakama.peer.BinaryLog.MatchmakerRemoveSessionAll:type_name -> nakama.peer.MatchmakerExtract
-	21, // 25: nakama.peer.BinaryLog.MatchmakerRemoveParty:type_name -> nakama.peer.MatchmakerExtract
-	21, // 26: nakama.peer.BinaryLog.MatchmakerRemovePartyAll:type_name -> nakama.peer.MatchmakerExtract
-	21, // 27: nakama.peer.BinaryLog.MatchmakerRemoveAll:type_name -> nakama.peer.MatchmakerExtract
-	36, // 28: nakama.peer.BinaryLog.MatchmakerRemove:type_name -> nakama.peer.BinaryLog.PartyMatchmakerRemove
-	37, // 29: nakama.peer.Point.point:type_name -> nakama.peer.Point.PointEntry
-	38, // 30: nakama.peer.CheckPoint.value:type_name -> nakama.peer.CheckPoint.ValueEntry
-	20, // 31: nakama.peer.MatchmakerExtract.presences:type_name -> nakama.peer.MatchmakerPresence
-	39, // 32: nakama.peer.MatchmakerExtract.stringProperties:type_name -> nakama.peer.MatchmakerExtract.StringPropertiesEntry
-	40, // 33: nakama.peer.MatchmakerExtract.numericProperties:type_name -> nakama.peer.MatchmakerExtract.NumericPropertiesEntry
-	29, // 34: nakama.peer.Peer.Request.header:type_name -> nakama.peer.Peer.Request.HeaderEntry
-	30, // 35: nakama.peer.Peer.Request.query:type_name -> nakama.peer.Peer.Request.QueryEntry
-	31, // 36: nakama.peer.Peer.Request.context:type_name -> nakama.peer.Peer.Request.ContextEntry
-	32, // 37: nakama.peer.Peer.ResponseWriter.header:type_name -> nakama.peer.Peer.ResponseWriter.HeaderEntry
-	33, // 38: nakama.peer.Peer.ResponseWriter.context:type_name -> nakama.peer.Peer.ResponseWriter.ContextEntry
-	4,  // 39: nakama.peer.Peer.ResponseWriter.recipient:type_name -> nakama.peer.Recipienter
-	62, // 40: nakama.peer.Peer.ResponseWriter.notifications:type_name -> nakama.realtime.Notifications
-	34, // 41: nakama.peer.Peer.Envelope.context:type_name -> nakama.peer.Peer.Envelope.ContextEntry
-	4,  // 42: nakama.peer.Peer.Envelope.recipient:type_name -> nakama.peer.Recipienter
-	6,  // 43: nakama.peer.Peer.Envelope.disconnect:type_name -> nakama.peer.Disconnect
-	41, // 44: nakama.peer.Peer.Envelope.partyJoinRequest:type_name -> nakama.peer.Party.JoinRequest
-	42, // 45: nakama.peer.Peer.Envelope.partyPromote:type_name -> nakama.peer.Party.Promote
-	43, // 46: nakama.peer.Peer.Envelope.partyAccept:type_name -> nakama.peer.Party.Accept
-	44, // 47: nakama.peer.Peer.Envelope.partyRemove:type_name -> nakama.peer.Party.Remove
-	45, // 48: nakama.peer.Peer.Envelope.partyClose:type_name -> nakama.peer.Party.Close
-	46, // 49: nakama.peer.Peer.Envelope.partyJoinRequestList:type_name -> nakama.peer.Party.JoinRequestList
-	47, // 50: nakama.peer.Peer.Envelope.partyJoinRequestListReply:type_name -> nakama.peer.Party.JoinRequestListReply
-	48, // 51: nakama.peer.Peer.Envelope.partyMatchmakerAdd:type_name -> nakama.peer.Party.MatchmakerAdd
-	49, // 52: nakama.peer.Peer.Envelope.PartyMatchmakerAddReply:type_name -> nakama.peer.Party.MatchmakerAddReply
-	50, // 53: nakama.peer.Peer.Envelope.partyMatchmakerRemove:type_name -> nakama.peer.Party.MatchmakerRemove
-	51, // 54: nakama.peer.Peer.Envelope.partyDataSend:type_name -> nakama.peer.Party.DataSend
-	54, // 55: nakama.peer.Peer.Envelope.matchJoinAttempt:type_name -> nakama.peer.Match.JoinAttempt
-	55, // 56: nakama.peer.Peer.Envelope.mathJoinAttemptReply:type_name -> nakama.peer.Match.JoinAttemptReply
-	56, // 57: nakama.peer.Peer.Envelope.matchSendData:type_name -> nakama.peer.Match.SendData
-	57, // 58: nakama.peer.Peer.Envelope.matchSignal:type_name -> nakama.peer.Match.Signal
-	63, // 59: nakama.peer.Peer.Envelope.match:type_name -> nakama.api.Match
-	64, // 60: nakama.peer.Peer.Envelope.error:type_name -> nakama.realtime.Error
-	58, // 61: nakama.peer.Peer.Envelope.matchStateReply:type_name -> nakama.peer.Match.State
-	65, // 62: nakama.peer.Peer.Envelope.nkEnvelope:type_name -> nakama.realtime.Envelope
-	25, // 63: nakama.peer.Peer.Request.QueryEntry.value:type_name -> nakama.peer.Peer.Query
-	18, // 64: nakama.peer.CheckPoint.ValueEntry.value:type_name -> nakama.peer.Point
-	10, // 65: nakama.peer.Party.JoinRequest.presence:type_name -> nakama.peer.Presence
-	66, // 66: nakama.peer.Party.Promote.userPresence:type_name -> nakama.realtime.UserPresence
-	66, // 67: nakama.peer.Party.Accept.userPresence:type_name -> nakama.realtime.UserPresence
-	66, // 68: nakama.peer.Party.Remove.userPresence:type_name -> nakama.realtime.UserPresence
-	66, // 69: nakama.peer.Party.JoinRequestListReply.userPresence:type_name -> nakama.realtime.UserPresence
-	52, // 70: nakama.peer.Party.MatchmakerAdd.stringProperties:type_name -> nakama.peer.Party.MatchmakerAdd.StringPropertiesEntry
-	53, // 71: nakama.peer.Party.MatchmakerAdd.numericProperties:type_name -> nakama.peer.Party.MatchmakerAdd.NumericPropertiesEntry
-	9,  // 72: nakama.peer.Party.MatchmakerAddReply.presenceID:type_name -> nakama.peer.PresenceID
-	59, // 73: nakama.peer.Match.JoinAttempt.vars:type_name -> nakama.peer.Match.JoinAttempt.VarsEntry
-	60, // 74: nakama.peer.Match.JoinAttempt.metadata:type_name -> nakama.peer.Match.JoinAttempt.MetadataEntry
-	22, // 75: nakama.peer.Match.JoinAttemptReply.presences:type_name -> nakama.peer.MatchPresence
-	66, // 76: nakama.peer.Match.State.userPresence:type_name -> nakama.realtime.UserPresence
-	26, // 77: nakama.peer.PeerApi.Call:input_type -> nakama.peer.Peer.Request
-	26, // 78: nakama.peer.PeerApi.Stream:input_type -> nakama.peer.Peer.Request
-	27, // 79: nakama.peer.PeerApi.Call:output_type -> nakama.peer.Peer.ResponseWriter
-	27, // 80: nakama.peer.PeerApi.Stream:output_type -> nakama.peer.Peer.ResponseWriter
-	79, // [79:81] is the sub-list for method output_type
-	77, // [77:79] is the sub-list for method input_type
-	77, // [77:77] is the sub-list for extension type_name
-	77, // [77:77] is the sub-list for extension extendee
-	0,  // [0:77] is the sub-list for field type_name
+	62, // 6: nakama.peer.Frame.event:type_name -> nakama.api.AnyRequest
+	17, // 7: nakama.peer.State.binaryLog:type_name -> nakama.peer.BinaryLog
+	10, // 8: nakama.peer.State.Presences:type_name -> nakama.peer.Presence
+	19, // 9: nakama.peer.State.checkPoint:type_name -> nakama.peer.CheckPoint
+	21, // 10: nakama.peer.State.matchmaker:type_name -> nakama.peer.MatchmakerExtract
+	11, // 11: nakama.peer.Presence.stream:type_name -> nakama.peer.PresenceStream
+	12, // 12: nakama.peer.Presence.meta:type_name -> nakama.peer.PresenceMeta
+	35, // 13: nakama.peer.NodeMeta.vars:type_name -> nakama.peer.NodeMeta.VarsEntry
+	1,  // 14: nakama.peer.NodeMeta.status:type_name -> nakama.peer.NodeMeta.Status
+	2,  // 15: nakama.peer.NodeMeta.balancer:type_name -> nakama.peer.NodeMeta.Balancer
+	11, // 16: nakama.peer.UntrackValue.stream:type_name -> nakama.peer.PresenceStream
+	11, // 17: nakama.peer.UntrackValue.skip:type_name -> nakama.peer.PresenceStream
+	61, // 18: nakama.peer.BinaryLog.timestamp:type_name -> google.protobuf.Timestamp
+	10, // 19: nakama.peer.BinaryLog.track:type_name -> nakama.peer.Presence
+	15, // 20: nakama.peer.BinaryLog.untrack:type_name -> nakama.peer.UntrackValue
+	14, // 21: nakama.peer.BinaryLog.ban:type_name -> nakama.peer.BanValue
+	10, // 22: nakama.peer.BinaryLog.updateTrack:type_name -> nakama.peer.Presence
+	21, // 23: nakama.peer.BinaryLog.MatchmakerAdd:type_name -> nakama.peer.MatchmakerExtract
+	21, // 24: nakama.peer.BinaryLog.MatchmakerRemoveSession:type_name -> nakama.peer.MatchmakerExtract
+	21, // 25: nakama.peer.BinaryLog.MatchmakerRemoveSessionAll:type_name -> nakama.peer.MatchmakerExtract
+	21, // 26: nakama.peer.BinaryLog.MatchmakerRemoveParty:type_name -> nakama.peer.MatchmakerExtract
+	21, // 27: nakama.peer.BinaryLog.MatchmakerRemovePartyAll:type_name -> nakama.peer.MatchmakerExtract
+	21, // 28: nakama.peer.BinaryLog.MatchmakerRemoveAll:type_name -> nakama.peer.MatchmakerExtract
+	36, // 29: nakama.peer.BinaryLog.MatchmakerRemove:type_name -> nakama.peer.BinaryLog.PartyMatchmakerRemove
+	37, // 30: nakama.peer.Point.point:type_name -> nakama.peer.Point.PointEntry
+	38, // 31: nakama.peer.CheckPoint.value:type_name -> nakama.peer.CheckPoint.ValueEntry
+	20, // 32: nakama.peer.MatchmakerExtract.presences:type_name -> nakama.peer.MatchmakerPresence
+	39, // 33: nakama.peer.MatchmakerExtract.stringProperties:type_name -> nakama.peer.MatchmakerExtract.StringPropertiesEntry
+	40, // 34: nakama.peer.MatchmakerExtract.numericProperties:type_name -> nakama.peer.MatchmakerExtract.NumericPropertiesEntry
+	29, // 35: nakama.peer.Peer.Request.header:type_name -> nakama.peer.Peer.Request.HeaderEntry
+	30, // 36: nakama.peer.Peer.Request.query:type_name -> nakama.peer.Peer.Request.QueryEntry
+	31, // 37: nakama.peer.Peer.Request.context:type_name -> nakama.peer.Peer.Request.ContextEntry
+	32, // 38: nakama.peer.Peer.ResponseWriter.header:type_name -> nakama.peer.Peer.ResponseWriter.HeaderEntry
+	33, // 39: nakama.peer.Peer.ResponseWriter.context:type_name -> nakama.peer.Peer.ResponseWriter.ContextEntry
+	4,  // 40: nakama.peer.Peer.ResponseWriter.recipient:type_name -> nakama.peer.Recipienter
+	63, // 41: nakama.peer.Peer.ResponseWriter.notifications:type_name -> nakama.realtime.Notifications
+	34, // 42: nakama.peer.Peer.Envelope.context:type_name -> nakama.peer.Peer.Envelope.ContextEntry
+	4,  // 43: nakama.peer.Peer.Envelope.recipient:type_name -> nakama.peer.Recipienter
+	6,  // 44: nakama.peer.Peer.Envelope.disconnect:type_name -> nakama.peer.Disconnect
+	41, // 45: nakama.peer.Peer.Envelope.partyJoinRequest:type_name -> nakama.peer.Party.JoinRequest
+	42, // 46: nakama.peer.Peer.Envelope.partyPromote:type_name -> nakama.peer.Party.Promote
+	43, // 47: nakama.peer.Peer.Envelope.partyAccept:type_name -> nakama.peer.Party.Accept
+	44, // 48: nakama.peer.Peer.Envelope.partyRemove:type_name -> nakama.peer.Party.Remove
+	45, // 49: nakama.peer.Peer.Envelope.partyClose:type_name -> nakama.peer.Party.Close
+	46, // 50: nakama.peer.Peer.Envelope.partyJoinRequestList:type_name -> nakama.peer.Party.JoinRequestList
+	47, // 51: nakama.peer.Peer.Envelope.partyJoinRequestListReply:type_name -> nakama.peer.Party.JoinRequestListReply
+	48, // 52: nakama.peer.Peer.Envelope.partyMatchmakerAdd:type_name -> nakama.peer.Party.MatchmakerAdd
+	49, // 53: nakama.peer.Peer.Envelope.PartyMatchmakerAddReply:type_name -> nakama.peer.Party.MatchmakerAddReply
+	50, // 54: nakama.peer.Peer.Envelope.partyMatchmakerRemove:type_name -> nakama.peer.Party.MatchmakerRemove
+	51, // 55: nakama.peer.Peer.Envelope.partyDataSend:type_name -> nakama.peer.Party.DataSend
+	54, // 56: nakama.peer.Peer.Envelope.matchJoinAttempt:type_name -> nakama.peer.Match.JoinAttempt
+	55, // 57: nakama.peer.Peer.Envelope.mathJoinAttemptReply:type_name -> nakama.peer.Match.JoinAttemptReply
+	56, // 58: nakama.peer.Peer.Envelope.matchSendData:type_name -> nakama.peer.Match.SendData
+	57, // 59: nakama.peer.Peer.Envelope.matchSignal:type_name -> nakama.peer.Match.Signal
+	64, // 60: nakama.peer.Peer.Envelope.match:type_name -> nakama.api.Match
+	65, // 61: nakama.peer.Peer.Envelope.error:type_name -> nakama.realtime.Error
+	58, // 62: nakama.peer.Peer.Envelope.matchStateReply:type_name -> nakama.peer.Match.State
+	66, // 63: nakama.peer.Peer.Envelope.nkEnvelope:type_name -> nakama.realtime.Envelope
+	25, // 64: nakama.peer.Peer.Request.QueryEntry.value:type_name -> nakama.peer.Peer.Query
+	18, // 65: nakama.peer.CheckPoint.ValueEntry.value:type_name -> nakama.peer.Point
+	10, // 66: nakama.peer.Party.JoinRequest.presence:type_name -> nakama.peer.Presence
+	67, // 67: nakama.peer.Party.Promote.userPresence:type_name -> nakama.realtime.UserPresence
+	67, // 68: nakama.peer.Party.Accept.userPresence:type_name -> nakama.realtime.UserPresence
+	67, // 69: nakama.peer.Party.Remove.userPresence:type_name -> nakama.realtime.UserPresence
+	67, // 70: nakama.peer.Party.JoinRequestListReply.userPresence:type_name -> nakama.realtime.UserPresence
+	52, // 71: nakama.peer.Party.MatchmakerAdd.stringProperties:type_name -> nakama.peer.Party.MatchmakerAdd.StringPropertiesEntry
+	53, // 72: nakama.peer.Party.MatchmakerAdd.numericProperties:type_name -> nakama.peer.Party.MatchmakerAdd.NumericPropertiesEntry
+	9,  // 73: nakama.peer.Party.MatchmakerAddReply.presenceID:type_name -> nakama.peer.PresenceID
+	59, // 74: nakama.peer.Match.JoinAttempt.vars:type_name -> nakama.peer.Match.JoinAttempt.VarsEntry
+	60, // 75: nakama.peer.Match.JoinAttempt.metadata:type_name -> nakama.peer.Match.JoinAttempt.MetadataEntry
+	22, // 76: nakama.peer.Match.JoinAttemptReply.presences:type_name -> nakama.peer.MatchPresence
+	67, // 77: nakama.peer.Match.State.userPresence:type_name -> nakama.realtime.UserPresence
+	26, // 78: nakama.peer.PeerApi.Call:input_type -> nakama.peer.Peer.Request
+	26, // 79: nakama.peer.PeerApi.Stream:input_type -> nakama.peer.Peer.Request
+	27, // 80: nakama.peer.PeerApi.Call:output_type -> nakama.peer.Peer.ResponseWriter
+	27, // 81: nakama.peer.PeerApi.Stream:output_type -> nakama.peer.Peer.ResponseWriter
+	80, // [80:82] is the sub-list for method output_type
+	78, // [78:80] is the sub-list for method input_type
+	78, // [78:78] is the sub-list for extension type_name
+	78, // [78:78] is the sub-list for extension extendee
+	0,  // [0:78] is the sub-list for field type_name
 }
 
 func init() { file_peer_proto_init() }
@@ -5421,6 +5440,7 @@ func file_peer_proto_init() {
 		(*Frame_Envelope)(nil),
 		(*Frame_BinaryLog)(nil),
 		(*Frame_Status)(nil),
+		(*Frame_Event)(nil),
 	}
 	file_peer_proto_msgTypes[14].OneofWrappers = []interface{}{
 		(*BinaryLog_Track)(nil),

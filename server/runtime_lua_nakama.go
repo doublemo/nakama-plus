@@ -321,6 +321,7 @@ func (n *RuntimeLuaNakamaModule) Loader(l *lua.LState) int {
 		"get_config":                                n.getConfig,
 		"get_satori":                                n.getSatori,
 		"get_peer":                                  n.getPeer,
+		"register_peer_event":                       n.registerEventPeer,
 	}
 
 	mod := l.SetFuncs(l.CreateTable(0, len(functions)), functions)
@@ -2862,6 +2863,32 @@ func subscriptionToLuaTable(l *lua.LState, p *api.ValidatedSubscription) *lua.LT
 	validatedSubscriptionTable.RawSetString("provider_notification", lua.LString(p.ProviderNotification))
 
 	return validatedSubscriptionTable
+}
+
+func anyRequestToLuaTable(l *lua.LState, p *api.AnyRequest) *lua.LTable {
+	anyRequestTable := l.CreateTable(0, 6)
+	anyRequestTable.RawSetString("cid", lua.LString(p.GetCid()))
+	anyRequestTable.RawSetString("name", lua.LString(p.GetName()))
+
+	headerMap := make(map[string]interface{}, len(p.GetHeader()))
+	for k, v := range p.GetHeader() {
+		headerMap[k] = v
+	}
+	anyRequestTable.RawSetString("header", RuntimeLuaConvertMap(l, headerMap))
+
+	queryMap := make(map[string]interface{}, len(p.GetQuery()))
+	for k, v := range p.GetQuery() {
+		queryMap[k] = v
+	}
+	anyRequestTable.RawSetString("query", RuntimeLuaConvertMap(l, queryMap))
+
+	contextMap := make(map[string]interface{}, len(p.GetContext()))
+	for k, v := range p.GetContext() {
+		contextMap[k] = v
+	}
+	anyRequestTable.RawSetString("context", RuntimeLuaConvertMap(l, contextMap))
+	anyRequestTable.RawSetString("body", lua.LString(p.GetStringContent()))
+	return anyRequestTable
 }
 
 // @group users
@@ -11439,6 +11466,7 @@ func (n *RuntimeLuaNakamaModule) getPeer(l *lua.LState) int {
 	peerFunctions := map[string]lua.LGFunction{
 		"invoke_ms": n.peerInvokeMS,
 		"send_ms":   n.peerSendMS,
+		"event":     n.peerEvent,
 	}
 
 	peerMod := l.SetFuncs(l.CreateTable(0, len(peerFunctions)), peerFunctions)
@@ -11559,6 +11587,84 @@ func (n *RuntimeLuaNakamaModule) peerSendMS(l *lua.LState) int {
 		return 0
 	}
 	return 1
+}
+
+func (n *RuntimeLuaNakamaModule) peerEvent(l *lua.LState) int {
+	cid := l.CheckString(1)
+	name := l.CheckString(2)
+	header := l.OptTable(3, nil)
+	query := l.OptTable(4, nil)
+	ctx := l.OptTable(5, nil)
+	content := l.CheckString(6)
+	clients := l.OptTable(7, nil)
+
+	req := &api.AnyRequest{
+		Cid:     cid,
+		Name:    name,
+		Header:  make(map[string]string),
+		Query:   make(map[string]*api.AnyQuery),
+		Context: make(map[string]string),
+		Body: &api.AnyRequest_StringContent{
+			StringContent: content,
+		},
+	}
+
+	if header != nil {
+		headerMap, err := RuntimeLuaConvertLuaTableString(header)
+		if err == nil {
+			req.Header = headerMap
+		}
+	}
+
+	if query != nil {
+		for k, v := range RuntimeLuaConvertLuaTable(query) {
+			if vv, ok := v.([]string); ok {
+				req.Query[k] = &api.AnyQuery{Value: vv}
+			}
+		}
+	}
+
+	if ctx != nil {
+		ctxMap, err := RuntimeLuaConvertLuaTableString(ctx)
+		if err == nil {
+			req.Context = ctxMap
+		}
+	}
+
+	names := make([]string, 0)
+	if clients != nil {
+		values, ok := RuntimeLuaConvertLuaValue(clients).([]interface{})
+		if ok {
+			for _, value := range values {
+				names = append(names, toString(value))
+			}
+		}
+	}
+
+	peer, ok := n.router.GetPeer()
+	if !ok {
+		l.RaiseError("Service Unavailable")
+		return 0
+	}
+
+	err := peer.Event(context.Background(), req, names...)
+	if err != nil {
+		l.RaiseError("Failed to invoke the remote service interface. Please check the network connection or service status. %s", err)
+		return 0
+	}
+	return 1
+}
+
+func (n *RuntimeLuaNakamaModule) registerEventPeer(l *lua.LState) int {
+	fn := l.CheckFunction(1)
+
+	if n.registerCallbackFn != nil {
+		n.registerCallbackFn(RuntimeExecutionModePeerEvent, "", fn)
+	}
+	if n.announceCallbackFn != nil {
+		n.announceCallbackFn(RuntimeExecutionModePeerEvent, "")
+	}
+	return 0
 }
 
 func RuntimeLuaConvertLuaTableString(vars *lua.LTable) (map[string]string, error) {

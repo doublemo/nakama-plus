@@ -8,7 +8,6 @@ package server
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"math"
 	coreruntime "runtime"
 	"strconv"
@@ -71,6 +70,7 @@ type (
 		ToClient(envelope *rtapi.Envelope, recipients []*pb.Recipienter)
 		InvokeMS(ctx context.Context, in *api.AnyRequest) (*api.AnyResponseWriter, error)
 		SendMS(ctx context.Context, in *api.AnyRequest) error
+		Event(ctx context.Context, in *api.AnyRequest, names ...string) error
 	}
 
 	peerMsg struct {
@@ -90,6 +90,7 @@ type (
 		endpoint             Endpoint
 		serviceRegistry      kit.ServiceRegistry
 		etcdClient           *kit.EtcdClientV3
+		runtime              *Runtime
 		metrics              Metrics
 		sessionRegistry      SessionRegistry
 		messageRouter        MessageRouter
@@ -110,7 +111,7 @@ type (
 	}
 )
 
-func NewLocalPeer(db *sql.DB, logger *zap.Logger, name string, metadata map[string]string, metrics Metrics, sessionRegistry SessionRegistry, tracker Tracker, messageRouter MessageRouter, matchRegistry MatchRegistry, matchmaker Matchmaker, partyRegistry PartyRegistry, protojsonMarshaler *protojson.MarshalOptions, protojsonUnmarshaler *protojson.UnmarshalOptions, config Config) Peer {
+func NewLocalPeer(db *sql.DB, logger *zap.Logger, name string, metadata map[string]string, runtime *Runtime, metrics Metrics, sessionRegistry SessionRegistry, tracker Tracker, messageRouter MessageRouter, matchRegistry MatchRegistry, matchmaker Matchmaker, partyRegistry PartyRegistry, protojsonMarshaler *protojson.MarshalOptions, protojsonUnmarshaler *protojson.UnmarshalOptions, config Config) Peer {
 	ctx, ctxCancelFn := context.WithCancel(context.Background())
 	if metadata == nil {
 		metadata = make(map[string]string)
@@ -139,6 +140,7 @@ func NewLocalPeer(db *sql.DB, logger *zap.Logger, name string, metadata map[stri
 		protojsonMarshaler:   protojsonMarshaler,
 		protojsonUnmarshaler: protojsonUnmarshaler,
 		db:                   db,
+		runtime:              runtime,
 	}
 
 	cfg := toMemberlistConfig(s, name, c)
@@ -678,6 +680,102 @@ func (s *LocalPeer) BroadcastBinaryLog(b *pb.BinaryLog, toQueue bool) {
 	// s.metrics.PeerSent(int64(len(bytes)))
 }
 
+func (s *LocalPeer) Event(ctx context.Context, in *api.AnyRequest, names ...string) error {
+	request := &pb.Frame{
+		Id:        uuid.Must(uuid.NewV4()).String(),
+		Node:      s.endpoint.Name(),
+		Timestamp: timestamppb.New(time.Now().UTC()),
+		Payload:   &pb.Frame_Event{Event: in},
+	}
+
+	b, err := proto.Marshal(request)
+	if err != nil {
+		return err
+	}
+
+	req := toPeerRequest(in)
+	// 全局服务广播
+	if len(names) < 1 {
+		s.members.Range(func(key string, value Endpoint) bool {
+			if value.Name() == s.endpoint.Name() {
+				return true
+			}
+
+			if err := s.memberlist.SendReliable(value.MemberlistNode(), b); err != nil {
+				s.logger.Error("Failed to send broadcast", zap.String("name", key), zap.Error(err))
+			}
+			return true
+		})
+
+		s.GetServiceRegistry().Range(func(key string, value kit.Service) bool {
+			for _, client := range value.GetClients() {
+				if !client.AllowStream() {
+					s.wk.Submit(func(evtCtx context.Context, logger *zap.Logger, c kit.Client, r *pb.Peer_Request) func() {
+						return func() {
+							if _, err := c.Do(ctx, r); err != nil {
+								logger.Error("Failed to broadcast event within the cluster.", zap.Error(err), zap.String("role", c.Role()), zap.String("name", c.Name()))
+							}
+						}
+					}(ctx, s.logger, client, req))
+				} else {
+					s.wk.Submit(func(logger *zap.Logger, c kit.Client, r *pb.Peer_Request) func() {
+						return func() {
+							if err := c.Send(r); err != nil {
+								logger.Error("Failed to broadcast event within the cluster.", zap.Error(err), zap.String("role", c.Role()), zap.String("name", c.Name()))
+							}
+						}
+					}(s.logger, client, req))
+				}
+			}
+			return true
+		})
+		return nil
+	}
+
+	for _, name := range names {
+		if name == "nakama" {
+			s.members.Range(func(key string, value Endpoint) bool {
+				if value.Name() == s.endpoint.Name() {
+					return true
+				}
+
+				if err := s.memberlist.SendReliable(value.MemberlistNode(), b); err != nil {
+					s.logger.Error("Failed to send broadcast", zap.String("name", key), zap.Error(err))
+				}
+				return true
+			})
+
+			continue
+		}
+
+		clients, ok := s.GetServiceRegistry().Get(name)
+		if !ok {
+			continue
+		}
+
+		for _, client := range clients.GetClients() {
+			if !client.AllowStream() {
+				s.wk.Submit(func(evtCtx context.Context, logger *zap.Logger, c kit.Client, r *pb.Peer_Request) func() {
+					return func() {
+						if _, err := c.Do(ctx, r); err != nil {
+							logger.Error("Failed to broadcast event within the cluster.", zap.Error(err), zap.String("role", c.Role()), zap.String("name", c.Name()))
+						}
+					}
+				}(ctx, s.logger, client, req))
+			} else {
+				s.wk.Submit(func(logger *zap.Logger, c kit.Client, r *pb.Peer_Request) func() {
+					return func() {
+						if err := c.Send(r); err != nil {
+							logger.Error("Failed to broadcast event within the cluster.", zap.Error(err), zap.String("role", c.Role()), zap.String("name", c.Name()))
+						}
+					}
+				}(s.logger, client, req))
+			}
+		}
+	}
+	return nil
+}
+
 func (s *LocalPeer) InvokeMS(ctx context.Context, in *api.AnyRequest) (*api.AnyResponseWriter, error) {
 	if in.Name == "" {
 		return nil, status.Error(codes.InvalidArgument, "Invalid Argument")
@@ -863,8 +961,7 @@ func (s *LocalPeer) onNotifyMsg(msg []byte) {
 		return
 	}
 
-	fmt.Println("onNotifyMsg:", frame)
-
+	// fmt.Println("onNotifyMsg:", frame)
 	switch v := frame.Payload.(type) {
 	case *pb.Frame_BinaryLog:
 		s.onBinaryLog(frame.GetBinaryLog())
@@ -885,6 +982,12 @@ func (s *LocalPeer) onNotifyMsg(msg []byte) {
 
 		default:
 			s.logger.Error("", zap.String("No corresponding CID found.", cid))
+		}
+
+	case *pb.Frame_Event:
+		if fn := s.runtime.EventPeer(); fn != nil {
+			evtCtx := NewRuntimeGoContext(s.ctx, s.Local().Name(), "", s.runtimeConfig.Environment, RuntimeExecutionModePeerEvent, nil, nil, 0, "", "", nil, "", "", "", "")
+			fn(evtCtx, NewRuntimeGoLogger(s.logger), v.Event)
 		}
 	}
 }
