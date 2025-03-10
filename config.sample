@@ -1,0 +1,88 @@
+name: node1
+data_dir: "./data/"
+
+logger:
+  stdout: true
+  level: "debug"
+  file: "./data/logfile3.log"
+  max_age: 30
+  max_size: 100
+  rotation: true
+
+
+metrics:
+  reporting_freq_sec: 60
+  namespace: "nakama"
+  prometheus_port: 0
+
+database:
+  address:
+    - "postgres:xxxxxx@127.0.0.1 b :5432/nakama"
+  conn_max_lifetime_ms: 0
+  max_open_conns: 0
+  max_idle_conns: 100
+
+runtime:
+  path: "./data/modules"
+  http_key: "http_key"
+  #js_entrypoint: "anys.js"
+
+socket:
+  server_key: "server_key"
+  port: 7350
+  max_message_size_bytes: 4096 # bytes
+  read_timeout_ms: 30000
+  write_timeout_ms: 30000
+  idle_timeout_ms: 60000
+  write_wait_ms: 5000
+  pong_wait_ms: 25000
+  ping_period_ms: 15000 # Must be less than pong_wait_ms
+  outgoing_queue_size: 16
+
+session:
+  encryption_key: "encryption_key"
+  token_expiry_sec: 7200
+  refresh_encryption_key: "refresh_encryption_key"
+  refresh_token_expiry_sec: 2592000
+  single_socket: true
+
+social:
+  steam:
+  publisher_key: ""
+  app_id: 0
+
+console:
+  port: 7351
+  username: "admin"
+  password: "12345678"
+  signing_key: "signing_key"
+
+matchmaker:
+  max_tickets: 2
+  interval_sec: 15
+  max_intervals: 3
+
+iap:
+  apple:
+    shared_password: "password"
+  google:
+    client_email: "email@google.com"
+    private_key: "pk"
+  huawei:
+    public_key: "pk"
+    client_id: "id"
+    client_secret: "secret"
+
+cluster:
+  gossip_bindaddr: "0.0.0.0"
+  gossip_bindport: 7335
+  etcd:
+    endpoints:
+      - "127.0.0.1:2379"
+
+
+  grpc:
+    access_token: "test"
+    heartbeat_timeout: 15
+    ca_cert: "./data/cert/CA.pem"
+    server_name_override: "example.com"
