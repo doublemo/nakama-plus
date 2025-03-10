@@ -17,6 +17,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"net/http"
 
 	"github.com/doublemo/nakama-common/api"
@@ -61,6 +62,19 @@ func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runti
 		return err
 	}
 
+	if err := initializer.RegisterBeforeAny(beforeAny); err != nil {
+		return err
+	}
+
+	if err := initializer.RegisterAfterAny(afterAny); err != nil {
+		return err
+	}
+
+	if err := initializer.RegisterEventPeer(func(ctx context.Context, logger runtime.Logger, evt *api.AnyRequest) {
+		logger.Info("Received cluster broadcast message: '%v'", evt)
+	}); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -179,4 +193,59 @@ func eventSessionStart(ctx context.Context, logger runtime.Logger, evt *api.Even
 
 func eventSessionEnd(ctx context.Context, logger runtime.Logger, evt *api.Event) {
 	logger.Info("session end %v %v", ctx, evt)
+}
+
+func beforeAny(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.AnyRequest) (*api.AnyRequest, error) {
+	logger.Info("Intercepted request to ANY '%v'", in)
+
+	peer, ok := nk.GetPeer()
+	if !ok {
+		logger.Error("Peer service not found.")
+		return nil, fmt.Errorf("peer service not found. %v", ok)
+	}
+	// Invoke a remote microservice interface
+	w, err := peer.InvokeMS(ctx, &api.AnyRequest{
+		Cid:     "InvokeMS",
+		Name:    "say_hello",
+		Header:  make(map[string]string),
+		Query:   map[string]*api.AnyQuery{"key": &api.AnyQuery{Value: []string{"value"}}},
+		Context: make(map[string]string),
+		Body:    &api.AnyRequest_StringContent{StringContent: "peer.InvokeMS"},
+	})
+	if err != nil {
+		logger.Error("failed to Invoke a remote microservice interface: %s", err)
+		return nil, fmt.Errorf("failed to Invoke a remote microservice interface: %s", err)
+	}
+
+	logger.Info("AnyResponseWriter: %v", w)
+	// Invoke a remote microservice stream interface
+	if err := peer.SendMS(ctx, &api.AnyRequest{
+		Cid:     "SendMS",
+		Name:    "say_hello",
+		Header:  make(map[string]string),
+		Query:   map[string]*api.AnyQuery{"key": &api.AnyQuery{Value: []string{"value"}}},
+		Context: make(map[string]string),
+		Body:    &api.AnyRequest_StringContent{StringContent: "peer.SendMS"},
+	}); err != nil {
+		logger.Error("failed to Invoke a remote microservice stream interface: %s", err)
+		return nil, fmt.Errorf("failed to Invoke a remote microservice stream interface: %s", err)
+	}
+
+	// cluster broadcast
+	if err := peer.Event(ctx, &api.AnyRequest{
+		Cid:     "Event",
+		Name:    "say_hello",
+		Header:  make(map[string]string),
+		Query:   map[string]*api.AnyQuery{"key": &api.AnyQuery{Value: []string{"value"}}},
+		Context: make(map[string]string),
+		Body:    &api.AnyRequest_StringContent{StringContent: "peer.SendMS"},
+	}); err != nil {
+		return nil, fmt.Errorf("failed to Send cluster broadcast message: %s", err)
+	}
+	return in, nil
+}
+
+func afterAny(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, out *api.AnyResponseWriter, in *api.AnyRequest) error {
+	logger.Info("Intercepted response to ANY '%v'", in)
+	return nil
 }
