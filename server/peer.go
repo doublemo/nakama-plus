@@ -697,10 +697,6 @@ func (s *LocalPeer) Event(ctx context.Context, in *api.AnyRequest, names ...stri
 	// 全局服务广播
 	if len(names) < 1 {
 		s.members.Range(func(key string, value Endpoint) bool {
-			if value.Name() == s.endpoint.Name() {
-				return true
-			}
-
 			if err := s.memberlist.SendReliable(value.MemberlistNode(), b); err != nil {
 				s.logger.Error("Failed to send broadcast", zap.String("name", key), zap.Error(err))
 			}
@@ -708,6 +704,10 @@ func (s *LocalPeer) Event(ctx context.Context, in *api.AnyRequest, names ...stri
 		})
 
 		s.GetServiceRegistry().Range(func(key string, value kit.Service) bool {
+			if key == "nakama" {
+				return true
+			}
+
 			for _, client := range value.GetClients() {
 				if !client.AllowStream() {
 					s.wk.Submit(func(evtCtx context.Context, logger *zap.Logger, c kit.Client, r *pb.Peer_Request) func() {
@@ -735,10 +735,6 @@ func (s *LocalPeer) Event(ctx context.Context, in *api.AnyRequest, names ...stri
 	for _, name := range names {
 		if name == "nakama" {
 			s.members.Range(func(key string, value Endpoint) bool {
-				if value.Name() == s.endpoint.Name() {
-					return true
-				}
-
 				if err := s.memberlist.SendReliable(value.MemberlistNode(), b); err != nil {
 					s.logger.Error("Failed to send broadcast", zap.String("name", key), zap.Error(err))
 				}
