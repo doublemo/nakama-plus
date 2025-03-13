@@ -36,7 +36,7 @@ func main() {
 		consoleLogger.Fatal("匹配创建失败", zap.Error(err))
 	}
 
-	//time.Sleep(time.Second * 1)
+	time.Sleep(time.Second * 1)
 	client2 := NewRobot(ctx, consoleLogger, "192.168.0.127:9350", "kaXMH1i2m5BzRm5F5uvePclHSM7Zjc4g", 101112)
 	if err := client2.Login(); err != nil {
 		consoleLogger.Fatal("登录失败", zap.Error(err))
