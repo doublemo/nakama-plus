@@ -287,7 +287,6 @@ IncomingLoop:
 			err = s.protojsonUnmarshaler.Unmarshal(data, request)
 		}
 		if err != nil {
-			fmt.Println("---------->", data, s.Format())
 			// If the payload is malformed the client is incompatible or misbehaving, either way disconnect it now.
 			logger.Warn("Received malformed payload", zap.Binary("data", data), zap.Error(err))
 			reason = "received malformed payload"

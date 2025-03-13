@@ -65,6 +65,7 @@ type (
 		e2           *big.Int
 		seq          *atomic.Uint64
 		format       uint8
+		readyedCh    chan struct{}
 	}
 )
 
@@ -88,11 +89,16 @@ func NewRobotTCP(ctx context.Context, logger *zap.Logger, url, httpKey string, i
 		router:       &server.MapOf[string, chan *rtapi.Envelope]{},
 		seq:          atomic.NewUint64(0),
 		format:       format,
+		readyedCh:    make(chan struct{}),
 	}
 
 	r.x1, r.e1 = dh.DHExchange()
 	r.x2, r.e2 = dh.DHExchange()
 	return r
+}
+
+func (r *RobotTcp) Ready() {
+	<-r.readyedCh
 }
 
 func (r *RobotTcp) Login() error {
@@ -421,7 +427,6 @@ OutgoingLoop:
 			if encoder := r.encoder.Load(); encoder != nil {
 				encoder.XORKeyStream(data, data)
 			}
-
 			buffer := bytes.NewBytesBuffer(nil)
 			bytes.Pack(buffer, &socketHeader{Seq: r.seq.Inc(), Size: uint16(len(data))})
 			buffer.WriteBytesV2(data)
@@ -497,6 +502,7 @@ IncomingLoop:
 
 			r.encoder.Store(en)
 			r.decoder.Store(de)
+			close(r.readyedCh)
 			continue
 		}
 

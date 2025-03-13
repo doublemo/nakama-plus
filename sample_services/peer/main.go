@@ -20,6 +20,7 @@ func main() {
 		consoleLogger.Fatal("登录失败", zap.Error(err))
 	}
 
+	client.Ready()
 	channel, err := client.ChannelJoin("room", 1)
 	if err != nil {
 		consoleLogger.Fatal("加入聊天室失败", zap.Error(err))
