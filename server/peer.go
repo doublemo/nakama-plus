@@ -69,6 +69,7 @@ type (
 		InvokeMS(ctx context.Context, in *api.AnyRequest) (*api.AnyResponseWriter, error)
 		SendMS(ctx context.Context, in *api.AnyRequest) error
 		Event(ctx context.Context, in *api.AnyRequest, names ...string) error
+		Leader() *PeerLeader
 	}
 
 	peerMsg struct {
@@ -88,6 +89,7 @@ type (
 		endpoint             Endpoint
 		serviceRegistry      kit.ServiceRegistry
 		etcdClient           *kit.EtcdClientV3
+		leader               *PeerLeader
 		runtime              *Runtime
 		metrics              Metrics
 		sessionRegistry      SessionRegistry
@@ -326,15 +328,11 @@ func (s *LocalPeer) AckPayload() []byte {
 		AvgOutputKbs:   math.Floor(s.metrics.SnapshotSentKbSec()*100) / 100,
 	}
 	bytes, _ := proto.Marshal(status)
-
-	//s.metrics.PeerSent(int64(len(bytes)))
 	return bytes
 }
 
 // NotifyPing is invoked when an ack for a ping is received
 func (s *LocalPeer) NotifyPingComplete(other *memberlist.Node, rtt time.Duration, payload []byte) {
-	//s.metrics.PeerRecv(int64(len(payload)))
-
 	endpoint, ok := s.members.Load(other.Name)
 	if !ok || endpoint == nil || other.Name == s.endpoint.Name() {
 		return
@@ -372,11 +370,6 @@ func (s *LocalPeer) NotifyJoin(node *memberlist.Node) {
 
 	s.members.Store(node.Name, NewPeerEndpont(md.GetName(), md.GetVars(), int32(md.GetStatus()), md.GetWeight(), int32(md.GetBalancer()), s.protojsonMarshaler, node))
 	s.logger.Debug("NotifyJoin", zap.String("name", md.GetName()))
-	// if !s.wk.Stopped() {
-	// 	s.wk.Submit(func() {
-	// 		s.metrics.GaugePeers(float64(s.NumMembers()))
-	// 	})
-	// }
 }
 
 // NotifyLeave is invoked when a node is detected to have left.
@@ -439,6 +432,10 @@ func (s *LocalPeer) Shutdown() {
 			s.logger.Info("Peer shutdown complete", zap.String("node", s.endpoint.Name()), zap.Int("numMembers", s.memberlist.NumMembers()))
 		}()
 
+		if s.leader != nil {
+			s.leader.Stop()
+		}
+
 		if s.etcdClient != nil {
 			if err := s.etcdClient.Deregister(s.endpoint.Name()); err != nil {
 				s.logger.Warn("failed to shutdown Deregister", zap.Error(err))
@@ -470,6 +467,15 @@ func (s *LocalPeer) Join(members ...string) (int, error) {
 			s.logger.Fatal("Failed to register service", zap.Error(err))
 		}
 
+		if s.config.LeaderElection {
+			leader, err := NewPeerLeader(s.ctx, s.logger, s.etcdClient)
+			if err != nil {
+				s.logger.Fatal("Failed to create PeerLeader", zap.Error(err))
+			}
+			leader.Run(s.endpoint.Name())
+			s.leader = leader
+		}
+
 		s.onServiceUpdate()
 		m, ok := s.serviceRegistry.Get(kit.SERVICE_NAME)
 		if ok {
@@ -478,7 +484,6 @@ func (s *LocalPeer) Join(members ...string) (int, error) {
 				members = append(members, v.Addr())
 			}
 		}
-
 		go s.processWatch()
 	}
 
@@ -488,6 +493,10 @@ func (s *LocalPeer) Join(members ...string) (int, error) {
 	}
 
 	return n, nil
+}
+
+func (s *LocalPeer) Leader() *PeerLeader {
+	return s.leader
 }
 
 func (s *LocalPeer) Local() Endpoint {

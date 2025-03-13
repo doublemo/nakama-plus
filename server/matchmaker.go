@@ -345,6 +345,12 @@ func (m *LocalMatchmaker) OnStatsUpdate(fn func(*api.MatchmakerStats)) {
 }
 
 func (m *LocalMatchmaker) Process() {
+	if peer, ok := m.router.GetPeer(); ok {
+		if leader := peer.Leader(); leader != nil && !leader.IsLeader() {
+			return
+		}
+	}
+
 	startTime := time.Now()
 	var activeIndexCount, indexCount int
 	defer func() {

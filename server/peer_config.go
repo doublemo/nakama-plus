@@ -33,6 +33,7 @@ type (
 		Weight              int32                   `yaml:"weight" json:"weight" usage:"weight"`
 		Balancer            int32                   `yaml:"balancer" json:"balancer" usage:"balancer"`
 		Grpc                *kit.GrpcConfig         `yaml:"grpc" json:"grpc" usage:"grpc client setting"`
+		LeaderElection      bool                    `yaml:"leader_election" json:"leader_election" usage:"leader_election participates in the Leader election, default is True."`
 	}
 )
 
@@ -59,6 +60,7 @@ func (c *PeerConfig) Clone() *PeerConfig {
 		BroadcastQueueSize:  c.BroadcastQueueSize,
 		Members:             make([]string, len(c.Members)),
 		SecretKey:           c.SecretKey,
+		LeaderElection:      c.LeaderElection,
 	}
 
 	copy(newConfig.Members, c.Members)
@@ -131,5 +133,6 @@ func NewPeerConfig() *PeerConfig {
 		BroadcastQueueSize: 128,
 		Members:            make([]string, 0),
 		Grpc:               kit.NewGrpcConfig(),
+		LeaderElection:     true,
 	}
 }

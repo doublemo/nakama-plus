@@ -255,6 +255,10 @@ func (c *EtcdClientV3) Key(name string) string {
 	return key
 }
 
+func (c *EtcdClientV3) GetClient() *clientv3.Client {
+	return c.cli
+}
+
 func bindPeerEtcdV3Config2V3Config(c *EtcdClientv3Config) (*clientv3.Config, error) {
 	var (
 		tlscfg *tls.Config
