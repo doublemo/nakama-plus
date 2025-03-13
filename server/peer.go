@@ -118,7 +118,7 @@ func NewLocalPeer(db *sql.DB, logger *zap.Logger, name string, metadata map[stri
 		metadata = make(map[string]string)
 	}
 	c := config.GetCluster()
-	endpoint := NewPeerEndpont(name, metadata, int32(pb.NodeMeta_OK), c.Weight, c.Balancer, protojsonMarshaler)
+	endpoint := NewPeerEndpont(name, metadata, int32(pb.NodeMeta_OK), c.Weight, c.Balancer, false, protojsonMarshaler)
 	s := &LocalPeer{
 		ctx:                  ctx,
 		ctxCancelFn:          ctxCancelFn,
@@ -369,7 +369,7 @@ func (s *LocalPeer) NotifyJoin(node *memberlist.Node) {
 		return
 	}
 
-	s.members.Store(node.Name, NewPeerEndpont(md.GetName(), md.GetVars(), int32(md.GetStatus()), md.GetWeight(), int32(md.GetBalancer()), s.protojsonMarshaler, node))
+	s.members.Store(node.Name, NewPeerEndpont(md.GetName(), md.GetVars(), int32(md.GetStatus()), md.GetWeight(), int32(md.GetBalancer()), md.GetLeader(), s.protojsonMarshaler, node))
 	s.logger.Debug("NotifyJoin", zap.String("name", md.GetName()))
 }
 
@@ -400,7 +400,7 @@ func (s *LocalPeer) NotifyUpdate(node *memberlist.Node) {
 		return
 	}
 
-	s.members.Store(node.Name, NewPeerEndpont(md.GetName(), md.GetVars(), int32(md.GetStatus()), md.GetWeight(), int32(md.GetBalancer()), s.protojsonMarshaler, node))
+	s.members.Store(node.Name, NewPeerEndpont(md.GetName(), md.GetVars(), int32(md.GetStatus()), md.GetWeight(), int32(md.GetBalancer()), md.GetLeader(), s.protojsonMarshaler, node))
 	s.logger.Debug("NotifyUpdate", zap.String("name", md.GetName()))
 }
 

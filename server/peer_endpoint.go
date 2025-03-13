@@ -71,7 +71,7 @@ type (
 	}
 )
 
-func NewPeerEndpont(name string, md map[string]string, status, weight, balancer int32, protojsonMarshaler *protojson.MarshalOptions, node ...*memberlist.Node) Endpoint {
+func NewPeerEndpont(name string, md map[string]string, status, weight, balancer int32, leader bool, protojsonMarshaler *protojson.MarshalOptions, node ...*memberlist.Node) Endpoint {
 	ed := &PeerEndpoint{
 		name:           name,
 		pingrtt:        atomic.NewDuration(0),
@@ -87,7 +87,7 @@ func NewPeerEndpont(name string, md map[string]string, status, weight, balancer 
 		weight:         atomic.NewInt32(weight),
 		balancer:       atomic.NewInt32(balancer),
 		status:         atomic.NewInt32(status),
-		leader:         atomic.NewBool(false),
+		leader:         atomic.NewBool(leader),
 
 		protojsonMarshaler: protojsonMarshaler,
 	}
