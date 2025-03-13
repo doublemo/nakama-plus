@@ -4,8 +4,10 @@ import (
 	"context"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/doublemo/nakama-kit/kit"
+	"github.com/hashicorp/memberlist"
 	"go.etcd.io/etcd/client/v3/concurrency"
 	"go.uber.org/zap"
 )
@@ -48,7 +50,7 @@ func NewPeerLeader(ctx context.Context, logger *zap.Logger, etcdClient *kit.Etcd
 	}, nil
 }
 
-func (s *PeerLeader) Run(endpoint Endpoint) {
+func (s *PeerLeader) Run(endpoint Endpoint, memberlist *memberlist.Memberlist) {
 	go func() {
 		for {
 			select {
@@ -62,7 +64,7 @@ func (s *PeerLeader) Run(endpoint Endpoint) {
 				}
 
 				endpoint.Leader(true)
-				s.update(endpoint)
+				s.update(endpoint, memberlist)
 				s.logger.Info("The current node has become the leader", zap.String("node", endpoint.Name()))
 
 				// Leader 保活监控
@@ -70,7 +72,7 @@ func (s *PeerLeader) Run(endpoint Endpoint) {
 				case <-s.session.Done():
 					// 租约失效，退出 Leader 状态
 					endpoint.Leader(false)
-					s.update(endpoint)
+					s.update(endpoint, memberlist)
 					s.logger.Info("The current node has lost its Leader status", zap.String("node", endpoint.Name()))
 				case <-s.ctx.Done():
 					return
@@ -80,7 +82,7 @@ func (s *PeerLeader) Run(endpoint Endpoint) {
 	}()
 }
 
-func (s *PeerLeader) update(endpoint Endpoint) {
+func (s *PeerLeader) update(endpoint Endpoint, memberlist *memberlist.Memberlist) {
 	md, err := endpoint.MarshalJSON()
 	if err != nil {
 		s.logger.Warn("Failed to marshal metadata", zap.Error(err))
@@ -89,6 +91,7 @@ func (s *PeerLeader) update(endpoint Endpoint) {
 			s.logger.Warn("Failed to upate service", zap.Error(err))
 		}
 	}
+	memberlist.UpdateNode(time.Second)
 }
 
 // Stop 停止选举并释放资源

@@ -473,7 +473,7 @@ func (s *LocalPeer) Join(members ...string) (int, error) {
 			if err != nil {
 				s.logger.Fatal("Failed to create PeerLeader", zap.Error(err))
 			}
-			leader.Run(s.endpoint)
+			leader.Run(s.endpoint, s.memberlist)
 			s.leader = leader
 		}
 
