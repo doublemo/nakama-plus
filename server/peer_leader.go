@@ -7,7 +7,6 @@ import (
 
 	"github.com/doublemo/nakama-kit/kit"
 	"go.etcd.io/etcd/client/v3/concurrency"
-	"go.uber.org/atomic"
 	"go.uber.org/zap"
 )
 
@@ -17,7 +16,7 @@ type PeerLeader struct {
 	logger      *zap.Logger
 	session     *concurrency.Session
 	election    *concurrency.Election
-	isLeader    *atomic.Bool
+	etcdClient  *kit.EtcdClientV3
 	electionKey string
 	once        sync.Once
 }
@@ -44,35 +43,35 @@ func NewPeerLeader(ctx context.Context, logger *zap.Logger, etcdClient *kit.Etcd
 		logger:      logger,
 		session:     session,
 		election:    election,
-		isLeader:    atomic.NewBool(false),
 		electionKey: electionKey,
+		etcdClient:  etcdClient,
 	}, nil
 }
 
-func (s *PeerLeader) Run(node string) {
+func (s *PeerLeader) Run(endpoint Endpoint) {
 	go func() {
 		for {
 			select {
 			case <-s.ctx.Done():
 				return
 			default:
-				// 尝试成为 Leader
-				err := s.election.Campaign(s.ctx, node)
+				err := s.election.Campaign(s.ctx, endpoint.Name())
 				if err != nil {
-					s.logger.Info("Failed in then campaign for leader", zap.String("node", node))
+					s.logger.Info("Failed in then campaign for leader", zap.String("node", endpoint.Name()))
 					continue
 				}
 
-				// 成为 Leader 后的逻辑
-				s.isLeader.Store(true)
-				s.logger.Info("The current node has become the leader", zap.String("node", node))
+				endpoint.Leader(true)
+				s.update(endpoint)
+				s.logger.Info("The current node has become the leader", zap.String("node", endpoint.Name()))
 
 				// Leader 保活监控
 				select {
 				case <-s.session.Done():
 					// 租约失效，退出 Leader 状态
-					s.isLeader.Store(false)
-					s.logger.Info("The current node has lost its Leader status", zap.String("node", node))
+					endpoint.Leader(false)
+					s.update(endpoint)
+					s.logger.Info("The current node has lost its Leader status", zap.String("node", endpoint.Name()))
 				case <-s.ctx.Done():
 					return
 				}
@@ -81,9 +80,15 @@ func (s *PeerLeader) Run(node string) {
 	}()
 }
 
-// IsLeader 检查当前节点是否为 Leader
-func (s *PeerLeader) IsLeader() bool {
-	return s.isLeader.Load()
+func (s *PeerLeader) update(endpoint Endpoint) {
+	md, err := endpoint.MarshalJSON()
+	if err != nil {
+		s.logger.Warn("Failed to marshal metadata", zap.Error(err))
+	} else {
+		if err := s.etcdClient.Update(endpoint.Name(), string(md)); err != nil {
+			s.logger.Warn("Failed to upate service", zap.Error(err))
+		}
+	}
 }
 
 // Stop 停止选举并释放资源

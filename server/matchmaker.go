@@ -347,8 +347,7 @@ func (m *LocalMatchmaker) OnStatsUpdate(fn func(*api.MatchmakerStats)) {
 func (m *LocalMatchmaker) Process() {
 	if peer, ok := m.router.GetPeer(); ok {
 		if num := peer.NumMembers(); num > 1 {
-			leader := peer.Leader()
-			if leader == nil || !leader.IsLeader() {
+			if !peer.AllowLeader() || !peer.Leader() {
 				return
 			}
 		}

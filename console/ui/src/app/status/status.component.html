@@ -13,6 +13,7 @@
       <th scope="col">Presences</th>
       <th scope="col">Authoritative Matches</th>
       <th scope="col">Goroutines</th>
+      <th scope="col">Leader</th>
     </tr>
   </thead>
   <tbody *ngIf="statusData">
@@ -30,6 +31,7 @@
       <td>{{nodeData.presence_count}} <span [hidden]="!showDelta" class="text-muted small">({{getMaxPresenceCount() - nodeData.presence_count}} delta)</span></td>
       <td>{{nodeData.match_count}} <span [hidden]="!showDelta" class="text-muted small">({{getMaxMatchCount() - nodeData.match_count}} delta)</span></td>
       <td>{{nodeData.goroutine_count}} <span [hidden]="!showDelta" class="text-muted small">({{getMaxGoroutineCount() - nodeData.goroutine_count}} delta)</span></td>
+      <td>{{nodeData.leader ? 'Yes': ''}} </td>
     </tr>
     <tr class="thead-light">
       <td class="border-0"></td>
@@ -37,6 +39,7 @@
       <th class="thead-light">{{getMaxPresenceCount()}}</th>
       <th class="thead-light">{{getTotalMatchCount()}}</th>
       <th class="thead-light">{{getTotalGorountineCount()}}</th>
+      <th class="thead-light"></th>
     </tr>
   </tbody>
 </table>

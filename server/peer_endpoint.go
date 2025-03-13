@@ -44,6 +44,7 @@ type (
 		UpdateState(status *pb.Status)
 		MarshalJSON() ([]byte, error)
 		MarshalProtoBuffer() ([]byte, error)
+		Leader(v ...bool) bool
 	}
 
 	PeerEndpoint struct {
@@ -63,6 +64,7 @@ type (
 		mergeStateAt   *atomic.Int64
 		memberlistNode atomic.Pointer[memberlist.Node]
 		status         *atomic.Int32
+		leader         *atomic.Bool
 
 		protojsonMarshaler *protojson.MarshalOptions
 		sync.Mutex
@@ -85,6 +87,7 @@ func NewPeerEndpont(name string, md map[string]string, status, weight, balancer 
 		weight:         atomic.NewInt32(weight),
 		balancer:       atomic.NewInt32(balancer),
 		status:         atomic.NewInt32(status),
+		leader:         atomic.NewBool(false),
 
 		protojsonMarshaler: protojsonMarshaler,
 	}
@@ -236,6 +239,14 @@ func (endpoint *PeerEndpoint) MergeStateAt() int64 {
 	return endpoint.mergeStateAt.Load()
 }
 
+func (endpoint *PeerEndpoint) Leader(v ...bool) bool {
+	if len(v) > 0 {
+		endpoint.leader.Store(v[0])
+		return v[0]
+	}
+	return endpoint.leader.Load()
+}
+
 func (endpoint *PeerEndpoint) UpdateState(status *pb.Status) {
 	endpoint.sessionCount.Store(status.SessionCount)
 	endpoint.presenceCount.Store(status.PresenceCount)
@@ -256,6 +267,7 @@ func (endpoint *PeerEndpoint) MarshalJSON() ([]byte, error) {
 		Weight:      endpoint.Weight(),
 		Balancer:    pb.NodeMeta_Balancer(endpoint.Balancer()),
 		AllowStream: false,
+		Leader:      endpoint.Leader(),
 	}
 
 	node := endpoint.MemberlistNode()
@@ -276,6 +288,7 @@ func (endpoint *PeerEndpoint) MarshalProtoBuffer() ([]byte, error) {
 		Weight:      endpoint.Weight(),
 		Balancer:    pb.NodeMeta_Balancer(endpoint.Balancer()),
 		AllowStream: false,
+		Leader:      endpoint.Leader(),
 	}
 
 	node := endpoint.MemberlistNode()

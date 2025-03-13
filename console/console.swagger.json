@@ -3011,6 +3011,10 @@
           "type": "string",
           "format": "date-time",
           "description": "Time of the latest relationship update."
+        },
+        "metadata": {
+          "type": "string",
+          "description": "Metadata."
         }
       },
       "description": "A friend of a user."
@@ -3950,6 +3954,10 @@
           "type": "number",
           "format": "double",
           "description": "Average output bandwidth usage."
+        },
+        "leader": {
+          "type": "boolean",
+          "title": "Leader"
         }
       },
       "description": "The status of a Nakama node."

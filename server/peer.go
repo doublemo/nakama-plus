@@ -69,7 +69,8 @@ type (
 		InvokeMS(ctx context.Context, in *api.AnyRequest) (*api.AnyResponseWriter, error)
 		SendMS(ctx context.Context, in *api.AnyRequest) error
 		Event(ctx context.Context, in *api.AnyRequest, names ...string) error
-		Leader() *PeerLeader
+		Leader() bool
+		AllowLeader() bool
 	}
 
 	peerMsg struct {
@@ -472,7 +473,7 @@ func (s *LocalPeer) Join(members ...string) (int, error) {
 			if err != nil {
 				s.logger.Fatal("Failed to create PeerLeader", zap.Error(err))
 			}
-			leader.Run(s.endpoint.Name())
+			leader.Run(s.endpoint)
 			s.leader = leader
 		}
 
@@ -495,8 +496,12 @@ func (s *LocalPeer) Join(members ...string) (int, error) {
 	return n, nil
 }
 
-func (s *LocalPeer) Leader() *PeerLeader {
-	return s.leader
+func (s *LocalPeer) Leader() bool {
+	return s.endpoint.Leader()
+}
+
+func (s *LocalPeer) AllowLeader() bool {
+	return s.leader != nil
 }
 
 func (s *LocalPeer) Local() Endpoint {

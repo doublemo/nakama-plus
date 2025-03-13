@@ -67,6 +67,7 @@ func (s *LocalStatusHandler) GetStatus(ctx context.Context) ([]*console.StatusLi
 		AvgRateSec:     math.Floor(s.metrics.SnapshotRateSec()*100) / 100,
 		AvgInputKbs:    math.Floor(s.metrics.SnapshotRecvKbSec()*100) / 100,
 		AvgOutputKbs:   math.Floor(s.metrics.SnapshotSentKbSec()*100) / 100,
+		Leader:         s.peer.Local().Leader(),
 	})
 
 	if s.peer == nil {
@@ -89,6 +90,7 @@ func (s *LocalStatusHandler) GetStatus(ctx context.Context) ([]*console.StatusLi
 			AvgRateSec:     member.AvgRateSec(),
 			AvgInputKbs:    member.AvgInputKbs(),
 			AvgOutputKbs:   member.AvgOutputKbs(),
+			Leader:         member.Leader(),
 		})
 	}
 	return status, nil

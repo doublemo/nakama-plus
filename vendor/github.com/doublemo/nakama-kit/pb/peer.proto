@@ -241,6 +241,9 @@ message NodeMeta {
 
     // 允许流连接
     bool allowStream = 9;
+
+    // Leader
+    bool leader = 10;
 }
 
 message BanValue {

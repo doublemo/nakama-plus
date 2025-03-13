@@ -363,6 +363,8 @@ export interface StatusListStatus {
   goroutine_count?:number
   // Health score.
   health?:StatusHealth
+  // Leader
+  leader?:boolean
   // Current number of active authoritative matches.
   match_count?:number
   // Node name.
