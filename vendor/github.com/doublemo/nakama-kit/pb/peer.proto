@@ -140,11 +140,14 @@ message Disconnect {
 
 message State {
     string node = 1;
-    repeated BinaryLog binaryLog = 2;
+    repeated StateNode nodes = 2; 
+}
+
+message StateNode {
+    string node = 1;
+    int64  version = 2;
     repeated Presence Presences = 3; 
-    CheckPoint checkPoint = 4;
-    uint64 version = 5;
-    repeated MatchmakerExtract matchmaker = 6;
+    repeated MatchmakerExtract matchmaker = 4;
 }
 
 message Status {
@@ -259,21 +262,20 @@ message MatchBatch {
 }
 
 message BinaryLog {
-    uint64 id = 1;
-    string node = 2;
-    google.protobuf.Timestamp timestamp = 3;
+    string node = 1;
+    int64 version = 2;
     oneof payload {
-        Presence track = 4;
-        UntrackValue untrack = 5;
-        BanValue ban = 6;
-        Presence updateTrack = 7;
-        MatchmakerExtract MatchmakerAdd = 8;
-        MatchmakerExtract MatchmakerRemoveSession = 9;
-        MatchmakerExtract MatchmakerRemoveSessionAll = 10;
-        MatchmakerExtract MatchmakerRemoveParty = 11;
-        MatchmakerExtract MatchmakerRemovePartyAll = 12;
-        MatchmakerExtract MatchmakerRemoveAll = 13;
-        PartyMatchmakerRemove MatchmakerRemove = 14;
+        Presence track = 3;
+        UntrackValue untrack = 4;
+        BanValue ban = 5;
+        Presence updateTrack = 6;
+        MatchmakerExtract MatchmakerAdd = 7;
+        MatchmakerExtract MatchmakerRemoveSession = 8;
+        MatchmakerExtract MatchmakerRemoveSessionAll = 9;
+        MatchmakerExtract MatchmakerRemoveParty = 10;
+        MatchmakerExtract MatchmakerRemovePartyAll = 11;
+        MatchmakerExtract MatchmakerRemoveAll = 12;
+        PartyMatchmakerRemove MatchmakerRemove = 13;
     }
 
 

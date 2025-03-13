@@ -182,7 +182,7 @@ type Matchmaker interface {
 	RemoveSessionAll(sessionID string) error
 	RemoveParty(partyID, ticket string) error
 	RemovePartyAll(partyID string) error
-	RemoveAll(node string)
+	RemoveAll(nodes map[string]bool)
 	Remove(tickets []string)
 	GetStats() *api.MatchmakerStats
 	SetStats(*api.MatchmakerStats)
@@ -1021,14 +1021,14 @@ func (m *LocalMatchmaker) RemovePartyAll(partyID string) error {
 	return nil
 }
 
-func (m *LocalMatchmaker) RemoveAll(node string) {
+func (m *LocalMatchmaker) RemoveAll(nodes map[string]bool) {
 	batch := bluge.NewBatch()
 
 	m.Lock()
 
 	var removedCount uint32
 	for ticket, index := range m.indexes {
-		if index.Node != node {
+		if !nodes[index.Node] {
 			continue
 		}
 

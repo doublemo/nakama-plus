@@ -172,8 +172,8 @@ type Tracker interface {
 
 	// Loop stream
 	Range(fn func(sessionID uuid.UUID, presences []*Presence) bool)
-	MergeRemoteState(node string, presences []*pb.Presence, join bool)
-	ClearTrackByNode(node string)
+	MergeRemoteState(node string, presences []*pb.Presence)
+	ClearTrackByNode(nodes map[string]bool)
 	ClearRemoteTrack()
 	SetPeer(peer Peer)
 	UntrackByModes(sessionID uuid.UUID, modes map[uint8]struct{}, skipStream PresenceStream)

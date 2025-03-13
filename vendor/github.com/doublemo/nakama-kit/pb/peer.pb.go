@@ -142,7 +142,7 @@ func (x NodeMeta_Status) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use NodeMeta_Status.Descriptor instead.
 func (NodeMeta_Status) EnumDescriptor() ([]byte, []int) {
-	return file_peer_proto_rawDescGZIP(), []int{10, 0}
+	return file_peer_proto_rawDescGZIP(), []int{11, 0}
 }
 
 type NodeMeta_Balancer int32
@@ -194,7 +194,7 @@ func (x NodeMeta_Balancer) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use NodeMeta_Balancer.Descriptor instead.
 func (NodeMeta_Balancer) EnumDescriptor() ([]byte, []int) {
-	return file_peer_proto_rawDescGZIP(), []int{10, 1}
+	return file_peer_proto_rawDescGZIP(), []int{11, 1}
 }
 
 type Peer struct {
@@ -533,12 +533,8 @@ type State struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Node       string               `protobuf:"bytes,1,opt,name=node,proto3" json:"node,omitempty"`
-	BinaryLog  []*BinaryLog         `protobuf:"bytes,2,rep,name=binaryLog,proto3" json:"binaryLog,omitempty"`
-	Presences  []*Presence          `protobuf:"bytes,3,rep,name=Presences,proto3" json:"Presences,omitempty"`
-	CheckPoint *CheckPoint          `protobuf:"bytes,4,opt,name=checkPoint,proto3" json:"checkPoint,omitempty"`
-	Version    uint64               `protobuf:"varint,5,opt,name=version,proto3" json:"version,omitempty"`
-	Matchmaker []*MatchmakerExtract `protobuf:"bytes,6,rep,name=matchmaker,proto3" json:"matchmaker,omitempty"`
+	Node  string       `protobuf:"bytes,1,opt,name=node,proto3" json:"node,omitempty"`
+	Nodes []*StateNode `protobuf:"bytes,2,rep,name=nodes,proto3" json:"nodes,omitempty"`
 }
 
 func (x *State) Reset() {
@@ -580,35 +576,78 @@ func (x *State) GetNode() string {
 	return ""
 }
 
-func (x *State) GetBinaryLog() []*BinaryLog {
+func (x *State) GetNodes() []*StateNode {
 	if x != nil {
-		return x.BinaryLog
+		return x.Nodes
 	}
 	return nil
 }
 
-func (x *State) GetPresences() []*Presence {
-	if x != nil {
-		return x.Presences
-	}
-	return nil
+type StateNode struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Node       string               `protobuf:"bytes,1,opt,name=node,proto3" json:"node,omitempty"`
+	Version    int64                `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
+	Presences  []*Presence          `protobuf:"bytes,3,rep,name=Presences,proto3" json:"Presences,omitempty"`
+	Matchmaker []*MatchmakerExtract `protobuf:"bytes,4,rep,name=matchmaker,proto3" json:"matchmaker,omitempty"`
 }
 
-func (x *State) GetCheckPoint() *CheckPoint {
-	if x != nil {
-		return x.CheckPoint
+func (x *StateNode) Reset() {
+	*x = StateNode{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_peer_proto_msgTypes[5]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
 	}
-	return nil
 }
 
-func (x *State) GetVersion() uint64 {
+func (x *StateNode) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StateNode) ProtoMessage() {}
+
+func (x *StateNode) ProtoReflect() protoreflect.Message {
+	mi := &file_peer_proto_msgTypes[5]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StateNode.ProtoReflect.Descriptor instead.
+func (*StateNode) Descriptor() ([]byte, []int) {
+	return file_peer_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *StateNode) GetNode() string {
+	if x != nil {
+		return x.Node
+	}
+	return ""
+}
+
+func (x *StateNode) GetVersion() int64 {
 	if x != nil {
 		return x.Version
 	}
 	return 0
 }
 
-func (x *State) GetMatchmaker() []*MatchmakerExtract {
+func (x *StateNode) GetPresences() []*Presence {
+	if x != nil {
+		return x.Presences
+	}
+	return nil
+}
+
+func (x *StateNode) GetMatchmaker() []*MatchmakerExtract {
 	if x != nil {
 		return x.Matchmaker
 	}
@@ -635,7 +674,7 @@ type Status struct {
 func (x *Status) Reset() {
 	*x = Status{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_peer_proto_msgTypes[5]
+		mi := &file_peer_proto_msgTypes[6]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -648,7 +687,7 @@ func (x *Status) String() string {
 func (*Status) ProtoMessage() {}
 
 func (x *Status) ProtoReflect() protoreflect.Message {
-	mi := &file_peer_proto_msgTypes[5]
+	mi := &file_peer_proto_msgTypes[6]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -661,7 +700,7 @@ func (x *Status) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Status.ProtoReflect.Descriptor instead.
 func (*Status) Descriptor() ([]byte, []int) {
-	return file_peer_proto_rawDescGZIP(), []int{5}
+	return file_peer_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *Status) GetName() string {
@@ -746,7 +785,7 @@ type PresenceID struct {
 func (x *PresenceID) Reset() {
 	*x = PresenceID{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_peer_proto_msgTypes[6]
+		mi := &file_peer_proto_msgTypes[7]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -759,7 +798,7 @@ func (x *PresenceID) String() string {
 func (*PresenceID) ProtoMessage() {}
 
 func (x *PresenceID) ProtoReflect() protoreflect.Message {
-	mi := &file_peer_proto_msgTypes[6]
+	mi := &file_peer_proto_msgTypes[7]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -772,7 +811,7 @@ func (x *PresenceID) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PresenceID.ProtoReflect.Descriptor instead.
 func (*PresenceID) Descriptor() ([]byte, []int) {
-	return file_peer_proto_rawDescGZIP(), []int{6}
+	return file_peer_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *PresenceID) GetSessionID() string {
@@ -804,7 +843,7 @@ type Presence struct {
 func (x *Presence) Reset() {
 	*x = Presence{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_peer_proto_msgTypes[7]
+		mi := &file_peer_proto_msgTypes[8]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -817,7 +856,7 @@ func (x *Presence) String() string {
 func (*Presence) ProtoMessage() {}
 
 func (x *Presence) ProtoReflect() protoreflect.Message {
-	mi := &file_peer_proto_msgTypes[7]
+	mi := &file_peer_proto_msgTypes[8]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -830,7 +869,7 @@ func (x *Presence) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Presence.ProtoReflect.Descriptor instead.
 func (*Presence) Descriptor() ([]byte, []int) {
-	return file_peer_proto_rawDescGZIP(), []int{7}
+	return file_peer_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *Presence) GetSessionID() string {
@@ -882,7 +921,7 @@ type PresenceStream struct {
 func (x *PresenceStream) Reset() {
 	*x = PresenceStream{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_peer_proto_msgTypes[8]
+		mi := &file_peer_proto_msgTypes[9]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -895,7 +934,7 @@ func (x *PresenceStream) String() string {
 func (*PresenceStream) ProtoMessage() {}
 
 func (x *PresenceStream) ProtoReflect() protoreflect.Message {
-	mi := &file_peer_proto_msgTypes[8]
+	mi := &file_peer_proto_msgTypes[9]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -908,7 +947,7 @@ func (x *PresenceStream) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PresenceStream.ProtoReflect.Descriptor instead.
 func (*PresenceStream) Descriptor() ([]byte, []int) {
-	return file_peer_proto_rawDescGZIP(), []int{8}
+	return file_peer_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *PresenceStream) GetMode() uint32 {
@@ -955,7 +994,7 @@ type PresenceMeta struct {
 func (x *PresenceMeta) Reset() {
 	*x = PresenceMeta{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_peer_proto_msgTypes[9]
+		mi := &file_peer_proto_msgTypes[10]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -968,7 +1007,7 @@ func (x *PresenceMeta) String() string {
 func (*PresenceMeta) ProtoMessage() {}
 
 func (x *PresenceMeta) ProtoReflect() protoreflect.Message {
-	mi := &file_peer_proto_msgTypes[9]
+	mi := &file_peer_proto_msgTypes[10]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -981,7 +1020,7 @@ func (x *PresenceMeta) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PresenceMeta.ProtoReflect.Descriptor instead.
 func (*PresenceMeta) Descriptor() ([]byte, []int) {
-	return file_peer_proto_rawDescGZIP(), []int{9}
+	return file_peer_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *PresenceMeta) GetSessionFormat() uint32 {
@@ -1054,7 +1093,7 @@ type NodeMeta struct {
 func (x *NodeMeta) Reset() {
 	*x = NodeMeta{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_peer_proto_msgTypes[10]
+		mi := &file_peer_proto_msgTypes[11]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1067,7 +1106,7 @@ func (x *NodeMeta) String() string {
 func (*NodeMeta) ProtoMessage() {}
 
 func (x *NodeMeta) ProtoReflect() protoreflect.Message {
-	mi := &file_peer_proto_msgTypes[10]
+	mi := &file_peer_proto_msgTypes[11]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1080,7 +1119,7 @@ func (x *NodeMeta) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NodeMeta.ProtoReflect.Descriptor instead.
 func (*NodeMeta) Descriptor() ([]byte, []int) {
-	return file_peer_proto_rawDescGZIP(), []int{10}
+	return file_peer_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *NodeMeta) GetName() string {
@@ -1157,7 +1196,7 @@ type BanValue struct {
 func (x *BanValue) Reset() {
 	*x = BanValue{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_peer_proto_msgTypes[11]
+		mi := &file_peer_proto_msgTypes[12]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1170,7 +1209,7 @@ func (x *BanValue) String() string {
 func (*BanValue) ProtoMessage() {}
 
 func (x *BanValue) ProtoReflect() protoreflect.Message {
-	mi := &file_peer_proto_msgTypes[11]
+	mi := &file_peer_proto_msgTypes[12]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1183,7 +1222,7 @@ func (x *BanValue) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BanValue.ProtoReflect.Descriptor instead.
 func (*BanValue) Descriptor() ([]byte, []int) {
-	return file_peer_proto_rawDescGZIP(), []int{11}
+	return file_peer_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *BanValue) GetValues() []string {
@@ -1209,7 +1248,7 @@ type UntrackValue struct {
 func (x *UntrackValue) Reset() {
 	*x = UntrackValue{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_peer_proto_msgTypes[12]
+		mi := &file_peer_proto_msgTypes[13]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1222,7 +1261,7 @@ func (x *UntrackValue) String() string {
 func (*UntrackValue) ProtoMessage() {}
 
 func (x *UntrackValue) ProtoReflect() protoreflect.Message {
-	mi := &file_peer_proto_msgTypes[12]
+	mi := &file_peer_proto_msgTypes[13]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1235,7 +1274,7 @@ func (x *UntrackValue) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UntrackValue.ProtoReflect.Descriptor instead.
 func (*UntrackValue) Descriptor() ([]byte, []int) {
-	return file_peer_proto_rawDescGZIP(), []int{12}
+	return file_peer_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *UntrackValue) GetSessionID() string {
@@ -1292,7 +1331,7 @@ type MatchBatch struct {
 func (x *MatchBatch) Reset() {
 	*x = MatchBatch{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_peer_proto_msgTypes[13]
+		mi := &file_peer_proto_msgTypes[14]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1305,7 +1344,7 @@ func (x *MatchBatch) String() string {
 func (*MatchBatch) ProtoMessage() {}
 
 func (x *MatchBatch) ProtoReflect() protoreflect.Message {
-	mi := &file_peer_proto_msgTypes[13]
+	mi := &file_peer_proto_msgTypes[14]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1318,7 +1357,7 @@ func (x *MatchBatch) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MatchBatch.ProtoReflect.Descriptor instead.
 func (*MatchBatch) Descriptor() ([]byte, []int) {
-	return file_peer_proto_rawDescGZIP(), []int{13}
+	return file_peer_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *MatchBatch) GetDocuments() [][]byte {
@@ -1340,9 +1379,8 @@ type BinaryLog struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Id        uint64                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	Node      string                 `protobuf:"bytes,2,opt,name=node,proto3" json:"node,omitempty"`
-	Timestamp *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	Node    string `protobuf:"bytes,1,opt,name=node,proto3" json:"node,omitempty"`
+	Version int64  `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
 	// Types that are assignable to Payload:
 	//
 	//	*BinaryLog_Track
@@ -1362,7 +1400,7 @@ type BinaryLog struct {
 func (x *BinaryLog) Reset() {
 	*x = BinaryLog{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_peer_proto_msgTypes[14]
+		mi := &file_peer_proto_msgTypes[15]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1375,7 +1413,7 @@ func (x *BinaryLog) String() string {
 func (*BinaryLog) ProtoMessage() {}
 
 func (x *BinaryLog) ProtoReflect() protoreflect.Message {
-	mi := &file_peer_proto_msgTypes[14]
+	mi := &file_peer_proto_msgTypes[15]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1388,14 +1426,7 @@ func (x *BinaryLog) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BinaryLog.ProtoReflect.Descriptor instead.
 func (*BinaryLog) Descriptor() ([]byte, []int) {
-	return file_peer_proto_rawDescGZIP(), []int{14}
-}
-
-func (x *BinaryLog) GetId() uint64 {
-	if x != nil {
-		return x.Id
-	}
-	return 0
+	return file_peer_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *BinaryLog) GetNode() string {
@@ -1405,11 +1436,11 @@ func (x *BinaryLog) GetNode() string {
 	return ""
 }
 
-func (x *BinaryLog) GetTimestamp() *timestamppb.Timestamp {
+func (x *BinaryLog) GetVersion() int64 {
 	if x != nil {
-		return x.Timestamp
+		return x.Version
 	}
-	return nil
+	return 0
 }
 
 func (m *BinaryLog) GetPayload() isBinaryLog_Payload {
@@ -1501,47 +1532,47 @@ type isBinaryLog_Payload interface {
 }
 
 type BinaryLog_Track struct {
-	Track *Presence `protobuf:"bytes,4,opt,name=track,proto3,oneof"`
+	Track *Presence `protobuf:"bytes,3,opt,name=track,proto3,oneof"`
 }
 
 type BinaryLog_Untrack struct {
-	Untrack *UntrackValue `protobuf:"bytes,5,opt,name=untrack,proto3,oneof"`
+	Untrack *UntrackValue `protobuf:"bytes,4,opt,name=untrack,proto3,oneof"`
 }
 
 type BinaryLog_Ban struct {
-	Ban *BanValue `protobuf:"bytes,6,opt,name=ban,proto3,oneof"`
+	Ban *BanValue `protobuf:"bytes,5,opt,name=ban,proto3,oneof"`
 }
 
 type BinaryLog_UpdateTrack struct {
-	UpdateTrack *Presence `protobuf:"bytes,7,opt,name=updateTrack,proto3,oneof"`
+	UpdateTrack *Presence `protobuf:"bytes,6,opt,name=updateTrack,proto3,oneof"`
 }
 
 type BinaryLog_MatchmakerAdd struct {
-	MatchmakerAdd *MatchmakerExtract `protobuf:"bytes,8,opt,name=MatchmakerAdd,proto3,oneof"`
+	MatchmakerAdd *MatchmakerExtract `protobuf:"bytes,7,opt,name=MatchmakerAdd,proto3,oneof"`
 }
 
 type BinaryLog_MatchmakerRemoveSession struct {
-	MatchmakerRemoveSession *MatchmakerExtract `protobuf:"bytes,9,opt,name=MatchmakerRemoveSession,proto3,oneof"`
+	MatchmakerRemoveSession *MatchmakerExtract `protobuf:"bytes,8,opt,name=MatchmakerRemoveSession,proto3,oneof"`
 }
 
 type BinaryLog_MatchmakerRemoveSessionAll struct {
-	MatchmakerRemoveSessionAll *MatchmakerExtract `protobuf:"bytes,10,opt,name=MatchmakerRemoveSessionAll,proto3,oneof"`
+	MatchmakerRemoveSessionAll *MatchmakerExtract `protobuf:"bytes,9,opt,name=MatchmakerRemoveSessionAll,proto3,oneof"`
 }
 
 type BinaryLog_MatchmakerRemoveParty struct {
-	MatchmakerRemoveParty *MatchmakerExtract `protobuf:"bytes,11,opt,name=MatchmakerRemoveParty,proto3,oneof"`
+	MatchmakerRemoveParty *MatchmakerExtract `protobuf:"bytes,10,opt,name=MatchmakerRemoveParty,proto3,oneof"`
 }
 
 type BinaryLog_MatchmakerRemovePartyAll struct {
-	MatchmakerRemovePartyAll *MatchmakerExtract `protobuf:"bytes,12,opt,name=MatchmakerRemovePartyAll,proto3,oneof"`
+	MatchmakerRemovePartyAll *MatchmakerExtract `protobuf:"bytes,11,opt,name=MatchmakerRemovePartyAll,proto3,oneof"`
 }
 
 type BinaryLog_MatchmakerRemoveAll struct {
-	MatchmakerRemoveAll *MatchmakerExtract `protobuf:"bytes,13,opt,name=MatchmakerRemoveAll,proto3,oneof"`
+	MatchmakerRemoveAll *MatchmakerExtract `protobuf:"bytes,12,opt,name=MatchmakerRemoveAll,proto3,oneof"`
 }
 
 type BinaryLog_MatchmakerRemove struct {
-	MatchmakerRemove *BinaryLog_PartyMatchmakerRemove `protobuf:"bytes,14,opt,name=MatchmakerRemove,proto3,oneof"`
+	MatchmakerRemove *BinaryLog_PartyMatchmakerRemove `protobuf:"bytes,13,opt,name=MatchmakerRemove,proto3,oneof"`
 }
 
 func (*BinaryLog_Track) isBinaryLog_Payload() {}
@@ -1577,7 +1608,7 @@ type Point struct {
 func (x *Point) Reset() {
 	*x = Point{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_peer_proto_msgTypes[15]
+		mi := &file_peer_proto_msgTypes[16]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1590,7 +1621,7 @@ func (x *Point) String() string {
 func (*Point) ProtoMessage() {}
 
 func (x *Point) ProtoReflect() protoreflect.Message {
-	mi := &file_peer_proto_msgTypes[15]
+	mi := &file_peer_proto_msgTypes[16]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1603,7 +1634,7 @@ func (x *Point) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Point.ProtoReflect.Descriptor instead.
 func (*Point) Descriptor() ([]byte, []int) {
-	return file_peer_proto_rawDescGZIP(), []int{15}
+	return file_peer_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *Point) GetPoint() map[string]uint64 {
@@ -1624,7 +1655,7 @@ type CheckPoint struct {
 func (x *CheckPoint) Reset() {
 	*x = CheckPoint{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_peer_proto_msgTypes[16]
+		mi := &file_peer_proto_msgTypes[17]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1637,7 +1668,7 @@ func (x *CheckPoint) String() string {
 func (*CheckPoint) ProtoMessage() {}
 
 func (x *CheckPoint) ProtoReflect() protoreflect.Message {
-	mi := &file_peer_proto_msgTypes[16]
+	mi := &file_peer_proto_msgTypes[17]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1650,7 +1681,7 @@ func (x *CheckPoint) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CheckPoint.ProtoReflect.Descriptor instead.
 func (*CheckPoint) Descriptor() ([]byte, []int) {
-	return file_peer_proto_rawDescGZIP(), []int{16}
+	return file_peer_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *CheckPoint) GetValue() map[string]*Point {
@@ -1674,7 +1705,7 @@ type MatchmakerPresence struct {
 func (x *MatchmakerPresence) Reset() {
 	*x = MatchmakerPresence{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_peer_proto_msgTypes[17]
+		mi := &file_peer_proto_msgTypes[18]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1687,7 +1718,7 @@ func (x *MatchmakerPresence) String() string {
 func (*MatchmakerPresence) ProtoMessage() {}
 
 func (x *MatchmakerPresence) ProtoReflect() protoreflect.Message {
-	mi := &file_peer_proto_msgTypes[17]
+	mi := &file_peer_proto_msgTypes[18]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1700,7 +1731,7 @@ func (x *MatchmakerPresence) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MatchmakerPresence.ProtoReflect.Descriptor instead.
 func (*MatchmakerPresence) Descriptor() ([]byte, []int) {
-	return file_peer_proto_rawDescGZIP(), []int{17}
+	return file_peer_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *MatchmakerPresence) GetUserId() string {
@@ -1755,7 +1786,7 @@ type MatchmakerExtract struct {
 func (x *MatchmakerExtract) Reset() {
 	*x = MatchmakerExtract{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_peer_proto_msgTypes[18]
+		mi := &file_peer_proto_msgTypes[19]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1768,7 +1799,7 @@ func (x *MatchmakerExtract) String() string {
 func (*MatchmakerExtract) ProtoMessage() {}
 
 func (x *MatchmakerExtract) ProtoReflect() protoreflect.Message {
-	mi := &file_peer_proto_msgTypes[18]
+	mi := &file_peer_proto_msgTypes[19]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1781,7 +1812,7 @@ func (x *MatchmakerExtract) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MatchmakerExtract.ProtoReflect.Descriptor instead.
 func (*MatchmakerExtract) Descriptor() ([]byte, []int) {
-	return file_peer_proto_rawDescGZIP(), []int{18}
+	return file_peer_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *MatchmakerExtract) GetPresences() []*MatchmakerPresence {
@@ -1897,7 +1928,7 @@ type MatchPresence struct {
 func (x *MatchPresence) Reset() {
 	*x = MatchPresence{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_peer_proto_msgTypes[19]
+		mi := &file_peer_proto_msgTypes[20]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1910,7 +1941,7 @@ func (x *MatchPresence) String() string {
 func (*MatchPresence) ProtoMessage() {}
 
 func (x *MatchPresence) ProtoReflect() protoreflect.Message {
-	mi := &file_peer_proto_msgTypes[19]
+	mi := &file_peer_proto_msgTypes[20]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1923,7 +1954,7 @@ func (x *MatchPresence) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MatchPresence.ProtoReflect.Descriptor instead.
 func (*MatchPresence) Descriptor() ([]byte, []int) {
-	return file_peer_proto_rawDescGZIP(), []int{19}
+	return file_peer_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *MatchPresence) GetUserId() string {
@@ -1970,7 +2001,7 @@ type Party struct {
 func (x *Party) Reset() {
 	*x = Party{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_peer_proto_msgTypes[20]
+		mi := &file_peer_proto_msgTypes[21]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1983,7 +2014,7 @@ func (x *Party) String() string {
 func (*Party) ProtoMessage() {}
 
 func (x *Party) ProtoReflect() protoreflect.Message {
-	mi := &file_peer_proto_msgTypes[20]
+	mi := &file_peer_proto_msgTypes[21]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1996,7 +2027,7 @@ func (x *Party) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Party.ProtoReflect.Descriptor instead.
 func (*Party) Descriptor() ([]byte, []int) {
-	return file_peer_proto_rawDescGZIP(), []int{20}
+	return file_peer_proto_rawDescGZIP(), []int{21}
 }
 
 type Match struct {
@@ -2008,7 +2039,7 @@ type Match struct {
 func (x *Match) Reset() {
 	*x = Match{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_peer_proto_msgTypes[21]
+		mi := &file_peer_proto_msgTypes[22]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2021,7 +2052,7 @@ func (x *Match) String() string {
 func (*Match) ProtoMessage() {}
 
 func (x *Match) ProtoReflect() protoreflect.Message {
-	mi := &file_peer_proto_msgTypes[21]
+	mi := &file_peer_proto_msgTypes[22]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2034,7 +2065,7 @@ func (x *Match) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Match.ProtoReflect.Descriptor instead.
 func (*Match) Descriptor() ([]byte, []int) {
-	return file_peer_proto_rawDescGZIP(), []int{21}
+	return file_peer_proto_rawDescGZIP(), []int{22}
 }
 
 type Peer_Query struct {
@@ -2048,7 +2079,7 @@ type Peer_Query struct {
 func (x *Peer_Query) Reset() {
 	*x = Peer_Query{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_peer_proto_msgTypes[22]
+		mi := &file_peer_proto_msgTypes[23]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2061,7 +2092,7 @@ func (x *Peer_Query) String() string {
 func (*Peer_Query) ProtoMessage() {}
 
 func (x *Peer_Query) ProtoReflect() protoreflect.Message {
-	mi := &file_peer_proto_msgTypes[22]
+	mi := &file_peer_proto_msgTypes[23]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2104,7 +2135,7 @@ type Peer_Request struct {
 func (x *Peer_Request) Reset() {
 	*x = Peer_Request{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_peer_proto_msgTypes[23]
+		mi := &file_peer_proto_msgTypes[24]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2117,7 +2148,7 @@ func (x *Peer_Request) String() string {
 func (*Peer_Request) ProtoMessage() {}
 
 func (x *Peer_Request) ProtoReflect() protoreflect.Message {
-	mi := &file_peer_proto_msgTypes[23]
+	mi := &file_peer_proto_msgTypes[24]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2226,7 +2257,7 @@ type Peer_ResponseWriter struct {
 func (x *Peer_ResponseWriter) Reset() {
 	*x = Peer_ResponseWriter{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_peer_proto_msgTypes[24]
+		mi := &file_peer_proto_msgTypes[25]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2239,7 +2270,7 @@ func (x *Peer_ResponseWriter) String() string {
 func (*Peer_ResponseWriter) ProtoMessage() {}
 
 func (x *Peer_ResponseWriter) ProtoReflect() protoreflect.Message {
-	mi := &file_peer_proto_msgTypes[24]
+	mi := &file_peer_proto_msgTypes[25]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2383,7 +2414,7 @@ type Peer_Envelope struct {
 func (x *Peer_Envelope) Reset() {
 	*x = Peer_Envelope{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_peer_proto_msgTypes[25]
+		mi := &file_peer_proto_msgTypes[26]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2396,7 +2427,7 @@ func (x *Peer_Envelope) String() string {
 func (*Peer_Envelope) ProtoMessage() {}
 
 func (x *Peer_Envelope) ProtoReflect() protoreflect.Message {
-	mi := &file_peer_proto_msgTypes[25]
+	mi := &file_peer_proto_msgTypes[26]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2806,7 +2837,7 @@ type BinaryLog_PartyMatchmakerRemove struct {
 func (x *BinaryLog_PartyMatchmakerRemove) Reset() {
 	*x = BinaryLog_PartyMatchmakerRemove{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_peer_proto_msgTypes[33]
+		mi := &file_peer_proto_msgTypes[34]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2819,7 +2850,7 @@ func (x *BinaryLog_PartyMatchmakerRemove) String() string {
 func (*BinaryLog_PartyMatchmakerRemove) ProtoMessage() {}
 
 func (x *BinaryLog_PartyMatchmakerRemove) ProtoReflect() protoreflect.Message {
-	mi := &file_peer_proto_msgTypes[33]
+	mi := &file_peer_proto_msgTypes[34]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2832,7 +2863,7 @@ func (x *BinaryLog_PartyMatchmakerRemove) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BinaryLog_PartyMatchmakerRemove.ProtoReflect.Descriptor instead.
 func (*BinaryLog_PartyMatchmakerRemove) Descriptor() ([]byte, []int) {
-	return file_peer_proto_rawDescGZIP(), []int{14, 0}
+	return file_peer_proto_rawDescGZIP(), []int{15, 0}
 }
 
 func (x *BinaryLog_PartyMatchmakerRemove) GetTicket() []string {
@@ -2854,7 +2885,7 @@ type Party_JoinRequest struct {
 func (x *Party_JoinRequest) Reset() {
 	*x = Party_JoinRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_peer_proto_msgTypes[38]
+		mi := &file_peer_proto_msgTypes[39]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2867,7 +2898,7 @@ func (x *Party_JoinRequest) String() string {
 func (*Party_JoinRequest) ProtoMessage() {}
 
 func (x *Party_JoinRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_peer_proto_msgTypes[38]
+	mi := &file_peer_proto_msgTypes[39]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2880,7 +2911,7 @@ func (x *Party_JoinRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Party_JoinRequest.ProtoReflect.Descriptor instead.
 func (*Party_JoinRequest) Descriptor() ([]byte, []int) {
-	return file_peer_proto_rawDescGZIP(), []int{20, 0}
+	return file_peer_proto_rawDescGZIP(), []int{21, 0}
 }
 
 func (x *Party_JoinRequest) GetId() string {
@@ -2911,7 +2942,7 @@ type Party_Promote struct {
 func (x *Party_Promote) Reset() {
 	*x = Party_Promote{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_peer_proto_msgTypes[39]
+		mi := &file_peer_proto_msgTypes[40]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2924,7 +2955,7 @@ func (x *Party_Promote) String() string {
 func (*Party_Promote) ProtoMessage() {}
 
 func (x *Party_Promote) ProtoReflect() protoreflect.Message {
-	mi := &file_peer_proto_msgTypes[39]
+	mi := &file_peer_proto_msgTypes[40]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2937,7 +2968,7 @@ func (x *Party_Promote) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Party_Promote.ProtoReflect.Descriptor instead.
 func (*Party_Promote) Descriptor() ([]byte, []int) {
-	return file_peer_proto_rawDescGZIP(), []int{20, 1}
+	return file_peer_proto_rawDescGZIP(), []int{21, 1}
 }
 
 func (x *Party_Promote) GetId() string {
@@ -2982,7 +3013,7 @@ type Party_Accept struct {
 func (x *Party_Accept) Reset() {
 	*x = Party_Accept{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_peer_proto_msgTypes[40]
+		mi := &file_peer_proto_msgTypes[41]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2995,7 +3026,7 @@ func (x *Party_Accept) String() string {
 func (*Party_Accept) ProtoMessage() {}
 
 func (x *Party_Accept) ProtoReflect() protoreflect.Message {
-	mi := &file_peer_proto_msgTypes[40]
+	mi := &file_peer_proto_msgTypes[41]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3008,7 +3039,7 @@ func (x *Party_Accept) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Party_Accept.ProtoReflect.Descriptor instead.
 func (*Party_Accept) Descriptor() ([]byte, []int) {
-	return file_peer_proto_rawDescGZIP(), []int{20, 2}
+	return file_peer_proto_rawDescGZIP(), []int{21, 2}
 }
 
 func (x *Party_Accept) GetId() string {
@@ -3053,7 +3084,7 @@ type Party_Remove struct {
 func (x *Party_Remove) Reset() {
 	*x = Party_Remove{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_peer_proto_msgTypes[41]
+		mi := &file_peer_proto_msgTypes[42]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -3066,7 +3097,7 @@ func (x *Party_Remove) String() string {
 func (*Party_Remove) ProtoMessage() {}
 
 func (x *Party_Remove) ProtoReflect() protoreflect.Message {
-	mi := &file_peer_proto_msgTypes[41]
+	mi := &file_peer_proto_msgTypes[42]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3079,7 +3110,7 @@ func (x *Party_Remove) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Party_Remove.ProtoReflect.Descriptor instead.
 func (*Party_Remove) Descriptor() ([]byte, []int) {
-	return file_peer_proto_rawDescGZIP(), []int{20, 3}
+	return file_peer_proto_rawDescGZIP(), []int{21, 3}
 }
 
 func (x *Party_Remove) GetId() string {
@@ -3123,7 +3154,7 @@ type Party_Close struct {
 func (x *Party_Close) Reset() {
 	*x = Party_Close{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_peer_proto_msgTypes[42]
+		mi := &file_peer_proto_msgTypes[43]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -3136,7 +3167,7 @@ func (x *Party_Close) String() string {
 func (*Party_Close) ProtoMessage() {}
 
 func (x *Party_Close) ProtoReflect() protoreflect.Message {
-	mi := &file_peer_proto_msgTypes[42]
+	mi := &file_peer_proto_msgTypes[43]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3149,7 +3180,7 @@ func (x *Party_Close) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Party_Close.ProtoReflect.Descriptor instead.
 func (*Party_Close) Descriptor() ([]byte, []int) {
-	return file_peer_proto_rawDescGZIP(), []int{20, 4}
+	return file_peer_proto_rawDescGZIP(), []int{21, 4}
 }
 
 func (x *Party_Close) GetId() string {
@@ -3186,7 +3217,7 @@ type Party_JoinRequestList struct {
 func (x *Party_JoinRequestList) Reset() {
 	*x = Party_JoinRequestList{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_peer_proto_msgTypes[43]
+		mi := &file_peer_proto_msgTypes[44]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -3199,7 +3230,7 @@ func (x *Party_JoinRequestList) String() string {
 func (*Party_JoinRequestList) ProtoMessage() {}
 
 func (x *Party_JoinRequestList) ProtoReflect() protoreflect.Message {
-	mi := &file_peer_proto_msgTypes[43]
+	mi := &file_peer_proto_msgTypes[44]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3212,7 +3243,7 @@ func (x *Party_JoinRequestList) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Party_JoinRequestList.ProtoReflect.Descriptor instead.
 func (*Party_JoinRequestList) Descriptor() ([]byte, []int) {
-	return file_peer_proto_rawDescGZIP(), []int{20, 5}
+	return file_peer_proto_rawDescGZIP(), []int{21, 5}
 }
 
 func (x *Party_JoinRequestList) GetId() string {
@@ -3247,7 +3278,7 @@ type Party_JoinRequestListReply struct {
 func (x *Party_JoinRequestListReply) Reset() {
 	*x = Party_JoinRequestListReply{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_peer_proto_msgTypes[44]
+		mi := &file_peer_proto_msgTypes[45]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -3260,7 +3291,7 @@ func (x *Party_JoinRequestListReply) String() string {
 func (*Party_JoinRequestListReply) ProtoMessage() {}
 
 func (x *Party_JoinRequestListReply) ProtoReflect() protoreflect.Message {
-	mi := &file_peer_proto_msgTypes[44]
+	mi := &file_peer_proto_msgTypes[45]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3273,7 +3304,7 @@ func (x *Party_JoinRequestListReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Party_JoinRequestListReply.ProtoReflect.Descriptor instead.
 func (*Party_JoinRequestListReply) Descriptor() ([]byte, []int) {
-	return file_peer_proto_rawDescGZIP(), []int{20, 6}
+	return file_peer_proto_rawDescGZIP(), []int{21, 6}
 }
 
 func (x *Party_JoinRequestListReply) GetUserPresence() []*rtapi.UserPresence {
@@ -3302,7 +3333,7 @@ type Party_MatchmakerAdd struct {
 func (x *Party_MatchmakerAdd) Reset() {
 	*x = Party_MatchmakerAdd{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_peer_proto_msgTypes[45]
+		mi := &file_peer_proto_msgTypes[46]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -3315,7 +3346,7 @@ func (x *Party_MatchmakerAdd) String() string {
 func (*Party_MatchmakerAdd) ProtoMessage() {}
 
 func (x *Party_MatchmakerAdd) ProtoReflect() protoreflect.Message {
-	mi := &file_peer_proto_msgTypes[45]
+	mi := &file_peer_proto_msgTypes[46]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3328,7 +3359,7 @@ func (x *Party_MatchmakerAdd) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Party_MatchmakerAdd.ProtoReflect.Descriptor instead.
 func (*Party_MatchmakerAdd) Descriptor() ([]byte, []int) {
-	return file_peer_proto_rawDescGZIP(), []int{20, 7}
+	return file_peer_proto_rawDescGZIP(), []int{21, 7}
 }
 
 func (x *Party_MatchmakerAdd) GetId() string {
@@ -3406,7 +3437,7 @@ type Party_MatchmakerAddReply struct {
 func (x *Party_MatchmakerAddReply) Reset() {
 	*x = Party_MatchmakerAddReply{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_peer_proto_msgTypes[46]
+		mi := &file_peer_proto_msgTypes[47]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -3419,7 +3450,7 @@ func (x *Party_MatchmakerAddReply) String() string {
 func (*Party_MatchmakerAddReply) ProtoMessage() {}
 
 func (x *Party_MatchmakerAddReply) ProtoReflect() protoreflect.Message {
-	mi := &file_peer_proto_msgTypes[46]
+	mi := &file_peer_proto_msgTypes[47]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3432,7 +3463,7 @@ func (x *Party_MatchmakerAddReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Party_MatchmakerAddReply.ProtoReflect.Descriptor instead.
 func (*Party_MatchmakerAddReply) Descriptor() ([]byte, []int) {
-	return file_peer_proto_rawDescGZIP(), []int{20, 8}
+	return file_peer_proto_rawDescGZIP(), []int{21, 8}
 }
 
 func (x *Party_MatchmakerAddReply) GetTicket() string {
@@ -3463,7 +3494,7 @@ type Party_MatchmakerRemove struct {
 func (x *Party_MatchmakerRemove) Reset() {
 	*x = Party_MatchmakerRemove{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_peer_proto_msgTypes[47]
+		mi := &file_peer_proto_msgTypes[48]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -3476,7 +3507,7 @@ func (x *Party_MatchmakerRemove) String() string {
 func (*Party_MatchmakerRemove) ProtoMessage() {}
 
 func (x *Party_MatchmakerRemove) ProtoReflect() protoreflect.Message {
-	mi := &file_peer_proto_msgTypes[47]
+	mi := &file_peer_proto_msgTypes[48]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3489,7 +3520,7 @@ func (x *Party_MatchmakerRemove) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Party_MatchmakerRemove.ProtoReflect.Descriptor instead.
 func (*Party_MatchmakerRemove) Descriptor() ([]byte, []int) {
-	return file_peer_proto_rawDescGZIP(), []int{20, 9}
+	return file_peer_proto_rawDescGZIP(), []int{21, 9}
 }
 
 func (x *Party_MatchmakerRemove) GetId() string {
@@ -3535,7 +3566,7 @@ type Party_DataSend struct {
 func (x *Party_DataSend) Reset() {
 	*x = Party_DataSend{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_peer_proto_msgTypes[48]
+		mi := &file_peer_proto_msgTypes[49]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -3548,7 +3579,7 @@ func (x *Party_DataSend) String() string {
 func (*Party_DataSend) ProtoMessage() {}
 
 func (x *Party_DataSend) ProtoReflect() protoreflect.Message {
-	mi := &file_peer_proto_msgTypes[48]
+	mi := &file_peer_proto_msgTypes[49]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3561,7 +3592,7 @@ func (x *Party_DataSend) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Party_DataSend.ProtoReflect.Descriptor instead.
 func (*Party_DataSend) Descriptor() ([]byte, []int) {
-	return file_peer_proto_rawDescGZIP(), []int{20, 10}
+	return file_peer_proto_rawDescGZIP(), []int{21, 10}
 }
 
 func (x *Party_DataSend) GetId() string {
@@ -3619,7 +3650,7 @@ type Match_JoinAttempt struct {
 func (x *Match_JoinAttempt) Reset() {
 	*x = Match_JoinAttempt{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_peer_proto_msgTypes[51]
+		mi := &file_peer_proto_msgTypes[52]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -3632,7 +3663,7 @@ func (x *Match_JoinAttempt) String() string {
 func (*Match_JoinAttempt) ProtoMessage() {}
 
 func (x *Match_JoinAttempt) ProtoReflect() protoreflect.Message {
-	mi := &file_peer_proto_msgTypes[51]
+	mi := &file_peer_proto_msgTypes[52]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3645,7 +3676,7 @@ func (x *Match_JoinAttempt) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Match_JoinAttempt.ProtoReflect.Descriptor instead.
 func (*Match_JoinAttempt) Descriptor() ([]byte, []int) {
-	return file_peer_proto_rawDescGZIP(), []int{21, 0}
+	return file_peer_proto_rawDescGZIP(), []int{22, 0}
 }
 
 func (x *Match_JoinAttempt) GetId() string {
@@ -3734,7 +3765,7 @@ type Match_JoinAttemptReply struct {
 func (x *Match_JoinAttemptReply) Reset() {
 	*x = Match_JoinAttemptReply{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_peer_proto_msgTypes[52]
+		mi := &file_peer_proto_msgTypes[53]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -3747,7 +3778,7 @@ func (x *Match_JoinAttemptReply) String() string {
 func (*Match_JoinAttemptReply) ProtoMessage() {}
 
 func (x *Match_JoinAttemptReply) ProtoReflect() protoreflect.Message {
-	mi := &file_peer_proto_msgTypes[52]
+	mi := &file_peer_proto_msgTypes[53]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3760,7 +3791,7 @@ func (x *Match_JoinAttemptReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Match_JoinAttemptReply.ProtoReflect.Descriptor instead.
 func (*Match_JoinAttemptReply) Descriptor() ([]byte, []int) {
-	return file_peer_proto_rawDescGZIP(), []int{21, 1}
+	return file_peer_proto_rawDescGZIP(), []int{22, 1}
 }
 
 func (x *Match_JoinAttemptReply) GetFound() bool {
@@ -3824,7 +3855,7 @@ type Match_SendData struct {
 func (x *Match_SendData) Reset() {
 	*x = Match_SendData{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_peer_proto_msgTypes[53]
+		mi := &file_peer_proto_msgTypes[54]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -3837,7 +3868,7 @@ func (x *Match_SendData) String() string {
 func (*Match_SendData) ProtoMessage() {}
 
 func (x *Match_SendData) ProtoReflect() protoreflect.Message {
-	mi := &file_peer_proto_msgTypes[53]
+	mi := &file_peer_proto_msgTypes[54]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3850,7 +3881,7 @@ func (x *Match_SendData) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Match_SendData.ProtoReflect.Descriptor instead.
 func (*Match_SendData) Descriptor() ([]byte, []int) {
-	return file_peer_proto_rawDescGZIP(), []int{21, 2}
+	return file_peer_proto_rawDescGZIP(), []int{22, 2}
 }
 
 func (x *Match_SendData) GetId() string {
@@ -3928,7 +3959,7 @@ type Match_Signal struct {
 func (x *Match_Signal) Reset() {
 	*x = Match_Signal{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_peer_proto_msgTypes[54]
+		mi := &file_peer_proto_msgTypes[55]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -3941,7 +3972,7 @@ func (x *Match_Signal) String() string {
 func (*Match_Signal) ProtoMessage() {}
 
 func (x *Match_Signal) ProtoReflect() protoreflect.Message {
-	mi := &file_peer_proto_msgTypes[54]
+	mi := &file_peer_proto_msgTypes[55]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3954,7 +3985,7 @@ func (x *Match_Signal) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Match_Signal.ProtoReflect.Descriptor instead.
 func (*Match_Signal) Descriptor() ([]byte, []int) {
-	return file_peer_proto_rawDescGZIP(), []int{21, 3}
+	return file_peer_proto_rawDescGZIP(), []int{22, 3}
 }
 
 func (x *Match_Signal) GetId() string {
@@ -3984,7 +4015,7 @@ type Match_State struct {
 func (x *Match_State) Reset() {
 	*x = Match_State{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_peer_proto_msgTypes[55]
+		mi := &file_peer_proto_msgTypes[56]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -3997,7 +4028,7 @@ func (x *Match_State) String() string {
 func (*Match_State) ProtoMessage() {}
 
 func (x *Match_State) ProtoReflect() protoreflect.Message {
-	mi := &file_peer_proto_msgTypes[55]
+	mi := &file_peer_proto_msgTypes[56]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4010,7 +4041,7 @@ func (x *Match_State) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Match_State.ProtoReflect.Descriptor instead.
 func (*Match_State) Descriptor() ([]byte, []int) {
-	return file_peer_proto_rawDescGZIP(), []int{21, 4}
+	return file_peer_proto_rawDescGZIP(), []int{22, 4}
 }
 
 func (x *Match_State) GetUserPresence() []*rtapi.UserPresence {
@@ -4276,21 +4307,19 @@ var file_peer_proto_rawDesc = []byte{
 	0x09, 0x73, 0x65, 0x73, 0x73, 0x69, 0x6f, 0x6e, 0x49, 0x44, 0x12, 0x10, 0x0a, 0x03, 0x62, 0x61,
 	0x6e, 0x18, 0x02, 0x20, 0x01, 0x28, 0x08, 0x52, 0x03, 0x62, 0x61, 0x6e, 0x12, 0x16, 0x0a, 0x06,
 	0x72, 0x65, 0x61, 0x73, 0x6f, 0x6e, 0x18, 0x03, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x06, 0x72, 0x65,
-	0x61, 0x73, 0x6f, 0x6e, 0x22, 0x99, 0x02, 0x0a, 0x05, 0x53, 0x74, 0x61, 0x74, 0x65, 0x12, 0x12,
-	0x0a, 0x04, 0x6e, 0x6f, 0x64, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x6e, 0x6f,
-	0x64, 0x65, 0x12, 0x34, 0x0a, 0x09, 0x62, 0x69, 0x6e, 0x61, 0x72, 0x79, 0x4c, 0x6f, 0x67, 0x18,
-	0x02, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x16, 0x2e, 0x6e, 0x61, 0x6b, 0x61, 0x6d, 0x61, 0x2e, 0x70,
-	0x65, 0x65, 0x72, 0x2e, 0x42, 0x69, 0x6e, 0x61, 0x72, 0x79, 0x4c, 0x6f, 0x67, 0x52, 0x09, 0x62,
-	0x69, 0x6e, 0x61, 0x72, 0x79, 0x4c, 0x6f, 0x67, 0x12, 0x33, 0x0a, 0x09, 0x50, 0x72, 0x65, 0x73,
-	0x65, 0x6e, 0x63, 0x65, 0x73, 0x18, 0x03, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x15, 0x2e, 0x6e, 0x61,
-	0x6b, 0x61, 0x6d, 0x61, 0x2e, 0x70, 0x65, 0x65, 0x72, 0x2e, 0x50, 0x72, 0x65, 0x73, 0x65, 0x6e,
-	0x63, 0x65, 0x52, 0x09, 0x50, 0x72, 0x65, 0x73, 0x65, 0x6e, 0x63, 0x65, 0x73, 0x12, 0x37, 0x0a,
-	0x0a, 0x63, 0x68, 0x65, 0x63, 0x6b, 0x50, 0x6f, 0x69, 0x6e, 0x74, 0x18, 0x04, 0x20, 0x01, 0x28,
-	0x0b, 0x32, 0x17, 0x2e, 0x6e, 0x61, 0x6b, 0x61, 0x6d, 0x61, 0x2e, 0x70, 0x65, 0x65, 0x72, 0x2e,
-	0x43, 0x68, 0x65, 0x63, 0x6b, 0x50, 0x6f, 0x69, 0x6e, 0x74, 0x52, 0x0a, 0x63, 0x68, 0x65, 0x63,
-	0x6b, 0x50, 0x6f, 0x69, 0x6e, 0x74, 0x12, 0x18, 0x0a, 0x07, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f,
-	0x6e, 0x18, 0x05, 0x20, 0x01, 0x28, 0x04, 0x52, 0x07, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e,
-	0x12, 0x3e, 0x0a, 0x0a, 0x6d, 0x61, 0x74, 0x63, 0x68, 0x6d, 0x61, 0x6b, 0x65, 0x72, 0x18, 0x06,
+	0x61, 0x73, 0x6f, 0x6e, 0x22, 0x49, 0x0a, 0x05, 0x53, 0x74, 0x61, 0x74, 0x65, 0x12, 0x12, 0x0a,
+	0x04, 0x6e, 0x6f, 0x64, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x6e, 0x6f, 0x64,
+	0x65, 0x12, 0x2c, 0x0a, 0x05, 0x6e, 0x6f, 0x64, 0x65, 0x73, 0x18, 0x02, 0x20, 0x03, 0x28, 0x0b,
+	0x32, 0x16, 0x2e, 0x6e, 0x61, 0x6b, 0x61, 0x6d, 0x61, 0x2e, 0x70, 0x65, 0x65, 0x72, 0x2e, 0x53,
+	0x74, 0x61, 0x74, 0x65, 0x4e, 0x6f, 0x64, 0x65, 0x52, 0x05, 0x6e, 0x6f, 0x64, 0x65, 0x73, 0x22,
+	0xae, 0x01, 0x0a, 0x09, 0x53, 0x74, 0x61, 0x74, 0x65, 0x4e, 0x6f, 0x64, 0x65, 0x12, 0x12, 0x0a,
+	0x04, 0x6e, 0x6f, 0x64, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x6e, 0x6f, 0x64,
+	0x65, 0x12, 0x18, 0x0a, 0x07, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x18, 0x02, 0x20, 0x01,
+	0x28, 0x03, 0x52, 0x07, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x12, 0x33, 0x0a, 0x09, 0x50,
+	0x72, 0x65, 0x73, 0x65, 0x6e, 0x63, 0x65, 0x73, 0x18, 0x03, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x15,
+	0x2e, 0x6e, 0x61, 0x6b, 0x61, 0x6d, 0x61, 0x2e, 0x70, 0x65, 0x65, 0x72, 0x2e, 0x50, 0x72, 0x65,
+	0x73, 0x65, 0x6e, 0x63, 0x65, 0x52, 0x09, 0x50, 0x72, 0x65, 0x73, 0x65, 0x6e, 0x63, 0x65, 0x73,
+	0x12, 0x3e, 0x0a, 0x0a, 0x6d, 0x61, 0x74, 0x63, 0x68, 0x6d, 0x61, 0x6b, 0x65, 0x72, 0x18, 0x04,
 	0x20, 0x03, 0x28, 0x0b, 0x32, 0x1e, 0x2e, 0x6e, 0x61, 0x6b, 0x61, 0x6d, 0x61, 0x2e, 0x70, 0x65,
 	0x65, 0x72, 0x2e, 0x4d, 0x61, 0x74, 0x63, 0x68, 0x6d, 0x61, 0x6b, 0x65, 0x72, 0x45, 0x78, 0x74,
 	0x72, 0x61, 0x63, 0x74, 0x52, 0x0a, 0x6d, 0x61, 0x74, 0x63, 0x68, 0x6d, 0x61, 0x6b, 0x65, 0x72,
@@ -4399,61 +4428,58 @@ var file_peer_proto_rawDesc = []byte{
 	0x68, 0x42, 0x61, 0x74, 0x63, 0x68, 0x12, 0x1c, 0x0a, 0x09, 0x64, 0x6f, 0x63, 0x75, 0x6d, 0x65,
 	0x6e, 0x74, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0c, 0x52, 0x09, 0x64, 0x6f, 0x63, 0x75, 0x6d,
 	0x65, 0x6e, 0x74, 0x73, 0x12, 0x10, 0x0a, 0x03, 0x69, 0x64, 0x73, 0x18, 0x02, 0x20, 0x03, 0x28,
-	0x09, 0x52, 0x03, 0x69, 0x64, 0x73, 0x22, 0xdd, 0x07, 0x0a, 0x09, 0x42, 0x69, 0x6e, 0x61, 0x72,
-	0x79, 0x4c, 0x6f, 0x67, 0x12, 0x0e, 0x0a, 0x02, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x04,
-	0x52, 0x02, 0x69, 0x64, 0x12, 0x12, 0x0a, 0x04, 0x6e, 0x6f, 0x64, 0x65, 0x18, 0x02, 0x20, 0x01,
-	0x28, 0x09, 0x52, 0x04, 0x6e, 0x6f, 0x64, 0x65, 0x12, 0x38, 0x0a, 0x09, 0x74, 0x69, 0x6d, 0x65,
-	0x73, 0x74, 0x61, 0x6d, 0x70, 0x18, 0x03, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1a, 0x2e, 0x67, 0x6f,
-	0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x54, 0x69,
-	0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d, 0x70, 0x52, 0x09, 0x74, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61,
-	0x6d, 0x70, 0x12, 0x2d, 0x0a, 0x05, 0x74, 0x72, 0x61, 0x63, 0x6b, 0x18, 0x04, 0x20, 0x01, 0x28,
+	0x09, 0x52, 0x03, 0x69, 0x64, 0x73, 0x22, 0xad, 0x07, 0x0a, 0x09, 0x42, 0x69, 0x6e, 0x61, 0x72,
+	0x79, 0x4c, 0x6f, 0x67, 0x12, 0x12, 0x0a, 0x04, 0x6e, 0x6f, 0x64, 0x65, 0x18, 0x01, 0x20, 0x01,
+	0x28, 0x09, 0x52, 0x04, 0x6e, 0x6f, 0x64, 0x65, 0x12, 0x18, 0x0a, 0x07, 0x76, 0x65, 0x72, 0x73,
+	0x69, 0x6f, 0x6e, 0x18, 0x02, 0x20, 0x01, 0x28, 0x03, 0x52, 0x07, 0x76, 0x65, 0x72, 0x73, 0x69,
+	0x6f, 0x6e, 0x12, 0x2d, 0x0a, 0x05, 0x74, 0x72, 0x61, 0x63, 0x6b, 0x18, 0x03, 0x20, 0x01, 0x28,
 	0x0b, 0x32, 0x15, 0x2e, 0x6e, 0x61, 0x6b, 0x61, 0x6d, 0x61, 0x2e, 0x70, 0x65, 0x65, 0x72, 0x2e,
 	0x50, 0x72, 0x65, 0x73, 0x65, 0x6e, 0x63, 0x65, 0x48, 0x00, 0x52, 0x05, 0x74, 0x72, 0x61, 0x63,
-	0x6b, 0x12, 0x35, 0x0a, 0x07, 0x75, 0x6e, 0x74, 0x72, 0x61, 0x63, 0x6b, 0x18, 0x05, 0x20, 0x01,
+	0x6b, 0x12, 0x35, 0x0a, 0x07, 0x75, 0x6e, 0x74, 0x72, 0x61, 0x63, 0x6b, 0x18, 0x04, 0x20, 0x01,
 	0x28, 0x0b, 0x32, 0x19, 0x2e, 0x6e, 0x61, 0x6b, 0x61, 0x6d, 0x61, 0x2e, 0x70, 0x65, 0x65, 0x72,
 	0x2e, 0x55, 0x6e, 0x74, 0x72, 0x61, 0x63, 0x6b, 0x56, 0x61, 0x6c, 0x75, 0x65, 0x48, 0x00, 0x52,
 	0x07, 0x75, 0x6e, 0x74, 0x72, 0x61, 0x63, 0x6b, 0x12, 0x29, 0x0a, 0x03, 0x62, 0x61, 0x6e, 0x18,
-	0x06, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x15, 0x2e, 0x6e, 0x61, 0x6b, 0x61, 0x6d, 0x61, 0x2e, 0x70,
+	0x05, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x15, 0x2e, 0x6e, 0x61, 0x6b, 0x61, 0x6d, 0x61, 0x2e, 0x70,
 	0x65, 0x65, 0x72, 0x2e, 0x42, 0x61, 0x6e, 0x56, 0x61, 0x6c, 0x75, 0x65, 0x48, 0x00, 0x52, 0x03,
 	0x62, 0x61, 0x6e, 0x12, 0x39, 0x0a, 0x0b, 0x75, 0x70, 0x64, 0x61, 0x74, 0x65, 0x54, 0x72, 0x61,
-	0x63, 0x6b, 0x18, 0x07, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x15, 0x2e, 0x6e, 0x61, 0x6b, 0x61, 0x6d,
+	0x63, 0x6b, 0x18, 0x06, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x15, 0x2e, 0x6e, 0x61, 0x6b, 0x61, 0x6d,
 	0x61, 0x2e, 0x70, 0x65, 0x65, 0x72, 0x2e, 0x50, 0x72, 0x65, 0x73, 0x65, 0x6e, 0x63, 0x65, 0x48,
 	0x00, 0x52, 0x0b, 0x75, 0x70, 0x64, 0x61, 0x74, 0x65, 0x54, 0x72, 0x61, 0x63, 0x6b, 0x12, 0x46,
 	0x0a, 0x0d, 0x4d, 0x61, 0x74, 0x63, 0x68, 0x6d, 0x61, 0x6b, 0x65, 0x72, 0x41, 0x64, 0x64, 0x18,
-	0x08, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1e, 0x2e, 0x6e, 0x61, 0x6b, 0x61, 0x6d, 0x61, 0x2e, 0x70,
+	0x07, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1e, 0x2e, 0x6e, 0x61, 0x6b, 0x61, 0x6d, 0x61, 0x2e, 0x70,
 	0x65, 0x65, 0x72, 0x2e, 0x4d, 0x61, 0x74, 0x63, 0x68, 0x6d, 0x61, 0x6b, 0x65, 0x72, 0x45, 0x78,
 	0x74, 0x72, 0x61, 0x63, 0x74, 0x48, 0x00, 0x52, 0x0d, 0x4d, 0x61, 0x74, 0x63, 0x68, 0x6d, 0x61,
 	0x6b, 0x65, 0x72, 0x41, 0x64, 0x64, 0x12, 0x5a, 0x0a, 0x17, 0x4d, 0x61, 0x74, 0x63, 0x68, 0x6d,
 	0x61, 0x6b, 0x65, 0x72, 0x52, 0x65, 0x6d, 0x6f, 0x76, 0x65, 0x53, 0x65, 0x73, 0x73, 0x69, 0x6f,
-	0x6e, 0x18, 0x09, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1e, 0x2e, 0x6e, 0x61, 0x6b, 0x61, 0x6d, 0x61,
+	0x6e, 0x18, 0x08, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1e, 0x2e, 0x6e, 0x61, 0x6b, 0x61, 0x6d, 0x61,
 	0x2e, 0x70, 0x65, 0x65, 0x72, 0x2e, 0x4d, 0x61, 0x74, 0x63, 0x68, 0x6d, 0x61, 0x6b, 0x65, 0x72,
 	0x45, 0x78, 0x74, 0x72, 0x61, 0x63, 0x74, 0x48, 0x00, 0x52, 0x17, 0x4d, 0x61, 0x74, 0x63, 0x68,
 	0x6d, 0x61, 0x6b, 0x65, 0x72, 0x52, 0x65, 0x6d, 0x6f, 0x76, 0x65, 0x53, 0x65, 0x73, 0x73, 0x69,
 	0x6f, 0x6e, 0x12, 0x60, 0x0a, 0x1a, 0x4d, 0x61, 0x74, 0x63, 0x68, 0x6d, 0x61, 0x6b, 0x65, 0x72,
 	0x52, 0x65, 0x6d, 0x6f, 0x76, 0x65, 0x53, 0x65, 0x73, 0x73, 0x69, 0x6f, 0x6e, 0x41, 0x6c, 0x6c,
-	0x18, 0x0a, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1e, 0x2e, 0x6e, 0x61, 0x6b, 0x61, 0x6d, 0x61, 0x2e,
+	0x18, 0x09, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1e, 0x2e, 0x6e, 0x61, 0x6b, 0x61, 0x6d, 0x61, 0x2e,
 	0x70, 0x65, 0x65, 0x72, 0x2e, 0x4d, 0x61, 0x74, 0x63, 0x68, 0x6d, 0x61, 0x6b, 0x65, 0x72, 0x45,
 	0x78, 0x74, 0x72, 0x61, 0x63, 0x74, 0x48, 0x00, 0x52, 0x1a, 0x4d, 0x61, 0x74, 0x63, 0x68, 0x6d,
 	0x61, 0x6b, 0x65, 0x72, 0x52, 0x65, 0x6d, 0x6f, 0x76, 0x65, 0x53, 0x65, 0x73, 0x73, 0x69, 0x6f,
 	0x6e, 0x41, 0x6c, 0x6c, 0x12, 0x56, 0x0a, 0x15, 0x4d, 0x61, 0x74, 0x63, 0x68, 0x6d, 0x61, 0x6b,
-	0x65, 0x72, 0x52, 0x65, 0x6d, 0x6f, 0x76, 0x65, 0x50, 0x61, 0x72, 0x74, 0x79, 0x18, 0x0b, 0x20,
+	0x65, 0x72, 0x52, 0x65, 0x6d, 0x6f, 0x76, 0x65, 0x50, 0x61, 0x72, 0x74, 0x79, 0x18, 0x0a, 0x20,
 	0x01, 0x28, 0x0b, 0x32, 0x1e, 0x2e, 0x6e, 0x61, 0x6b, 0x61, 0x6d, 0x61, 0x2e, 0x70, 0x65, 0x65,
 	0x72, 0x2e, 0x4d, 0x61, 0x74, 0x63, 0x68, 0x6d, 0x61, 0x6b, 0x65, 0x72, 0x45, 0x78, 0x74, 0x72,
 	0x61, 0x63, 0x74, 0x48, 0x00, 0x52, 0x15, 0x4d, 0x61, 0x74, 0x63, 0x68, 0x6d, 0x61, 0x6b, 0x65,
 	0x72, 0x52, 0x65, 0x6d, 0x6f, 0x76, 0x65, 0x50, 0x61, 0x72, 0x74, 0x79, 0x12, 0x5c, 0x0a, 0x18,
 	0x4d, 0x61, 0x74, 0x63, 0x68, 0x6d, 0x61, 0x6b, 0x65, 0x72, 0x52, 0x65, 0x6d, 0x6f, 0x76, 0x65,
-	0x50, 0x61, 0x72, 0x74, 0x79, 0x41, 0x6c, 0x6c, 0x18, 0x0c, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1e,
+	0x50, 0x61, 0x72, 0x74, 0x79, 0x41, 0x6c, 0x6c, 0x18, 0x0b, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1e,
 	0x2e, 0x6e, 0x61, 0x6b, 0x61, 0x6d, 0x61, 0x2e, 0x70, 0x65, 0x65, 0x72, 0x2e, 0x4d, 0x61, 0x74,
 	0x63, 0x68, 0x6d, 0x61, 0x6b, 0x65, 0x72, 0x45, 0x78, 0x74, 0x72, 0x61, 0x63, 0x74, 0x48, 0x00,
 	0x52, 0x18, 0x4d, 0x61, 0x74, 0x63, 0x68, 0x6d, 0x61, 0x6b, 0x65, 0x72, 0x52, 0x65, 0x6d, 0x6f,
 	0x76, 0x65, 0x50, 0x61, 0x72, 0x74, 0x79, 0x41, 0x6c, 0x6c, 0x12, 0x52, 0x0a, 0x13, 0x4d, 0x61,
 	0x74, 0x63, 0x68, 0x6d, 0x61, 0x6b, 0x65, 0x72, 0x52, 0x65, 0x6d, 0x6f, 0x76, 0x65, 0x41, 0x6c,
-	0x6c, 0x18, 0x0d, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1e, 0x2e, 0x6e, 0x61, 0x6b, 0x61, 0x6d, 0x61,
+	0x6c, 0x18, 0x0c, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1e, 0x2e, 0x6e, 0x61, 0x6b, 0x61, 0x6d, 0x61,
 	0x2e, 0x70, 0x65, 0x65, 0x72, 0x2e, 0x4d, 0x61, 0x74, 0x63, 0x68, 0x6d, 0x61, 0x6b, 0x65, 0x72,
 	0x45, 0x78, 0x74, 0x72, 0x61, 0x63, 0x74, 0x48, 0x00, 0x52, 0x13, 0x4d, 0x61, 0x74, 0x63, 0x68,
 	0x6d, 0x61, 0x6b, 0x65, 0x72, 0x52, 0x65, 0x6d, 0x6f, 0x76, 0x65, 0x41, 0x6c, 0x6c, 0x12, 0x5a,
 	0x0a, 0x10, 0x4d, 0x61, 0x74, 0x63, 0x68, 0x6d, 0x61, 0x6b, 0x65, 0x72, 0x52, 0x65, 0x6d, 0x6f,
-	0x76, 0x65, 0x18, 0x0e, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x2c, 0x2e, 0x6e, 0x61, 0x6b, 0x61, 0x6d,
+	0x76, 0x65, 0x18, 0x0d, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x2c, 0x2e, 0x6e, 0x61, 0x6b, 0x61, 0x6d,
 	0x61, 0x2e, 0x70, 0x65, 0x65, 0x72, 0x2e, 0x42, 0x69, 0x6e, 0x61, 0x72, 0x79, 0x4c, 0x6f, 0x67,
 	0x2e, 0x50, 0x61, 0x72, 0x74, 0x79, 0x4d, 0x61, 0x74, 0x63, 0x68, 0x6d, 0x61, 0x6b, 0x65, 0x72,
 	0x52, 0x65, 0x6d, 0x6f, 0x76, 0x65, 0x48, 0x00, 0x52, 0x10, 0x4d, 0x61, 0x74, 0x63, 0x68, 0x6d,
@@ -4748,7 +4774,7 @@ func file_peer_proto_rawDescGZIP() []byte {
 }
 
 var file_peer_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_peer_proto_msgTypes = make([]protoimpl.MessageInfo, 58)
+var file_peer_proto_msgTypes = make([]protoimpl.MessageInfo, 59)
 var file_peer_proto_goTypes = []interface{}{
 	(Recipienter_Role)(0),                   // 0: nakama.peer.Recipienter.Role
 	(NodeMeta_Status)(0),                    // 1: nakama.peer.NodeMeta.Status
@@ -4758,155 +4784,154 @@ var file_peer_proto_goTypes = []interface{}{
 	(*Frame)(nil),                           // 5: nakama.peer.Frame
 	(*Disconnect)(nil),                      // 6: nakama.peer.Disconnect
 	(*State)(nil),                           // 7: nakama.peer.State
-	(*Status)(nil),                          // 8: nakama.peer.Status
-	(*PresenceID)(nil),                      // 9: nakama.peer.PresenceID
-	(*Presence)(nil),                        // 10: nakama.peer.Presence
-	(*PresenceStream)(nil),                  // 11: nakama.peer.PresenceStream
-	(*PresenceMeta)(nil),                    // 12: nakama.peer.PresenceMeta
-	(*NodeMeta)(nil),                        // 13: nakama.peer.NodeMeta
-	(*BanValue)(nil),                        // 14: nakama.peer.BanValue
-	(*UntrackValue)(nil),                    // 15: nakama.peer.UntrackValue
-	(*MatchBatch)(nil),                      // 16: nakama.peer.MatchBatch
-	(*BinaryLog)(nil),                       // 17: nakama.peer.BinaryLog
-	(*Point)(nil),                           // 18: nakama.peer.Point
-	(*CheckPoint)(nil),                      // 19: nakama.peer.CheckPoint
-	(*MatchmakerPresence)(nil),              // 20: nakama.peer.MatchmakerPresence
-	(*MatchmakerExtract)(nil),               // 21: nakama.peer.MatchmakerExtract
-	(*MatchPresence)(nil),                   // 22: nakama.peer.MatchPresence
-	(*Party)(nil),                           // 23: nakama.peer.Party
-	(*Match)(nil),                           // 24: nakama.peer.Match
-	(*Peer_Query)(nil),                      // 25: nakama.peer.Peer.Query
-	(*Peer_Request)(nil),                    // 26: nakama.peer.Peer.Request
-	(*Peer_ResponseWriter)(nil),             // 27: nakama.peer.Peer.ResponseWriter
-	(*Peer_Envelope)(nil),                   // 28: nakama.peer.Peer.Envelope
-	nil,                                     // 29: nakama.peer.Peer.Request.HeaderEntry
-	nil,                                     // 30: nakama.peer.Peer.Request.QueryEntry
-	nil,                                     // 31: nakama.peer.Peer.Request.ContextEntry
-	nil,                                     // 32: nakama.peer.Peer.ResponseWriter.HeaderEntry
-	nil,                                     // 33: nakama.peer.Peer.ResponseWriter.ContextEntry
-	nil,                                     // 34: nakama.peer.Peer.Envelope.ContextEntry
-	nil,                                     // 35: nakama.peer.NodeMeta.VarsEntry
-	(*BinaryLog_PartyMatchmakerRemove)(nil), // 36: nakama.peer.BinaryLog.PartyMatchmakerRemove
-	nil,                                     // 37: nakama.peer.Point.PointEntry
-	nil,                                     // 38: nakama.peer.CheckPoint.ValueEntry
-	nil,                                     // 39: nakama.peer.MatchmakerExtract.StringPropertiesEntry
-	nil,                                     // 40: nakama.peer.MatchmakerExtract.NumericPropertiesEntry
-	(*Party_JoinRequest)(nil),               // 41: nakama.peer.Party.JoinRequest
-	(*Party_Promote)(nil),                   // 42: nakama.peer.Party.Promote
-	(*Party_Accept)(nil),                    // 43: nakama.peer.Party.Accept
-	(*Party_Remove)(nil),                    // 44: nakama.peer.Party.Remove
-	(*Party_Close)(nil),                     // 45: nakama.peer.Party.Close
-	(*Party_JoinRequestList)(nil),           // 46: nakama.peer.Party.JoinRequestList
-	(*Party_JoinRequestListReply)(nil),      // 47: nakama.peer.Party.JoinRequestListReply
-	(*Party_MatchmakerAdd)(nil),             // 48: nakama.peer.Party.MatchmakerAdd
-	(*Party_MatchmakerAddReply)(nil),        // 49: nakama.peer.Party.MatchmakerAddReply
-	(*Party_MatchmakerRemove)(nil),          // 50: nakama.peer.Party.MatchmakerRemove
-	(*Party_DataSend)(nil),                  // 51: nakama.peer.Party.DataSend
-	nil,                                     // 52: nakama.peer.Party.MatchmakerAdd.StringPropertiesEntry
-	nil,                                     // 53: nakama.peer.Party.MatchmakerAdd.NumericPropertiesEntry
-	(*Match_JoinAttempt)(nil),               // 54: nakama.peer.Match.JoinAttempt
-	(*Match_JoinAttemptReply)(nil),          // 55: nakama.peer.Match.JoinAttemptReply
-	(*Match_SendData)(nil),                  // 56: nakama.peer.Match.SendData
-	(*Match_Signal)(nil),                    // 57: nakama.peer.Match.Signal
-	(*Match_State)(nil),                     // 58: nakama.peer.Match.State
-	nil,                                     // 59: nakama.peer.Match.JoinAttempt.VarsEntry
-	nil,                                     // 60: nakama.peer.Match.JoinAttempt.MetadataEntry
-	(*timestamppb.Timestamp)(nil),           // 61: google.protobuf.Timestamp
-	(*api.AnyRequest)(nil),                  // 62: nakama.api.AnyRequest
-	(*rtapi.Notifications)(nil),             // 63: nakama.realtime.Notifications
-	(*api.Match)(nil),                       // 64: nakama.api.Match
-	(*rtapi.Error)(nil),                     // 65: nakama.realtime.Error
-	(*rtapi.Envelope)(nil),                  // 66: nakama.realtime.Envelope
-	(*rtapi.UserPresence)(nil),              // 67: nakama.realtime.UserPresence
+	(*StateNode)(nil),                       // 8: nakama.peer.StateNode
+	(*Status)(nil),                          // 9: nakama.peer.Status
+	(*PresenceID)(nil),                      // 10: nakama.peer.PresenceID
+	(*Presence)(nil),                        // 11: nakama.peer.Presence
+	(*PresenceStream)(nil),                  // 12: nakama.peer.PresenceStream
+	(*PresenceMeta)(nil),                    // 13: nakama.peer.PresenceMeta
+	(*NodeMeta)(nil),                        // 14: nakama.peer.NodeMeta
+	(*BanValue)(nil),                        // 15: nakama.peer.BanValue
+	(*UntrackValue)(nil),                    // 16: nakama.peer.UntrackValue
+	(*MatchBatch)(nil),                      // 17: nakama.peer.MatchBatch
+	(*BinaryLog)(nil),                       // 18: nakama.peer.BinaryLog
+	(*Point)(nil),                           // 19: nakama.peer.Point
+	(*CheckPoint)(nil),                      // 20: nakama.peer.CheckPoint
+	(*MatchmakerPresence)(nil),              // 21: nakama.peer.MatchmakerPresence
+	(*MatchmakerExtract)(nil),               // 22: nakama.peer.MatchmakerExtract
+	(*MatchPresence)(nil),                   // 23: nakama.peer.MatchPresence
+	(*Party)(nil),                           // 24: nakama.peer.Party
+	(*Match)(nil),                           // 25: nakama.peer.Match
+	(*Peer_Query)(nil),                      // 26: nakama.peer.Peer.Query
+	(*Peer_Request)(nil),                    // 27: nakama.peer.Peer.Request
+	(*Peer_ResponseWriter)(nil),             // 28: nakama.peer.Peer.ResponseWriter
+	(*Peer_Envelope)(nil),                   // 29: nakama.peer.Peer.Envelope
+	nil,                                     // 30: nakama.peer.Peer.Request.HeaderEntry
+	nil,                                     // 31: nakama.peer.Peer.Request.QueryEntry
+	nil,                                     // 32: nakama.peer.Peer.Request.ContextEntry
+	nil,                                     // 33: nakama.peer.Peer.ResponseWriter.HeaderEntry
+	nil,                                     // 34: nakama.peer.Peer.ResponseWriter.ContextEntry
+	nil,                                     // 35: nakama.peer.Peer.Envelope.ContextEntry
+	nil,                                     // 36: nakama.peer.NodeMeta.VarsEntry
+	(*BinaryLog_PartyMatchmakerRemove)(nil), // 37: nakama.peer.BinaryLog.PartyMatchmakerRemove
+	nil,                                     // 38: nakama.peer.Point.PointEntry
+	nil,                                     // 39: nakama.peer.CheckPoint.ValueEntry
+	nil,                                     // 40: nakama.peer.MatchmakerExtract.StringPropertiesEntry
+	nil,                                     // 41: nakama.peer.MatchmakerExtract.NumericPropertiesEntry
+	(*Party_JoinRequest)(nil),               // 42: nakama.peer.Party.JoinRequest
+	(*Party_Promote)(nil),                   // 43: nakama.peer.Party.Promote
+	(*Party_Accept)(nil),                    // 44: nakama.peer.Party.Accept
+	(*Party_Remove)(nil),                    // 45: nakama.peer.Party.Remove
+	(*Party_Close)(nil),                     // 46: nakama.peer.Party.Close
+	(*Party_JoinRequestList)(nil),           // 47: nakama.peer.Party.JoinRequestList
+	(*Party_JoinRequestListReply)(nil),      // 48: nakama.peer.Party.JoinRequestListReply
+	(*Party_MatchmakerAdd)(nil),             // 49: nakama.peer.Party.MatchmakerAdd
+	(*Party_MatchmakerAddReply)(nil),        // 50: nakama.peer.Party.MatchmakerAddReply
+	(*Party_MatchmakerRemove)(nil),          // 51: nakama.peer.Party.MatchmakerRemove
+	(*Party_DataSend)(nil),                  // 52: nakama.peer.Party.DataSend
+	nil,                                     // 53: nakama.peer.Party.MatchmakerAdd.StringPropertiesEntry
+	nil,                                     // 54: nakama.peer.Party.MatchmakerAdd.NumericPropertiesEntry
+	(*Match_JoinAttempt)(nil),               // 55: nakama.peer.Match.JoinAttempt
+	(*Match_JoinAttemptReply)(nil),          // 56: nakama.peer.Match.JoinAttemptReply
+	(*Match_SendData)(nil),                  // 57: nakama.peer.Match.SendData
+	(*Match_Signal)(nil),                    // 58: nakama.peer.Match.Signal
+	(*Match_State)(nil),                     // 59: nakama.peer.Match.State
+	nil,                                     // 60: nakama.peer.Match.JoinAttempt.VarsEntry
+	nil,                                     // 61: nakama.peer.Match.JoinAttempt.MetadataEntry
+	(*timestamppb.Timestamp)(nil),           // 62: google.protobuf.Timestamp
+	(*api.AnyRequest)(nil),                  // 63: nakama.api.AnyRequest
+	(*rtapi.Notifications)(nil),             // 64: nakama.realtime.Notifications
+	(*api.Match)(nil),                       // 65: nakama.api.Match
+	(*rtapi.Error)(nil),                     // 66: nakama.realtime.Error
+	(*rtapi.Envelope)(nil),                  // 67: nakama.realtime.Envelope
+	(*rtapi.UserPresence)(nil),              // 68: nakama.realtime.UserPresence
 }
 var file_peer_proto_depIdxs = []int32{
 	0,  // 0: nakama.peer.Recipienter.action:type_name -> nakama.peer.Recipienter.Role
-	11, // 1: nakama.peer.Recipienter.stream:type_name -> nakama.peer.PresenceStream
-	61, // 2: nakama.peer.Frame.timestamp:type_name -> google.protobuf.Timestamp
-	28, // 3: nakama.peer.Frame.envelope:type_name -> nakama.peer.Peer.Envelope
-	17, // 4: nakama.peer.Frame.binaryLog:type_name -> nakama.peer.BinaryLog
-	8,  // 5: nakama.peer.Frame.status:type_name -> nakama.peer.Status
-	62, // 6: nakama.peer.Frame.event:type_name -> nakama.api.AnyRequest
-	17, // 7: nakama.peer.State.binaryLog:type_name -> nakama.peer.BinaryLog
-	10, // 8: nakama.peer.State.Presences:type_name -> nakama.peer.Presence
-	19, // 9: nakama.peer.State.checkPoint:type_name -> nakama.peer.CheckPoint
-	21, // 10: nakama.peer.State.matchmaker:type_name -> nakama.peer.MatchmakerExtract
-	11, // 11: nakama.peer.Presence.stream:type_name -> nakama.peer.PresenceStream
-	12, // 12: nakama.peer.Presence.meta:type_name -> nakama.peer.PresenceMeta
-	35, // 13: nakama.peer.NodeMeta.vars:type_name -> nakama.peer.NodeMeta.VarsEntry
-	1,  // 14: nakama.peer.NodeMeta.status:type_name -> nakama.peer.NodeMeta.Status
-	2,  // 15: nakama.peer.NodeMeta.balancer:type_name -> nakama.peer.NodeMeta.Balancer
-	11, // 16: nakama.peer.UntrackValue.stream:type_name -> nakama.peer.PresenceStream
-	11, // 17: nakama.peer.UntrackValue.skip:type_name -> nakama.peer.PresenceStream
-	61, // 18: nakama.peer.BinaryLog.timestamp:type_name -> google.protobuf.Timestamp
-	10, // 19: nakama.peer.BinaryLog.track:type_name -> nakama.peer.Presence
-	15, // 20: nakama.peer.BinaryLog.untrack:type_name -> nakama.peer.UntrackValue
-	14, // 21: nakama.peer.BinaryLog.ban:type_name -> nakama.peer.BanValue
-	10, // 22: nakama.peer.BinaryLog.updateTrack:type_name -> nakama.peer.Presence
-	21, // 23: nakama.peer.BinaryLog.MatchmakerAdd:type_name -> nakama.peer.MatchmakerExtract
-	21, // 24: nakama.peer.BinaryLog.MatchmakerRemoveSession:type_name -> nakama.peer.MatchmakerExtract
-	21, // 25: nakama.peer.BinaryLog.MatchmakerRemoveSessionAll:type_name -> nakama.peer.MatchmakerExtract
-	21, // 26: nakama.peer.BinaryLog.MatchmakerRemoveParty:type_name -> nakama.peer.MatchmakerExtract
-	21, // 27: nakama.peer.BinaryLog.MatchmakerRemovePartyAll:type_name -> nakama.peer.MatchmakerExtract
-	21, // 28: nakama.peer.BinaryLog.MatchmakerRemoveAll:type_name -> nakama.peer.MatchmakerExtract
-	36, // 29: nakama.peer.BinaryLog.MatchmakerRemove:type_name -> nakama.peer.BinaryLog.PartyMatchmakerRemove
-	37, // 30: nakama.peer.Point.point:type_name -> nakama.peer.Point.PointEntry
-	38, // 31: nakama.peer.CheckPoint.value:type_name -> nakama.peer.CheckPoint.ValueEntry
-	20, // 32: nakama.peer.MatchmakerExtract.presences:type_name -> nakama.peer.MatchmakerPresence
-	39, // 33: nakama.peer.MatchmakerExtract.stringProperties:type_name -> nakama.peer.MatchmakerExtract.StringPropertiesEntry
-	40, // 34: nakama.peer.MatchmakerExtract.numericProperties:type_name -> nakama.peer.MatchmakerExtract.NumericPropertiesEntry
-	29, // 35: nakama.peer.Peer.Request.header:type_name -> nakama.peer.Peer.Request.HeaderEntry
-	30, // 36: nakama.peer.Peer.Request.query:type_name -> nakama.peer.Peer.Request.QueryEntry
-	31, // 37: nakama.peer.Peer.Request.context:type_name -> nakama.peer.Peer.Request.ContextEntry
-	32, // 38: nakama.peer.Peer.ResponseWriter.header:type_name -> nakama.peer.Peer.ResponseWriter.HeaderEntry
-	33, // 39: nakama.peer.Peer.ResponseWriter.context:type_name -> nakama.peer.Peer.ResponseWriter.ContextEntry
-	4,  // 40: nakama.peer.Peer.ResponseWriter.recipient:type_name -> nakama.peer.Recipienter
-	63, // 41: nakama.peer.Peer.ResponseWriter.notifications:type_name -> nakama.realtime.Notifications
-	34, // 42: nakama.peer.Peer.Envelope.context:type_name -> nakama.peer.Peer.Envelope.ContextEntry
-	4,  // 43: nakama.peer.Peer.Envelope.recipient:type_name -> nakama.peer.Recipienter
-	6,  // 44: nakama.peer.Peer.Envelope.disconnect:type_name -> nakama.peer.Disconnect
-	41, // 45: nakama.peer.Peer.Envelope.partyJoinRequest:type_name -> nakama.peer.Party.JoinRequest
-	42, // 46: nakama.peer.Peer.Envelope.partyPromote:type_name -> nakama.peer.Party.Promote
-	43, // 47: nakama.peer.Peer.Envelope.partyAccept:type_name -> nakama.peer.Party.Accept
-	44, // 48: nakama.peer.Peer.Envelope.partyRemove:type_name -> nakama.peer.Party.Remove
-	45, // 49: nakama.peer.Peer.Envelope.partyClose:type_name -> nakama.peer.Party.Close
-	46, // 50: nakama.peer.Peer.Envelope.partyJoinRequestList:type_name -> nakama.peer.Party.JoinRequestList
-	47, // 51: nakama.peer.Peer.Envelope.partyJoinRequestListReply:type_name -> nakama.peer.Party.JoinRequestListReply
-	48, // 52: nakama.peer.Peer.Envelope.partyMatchmakerAdd:type_name -> nakama.peer.Party.MatchmakerAdd
-	49, // 53: nakama.peer.Peer.Envelope.PartyMatchmakerAddReply:type_name -> nakama.peer.Party.MatchmakerAddReply
-	50, // 54: nakama.peer.Peer.Envelope.partyMatchmakerRemove:type_name -> nakama.peer.Party.MatchmakerRemove
-	51, // 55: nakama.peer.Peer.Envelope.partyDataSend:type_name -> nakama.peer.Party.DataSend
-	54, // 56: nakama.peer.Peer.Envelope.matchJoinAttempt:type_name -> nakama.peer.Match.JoinAttempt
-	55, // 57: nakama.peer.Peer.Envelope.mathJoinAttemptReply:type_name -> nakama.peer.Match.JoinAttemptReply
-	56, // 58: nakama.peer.Peer.Envelope.matchSendData:type_name -> nakama.peer.Match.SendData
-	57, // 59: nakama.peer.Peer.Envelope.matchSignal:type_name -> nakama.peer.Match.Signal
-	64, // 60: nakama.peer.Peer.Envelope.match:type_name -> nakama.api.Match
-	65, // 61: nakama.peer.Peer.Envelope.error:type_name -> nakama.realtime.Error
-	58, // 62: nakama.peer.Peer.Envelope.matchStateReply:type_name -> nakama.peer.Match.State
-	66, // 63: nakama.peer.Peer.Envelope.nkEnvelope:type_name -> nakama.realtime.Envelope
-	25, // 64: nakama.peer.Peer.Request.QueryEntry.value:type_name -> nakama.peer.Peer.Query
-	18, // 65: nakama.peer.CheckPoint.ValueEntry.value:type_name -> nakama.peer.Point
-	10, // 66: nakama.peer.Party.JoinRequest.presence:type_name -> nakama.peer.Presence
-	67, // 67: nakama.peer.Party.Promote.userPresence:type_name -> nakama.realtime.UserPresence
-	67, // 68: nakama.peer.Party.Accept.userPresence:type_name -> nakama.realtime.UserPresence
-	67, // 69: nakama.peer.Party.Remove.userPresence:type_name -> nakama.realtime.UserPresence
-	67, // 70: nakama.peer.Party.JoinRequestListReply.userPresence:type_name -> nakama.realtime.UserPresence
-	52, // 71: nakama.peer.Party.MatchmakerAdd.stringProperties:type_name -> nakama.peer.Party.MatchmakerAdd.StringPropertiesEntry
-	53, // 72: nakama.peer.Party.MatchmakerAdd.numericProperties:type_name -> nakama.peer.Party.MatchmakerAdd.NumericPropertiesEntry
-	9,  // 73: nakama.peer.Party.MatchmakerAddReply.presenceID:type_name -> nakama.peer.PresenceID
-	59, // 74: nakama.peer.Match.JoinAttempt.vars:type_name -> nakama.peer.Match.JoinAttempt.VarsEntry
-	60, // 75: nakama.peer.Match.JoinAttempt.metadata:type_name -> nakama.peer.Match.JoinAttempt.MetadataEntry
-	22, // 76: nakama.peer.Match.JoinAttemptReply.presences:type_name -> nakama.peer.MatchPresence
-	67, // 77: nakama.peer.Match.State.userPresence:type_name -> nakama.realtime.UserPresence
-	26, // 78: nakama.peer.PeerApi.Call:input_type -> nakama.peer.Peer.Request
-	26, // 79: nakama.peer.PeerApi.Stream:input_type -> nakama.peer.Peer.Request
-	27, // 80: nakama.peer.PeerApi.Call:output_type -> nakama.peer.Peer.ResponseWriter
-	27, // 81: nakama.peer.PeerApi.Stream:output_type -> nakama.peer.Peer.ResponseWriter
-	80, // [80:82] is the sub-list for method output_type
-	78, // [78:80] is the sub-list for method input_type
-	78, // [78:78] is the sub-list for extension type_name
-	78, // [78:78] is the sub-list for extension extendee
-	0,  // [0:78] is the sub-list for field type_name
+	12, // 1: nakama.peer.Recipienter.stream:type_name -> nakama.peer.PresenceStream
+	62, // 2: nakama.peer.Frame.timestamp:type_name -> google.protobuf.Timestamp
+	29, // 3: nakama.peer.Frame.envelope:type_name -> nakama.peer.Peer.Envelope
+	18, // 4: nakama.peer.Frame.binaryLog:type_name -> nakama.peer.BinaryLog
+	9,  // 5: nakama.peer.Frame.status:type_name -> nakama.peer.Status
+	63, // 6: nakama.peer.Frame.event:type_name -> nakama.api.AnyRequest
+	8,  // 7: nakama.peer.State.nodes:type_name -> nakama.peer.StateNode
+	11, // 8: nakama.peer.StateNode.Presences:type_name -> nakama.peer.Presence
+	22, // 9: nakama.peer.StateNode.matchmaker:type_name -> nakama.peer.MatchmakerExtract
+	12, // 10: nakama.peer.Presence.stream:type_name -> nakama.peer.PresenceStream
+	13, // 11: nakama.peer.Presence.meta:type_name -> nakama.peer.PresenceMeta
+	36, // 12: nakama.peer.NodeMeta.vars:type_name -> nakama.peer.NodeMeta.VarsEntry
+	1,  // 13: nakama.peer.NodeMeta.status:type_name -> nakama.peer.NodeMeta.Status
+	2,  // 14: nakama.peer.NodeMeta.balancer:type_name -> nakama.peer.NodeMeta.Balancer
+	12, // 15: nakama.peer.UntrackValue.stream:type_name -> nakama.peer.PresenceStream
+	12, // 16: nakama.peer.UntrackValue.skip:type_name -> nakama.peer.PresenceStream
+	11, // 17: nakama.peer.BinaryLog.track:type_name -> nakama.peer.Presence
+	16, // 18: nakama.peer.BinaryLog.untrack:type_name -> nakama.peer.UntrackValue
+	15, // 19: nakama.peer.BinaryLog.ban:type_name -> nakama.peer.BanValue
+	11, // 20: nakama.peer.BinaryLog.updateTrack:type_name -> nakama.peer.Presence
+	22, // 21: nakama.peer.BinaryLog.MatchmakerAdd:type_name -> nakama.peer.MatchmakerExtract
+	22, // 22: nakama.peer.BinaryLog.MatchmakerRemoveSession:type_name -> nakama.peer.MatchmakerExtract
+	22, // 23: nakama.peer.BinaryLog.MatchmakerRemoveSessionAll:type_name -> nakama.peer.MatchmakerExtract
+	22, // 24: nakama.peer.BinaryLog.MatchmakerRemoveParty:type_name -> nakama.peer.MatchmakerExtract
+	22, // 25: nakama.peer.BinaryLog.MatchmakerRemovePartyAll:type_name -> nakama.peer.MatchmakerExtract
+	22, // 26: nakama.peer.BinaryLog.MatchmakerRemoveAll:type_name -> nakama.peer.MatchmakerExtract
+	37, // 27: nakama.peer.BinaryLog.MatchmakerRemove:type_name -> nakama.peer.BinaryLog.PartyMatchmakerRemove
+	38, // 28: nakama.peer.Point.point:type_name -> nakama.peer.Point.PointEntry
+	39, // 29: nakama.peer.CheckPoint.value:type_name -> nakama.peer.CheckPoint.ValueEntry
+	21, // 30: nakama.peer.MatchmakerExtract.presences:type_name -> nakama.peer.MatchmakerPresence
+	40, // 31: nakama.peer.MatchmakerExtract.stringProperties:type_name -> nakama.peer.MatchmakerExtract.StringPropertiesEntry
+	41, // 32: nakama.peer.MatchmakerExtract.numericProperties:type_name -> nakama.peer.MatchmakerExtract.NumericPropertiesEntry
+	30, // 33: nakama.peer.Peer.Request.header:type_name -> nakama.peer.Peer.Request.HeaderEntry
+	31, // 34: nakama.peer.Peer.Request.query:type_name -> nakama.peer.Peer.Request.QueryEntry
+	32, // 35: nakama.peer.Peer.Request.context:type_name -> nakama.peer.Peer.Request.ContextEntry
+	33, // 36: nakama.peer.Peer.ResponseWriter.header:type_name -> nakama.peer.Peer.ResponseWriter.HeaderEntry
+	34, // 37: nakama.peer.Peer.ResponseWriter.context:type_name -> nakama.peer.Peer.ResponseWriter.ContextEntry
+	4,  // 38: nakama.peer.Peer.ResponseWriter.recipient:type_name -> nakama.peer.Recipienter
+	64, // 39: nakama.peer.Peer.ResponseWriter.notifications:type_name -> nakama.realtime.Notifications
+	35, // 40: nakama.peer.Peer.Envelope.context:type_name -> nakama.peer.Peer.Envelope.ContextEntry
+	4,  // 41: nakama.peer.Peer.Envelope.recipient:type_name -> nakama.peer.Recipienter
+	6,  // 42: nakama.peer.Peer.Envelope.disconnect:type_name -> nakama.peer.Disconnect
+	42, // 43: nakama.peer.Peer.Envelope.partyJoinRequest:type_name -> nakama.peer.Party.JoinRequest
+	43, // 44: nakama.peer.Peer.Envelope.partyPromote:type_name -> nakama.peer.Party.Promote
+	44, // 45: nakama.peer.Peer.Envelope.partyAccept:type_name -> nakama.peer.Party.Accept
+	45, // 46: nakama.peer.Peer.Envelope.partyRemove:type_name -> nakama.peer.Party.Remove
+	46, // 47: nakama.peer.Peer.Envelope.partyClose:type_name -> nakama.peer.Party.Close
+	47, // 48: nakama.peer.Peer.Envelope.partyJoinRequestList:type_name -> nakama.peer.Party.JoinRequestList
+	48, // 49: nakama.peer.Peer.Envelope.partyJoinRequestListReply:type_name -> nakama.peer.Party.JoinRequestListReply
+	49, // 50: nakama.peer.Peer.Envelope.partyMatchmakerAdd:type_name -> nakama.peer.Party.MatchmakerAdd
+	50, // 51: nakama.peer.Peer.Envelope.PartyMatchmakerAddReply:type_name -> nakama.peer.Party.MatchmakerAddReply
+	51, // 52: nakama.peer.Peer.Envelope.partyMatchmakerRemove:type_name -> nakama.peer.Party.MatchmakerRemove
+	52, // 53: nakama.peer.Peer.Envelope.partyDataSend:type_name -> nakama.peer.Party.DataSend
+	55, // 54: nakama.peer.Peer.Envelope.matchJoinAttempt:type_name -> nakama.peer.Match.JoinAttempt
+	56, // 55: nakama.peer.Peer.Envelope.mathJoinAttemptReply:type_name -> nakama.peer.Match.JoinAttemptReply
+	57, // 56: nakama.peer.Peer.Envelope.matchSendData:type_name -> nakama.peer.Match.SendData
+	58, // 57: nakama.peer.Peer.Envelope.matchSignal:type_name -> nakama.peer.Match.Signal
+	65, // 58: nakama.peer.Peer.Envelope.match:type_name -> nakama.api.Match
+	66, // 59: nakama.peer.Peer.Envelope.error:type_name -> nakama.realtime.Error
+	59, // 60: nakama.peer.Peer.Envelope.matchStateReply:type_name -> nakama.peer.Match.State
+	67, // 61: nakama.peer.Peer.Envelope.nkEnvelope:type_name -> nakama.realtime.Envelope
+	26, // 62: nakama.peer.Peer.Request.QueryEntry.value:type_name -> nakama.peer.Peer.Query
+	19, // 63: nakama.peer.CheckPoint.ValueEntry.value:type_name -> nakama.peer.Point
+	11, // 64: nakama.peer.Party.JoinRequest.presence:type_name -> nakama.peer.Presence
+	68, // 65: nakama.peer.Party.Promote.userPresence:type_name -> nakama.realtime.UserPresence
+	68, // 66: nakama.peer.Party.Accept.userPresence:type_name -> nakama.realtime.UserPresence
+	68, // 67: nakama.peer.Party.Remove.userPresence:type_name -> nakama.realtime.UserPresence
+	68, // 68: nakama.peer.Party.JoinRequestListReply.userPresence:type_name -> nakama.realtime.UserPresence
+	53, // 69: nakama.peer.Party.MatchmakerAdd.stringProperties:type_name -> nakama.peer.Party.MatchmakerAdd.StringPropertiesEntry
+	54, // 70: nakama.peer.Party.MatchmakerAdd.numericProperties:type_name -> nakama.peer.Party.MatchmakerAdd.NumericPropertiesEntry
+	10, // 71: nakama.peer.Party.MatchmakerAddReply.presenceID:type_name -> nakama.peer.PresenceID
+	60, // 72: nakama.peer.Match.JoinAttempt.vars:type_name -> nakama.peer.Match.JoinAttempt.VarsEntry
+	61, // 73: nakama.peer.Match.JoinAttempt.metadata:type_name -> nakama.peer.Match.JoinAttempt.MetadataEntry
+	23, // 74: nakama.peer.Match.JoinAttemptReply.presences:type_name -> nakama.peer.MatchPresence
+	68, // 75: nakama.peer.Match.State.userPresence:type_name -> nakama.realtime.UserPresence
+	27, // 76: nakama.peer.PeerApi.Call:input_type -> nakama.peer.Peer.Request
+	27, // 77: nakama.peer.PeerApi.Stream:input_type -> nakama.peer.Peer.Request
+	28, // 78: nakama.peer.PeerApi.Call:output_type -> nakama.peer.Peer.ResponseWriter
+	28, // 79: nakama.peer.PeerApi.Stream:output_type -> nakama.peer.Peer.ResponseWriter
+	78, // [78:80] is the sub-list for method output_type
+	76, // [76:78] is the sub-list for method input_type
+	76, // [76:76] is the sub-list for extension type_name
+	76, // [76:76] is the sub-list for extension extendee
+	0,  // [0:76] is the sub-list for field type_name
 }
 
 func init() { file_peer_proto_init() }
@@ -4976,7 +5001,7 @@ func file_peer_proto_init() {
 			}
 		}
 		file_peer_proto_msgTypes[5].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*Status); i {
+			switch v := v.(*StateNode); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -4988,7 +5013,7 @@ func file_peer_proto_init() {
 			}
 		}
 		file_peer_proto_msgTypes[6].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*PresenceID); i {
+			switch v := v.(*Status); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -5000,7 +5025,7 @@ func file_peer_proto_init() {
 			}
 		}
 		file_peer_proto_msgTypes[7].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*Presence); i {
+			switch v := v.(*PresenceID); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -5012,7 +5037,7 @@ func file_peer_proto_init() {
 			}
 		}
 		file_peer_proto_msgTypes[8].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*PresenceStream); i {
+			switch v := v.(*Presence); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -5024,7 +5049,7 @@ func file_peer_proto_init() {
 			}
 		}
 		file_peer_proto_msgTypes[9].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*PresenceMeta); i {
+			switch v := v.(*PresenceStream); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -5036,7 +5061,7 @@ func file_peer_proto_init() {
 			}
 		}
 		file_peer_proto_msgTypes[10].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*NodeMeta); i {
+			switch v := v.(*PresenceMeta); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -5048,7 +5073,7 @@ func file_peer_proto_init() {
 			}
 		}
 		file_peer_proto_msgTypes[11].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*BanValue); i {
+			switch v := v.(*NodeMeta); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -5060,7 +5085,7 @@ func file_peer_proto_init() {
 			}
 		}
 		file_peer_proto_msgTypes[12].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*UntrackValue); i {
+			switch v := v.(*BanValue); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -5072,7 +5097,7 @@ func file_peer_proto_init() {
 			}
 		}
 		file_peer_proto_msgTypes[13].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*MatchBatch); i {
+			switch v := v.(*UntrackValue); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -5084,7 +5109,7 @@ func file_peer_proto_init() {
 			}
 		}
 		file_peer_proto_msgTypes[14].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*BinaryLog); i {
+			switch v := v.(*MatchBatch); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -5096,7 +5121,7 @@ func file_peer_proto_init() {
 			}
 		}
 		file_peer_proto_msgTypes[15].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*Point); i {
+			switch v := v.(*BinaryLog); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -5108,7 +5133,7 @@ func file_peer_proto_init() {
 			}
 		}
 		file_peer_proto_msgTypes[16].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*CheckPoint); i {
+			switch v := v.(*Point); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -5120,7 +5145,7 @@ func file_peer_proto_init() {
 			}
 		}
 		file_peer_proto_msgTypes[17].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*MatchmakerPresence); i {
+			switch v := v.(*CheckPoint); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -5132,7 +5157,7 @@ func file_peer_proto_init() {
 			}
 		}
 		file_peer_proto_msgTypes[18].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*MatchmakerExtract); i {
+			switch v := v.(*MatchmakerPresence); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -5144,7 +5169,7 @@ func file_peer_proto_init() {
 			}
 		}
 		file_peer_proto_msgTypes[19].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*MatchPresence); i {
+			switch v := v.(*MatchmakerExtract); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -5156,7 +5181,7 @@ func file_peer_proto_init() {
 			}
 		}
 		file_peer_proto_msgTypes[20].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*Party); i {
+			switch v := v.(*MatchPresence); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -5168,7 +5193,7 @@ func file_peer_proto_init() {
 			}
 		}
 		file_peer_proto_msgTypes[21].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*Match); i {
+			switch v := v.(*Party); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -5180,7 +5205,7 @@ func file_peer_proto_init() {
 			}
 		}
 		file_peer_proto_msgTypes[22].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*Peer_Query); i {
+			switch v := v.(*Match); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -5192,7 +5217,7 @@ func file_peer_proto_init() {
 			}
 		}
 		file_peer_proto_msgTypes[23].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*Peer_Request); i {
+			switch v := v.(*Peer_Query); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -5204,7 +5229,7 @@ func file_peer_proto_init() {
 			}
 		}
 		file_peer_proto_msgTypes[24].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*Peer_ResponseWriter); i {
+			switch v := v.(*Peer_Request); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -5216,6 +5241,18 @@ func file_peer_proto_init() {
 			}
 		}
 		file_peer_proto_msgTypes[25].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*Peer_ResponseWriter); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_peer_proto_msgTypes[26].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Peer_Envelope); i {
 			case 0:
 				return &v.state
@@ -5227,7 +5264,7 @@ func file_peer_proto_init() {
 				return nil
 			}
 		}
-		file_peer_proto_msgTypes[33].Exporter = func(v interface{}, i int) interface{} {
+		file_peer_proto_msgTypes[34].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*BinaryLog_PartyMatchmakerRemove); i {
 			case 0:
 				return &v.state
@@ -5239,7 +5276,7 @@ func file_peer_proto_init() {
 				return nil
 			}
 		}
-		file_peer_proto_msgTypes[38].Exporter = func(v interface{}, i int) interface{} {
+		file_peer_proto_msgTypes[39].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Party_JoinRequest); i {
 			case 0:
 				return &v.state
@@ -5251,7 +5288,7 @@ func file_peer_proto_init() {
 				return nil
 			}
 		}
-		file_peer_proto_msgTypes[39].Exporter = func(v interface{}, i int) interface{} {
+		file_peer_proto_msgTypes[40].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Party_Promote); i {
 			case 0:
 				return &v.state
@@ -5263,7 +5300,7 @@ func file_peer_proto_init() {
 				return nil
 			}
 		}
-		file_peer_proto_msgTypes[40].Exporter = func(v interface{}, i int) interface{} {
+		file_peer_proto_msgTypes[41].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Party_Accept); i {
 			case 0:
 				return &v.state
@@ -5275,7 +5312,7 @@ func file_peer_proto_init() {
 				return nil
 			}
 		}
-		file_peer_proto_msgTypes[41].Exporter = func(v interface{}, i int) interface{} {
+		file_peer_proto_msgTypes[42].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Party_Remove); i {
 			case 0:
 				return &v.state
@@ -5287,7 +5324,7 @@ func file_peer_proto_init() {
 				return nil
 			}
 		}
-		file_peer_proto_msgTypes[42].Exporter = func(v interface{}, i int) interface{} {
+		file_peer_proto_msgTypes[43].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Party_Close); i {
 			case 0:
 				return &v.state
@@ -5299,7 +5336,7 @@ func file_peer_proto_init() {
 				return nil
 			}
 		}
-		file_peer_proto_msgTypes[43].Exporter = func(v interface{}, i int) interface{} {
+		file_peer_proto_msgTypes[44].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Party_JoinRequestList); i {
 			case 0:
 				return &v.state
@@ -5311,7 +5348,7 @@ func file_peer_proto_init() {
 				return nil
 			}
 		}
-		file_peer_proto_msgTypes[44].Exporter = func(v interface{}, i int) interface{} {
+		file_peer_proto_msgTypes[45].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Party_JoinRequestListReply); i {
 			case 0:
 				return &v.state
@@ -5323,7 +5360,7 @@ func file_peer_proto_init() {
 				return nil
 			}
 		}
-		file_peer_proto_msgTypes[45].Exporter = func(v interface{}, i int) interface{} {
+		file_peer_proto_msgTypes[46].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Party_MatchmakerAdd); i {
 			case 0:
 				return &v.state
@@ -5335,7 +5372,7 @@ func file_peer_proto_init() {
 				return nil
 			}
 		}
-		file_peer_proto_msgTypes[46].Exporter = func(v interface{}, i int) interface{} {
+		file_peer_proto_msgTypes[47].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Party_MatchmakerAddReply); i {
 			case 0:
 				return &v.state
@@ -5347,7 +5384,7 @@ func file_peer_proto_init() {
 				return nil
 			}
 		}
-		file_peer_proto_msgTypes[47].Exporter = func(v interface{}, i int) interface{} {
+		file_peer_proto_msgTypes[48].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Party_MatchmakerRemove); i {
 			case 0:
 				return &v.state
@@ -5359,7 +5396,7 @@ func file_peer_proto_init() {
 				return nil
 			}
 		}
-		file_peer_proto_msgTypes[48].Exporter = func(v interface{}, i int) interface{} {
+		file_peer_proto_msgTypes[49].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Party_DataSend); i {
 			case 0:
 				return &v.state
@@ -5371,7 +5408,7 @@ func file_peer_proto_init() {
 				return nil
 			}
 		}
-		file_peer_proto_msgTypes[51].Exporter = func(v interface{}, i int) interface{} {
+		file_peer_proto_msgTypes[52].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Match_JoinAttempt); i {
 			case 0:
 				return &v.state
@@ -5383,7 +5420,7 @@ func file_peer_proto_init() {
 				return nil
 			}
 		}
-		file_peer_proto_msgTypes[52].Exporter = func(v interface{}, i int) interface{} {
+		file_peer_proto_msgTypes[53].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Match_JoinAttemptReply); i {
 			case 0:
 				return &v.state
@@ -5395,7 +5432,7 @@ func file_peer_proto_init() {
 				return nil
 			}
 		}
-		file_peer_proto_msgTypes[53].Exporter = func(v interface{}, i int) interface{} {
+		file_peer_proto_msgTypes[54].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Match_SendData); i {
 			case 0:
 				return &v.state
@@ -5407,7 +5444,7 @@ func file_peer_proto_init() {
 				return nil
 			}
 		}
-		file_peer_proto_msgTypes[54].Exporter = func(v interface{}, i int) interface{} {
+		file_peer_proto_msgTypes[55].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Match_Signal); i {
 			case 0:
 				return &v.state
@@ -5419,7 +5456,7 @@ func file_peer_proto_init() {
 				return nil
 			}
 		}
-		file_peer_proto_msgTypes[55].Exporter = func(v interface{}, i int) interface{} {
+		file_peer_proto_msgTypes[56].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Match_State); i {
 			case 0:
 				return &v.state
@@ -5442,7 +5479,7 @@ func file_peer_proto_init() {
 		(*Frame_Status)(nil),
 		(*Frame_Event)(nil),
 	}
-	file_peer_proto_msgTypes[14].OneofWrappers = []interface{}{
+	file_peer_proto_msgTypes[15].OneofWrappers = []interface{}{
 		(*BinaryLog_Track)(nil),
 		(*BinaryLog_Untrack)(nil),
 		(*BinaryLog_Ban)(nil),
@@ -5455,16 +5492,16 @@ func file_peer_proto_init() {
 		(*BinaryLog_MatchmakerRemoveAll)(nil),
 		(*BinaryLog_MatchmakerRemove)(nil),
 	}
-	file_peer_proto_msgTypes[23].OneofWrappers = []interface{}{
+	file_peer_proto_msgTypes[24].OneofWrappers = []interface{}{
 		(*Peer_Request_BytesContent)(nil),
 		(*Peer_Request_StringContent)(nil),
 	}
-	file_peer_proto_msgTypes[24].OneofWrappers = []interface{}{
+	file_peer_proto_msgTypes[25].OneofWrappers = []interface{}{
 		(*Peer_ResponseWriter_BytesContent)(nil),
 		(*Peer_ResponseWriter_StringContent)(nil),
 		(*Peer_ResponseWriter_Notifications)(nil),
 	}
-	file_peer_proto_msgTypes[25].OneofWrappers = []interface{}{
+	file_peer_proto_msgTypes[26].OneofWrappers = []interface{}{
 		(*Peer_Envelope_SingleSocket)(nil),
 		(*Peer_Envelope_Disconnect)(nil),
 		(*Peer_Envelope_PartyJoinRequest)(nil),
@@ -5499,7 +5536,7 @@ func file_peer_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_peer_proto_rawDesc,
 			NumEnums:      3,
-			NumMessages:   58,
+			NumMessages:   59,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

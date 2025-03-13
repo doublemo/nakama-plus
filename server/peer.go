@@ -10,7 +10,6 @@ import (
 	"database/sql"
 	"math"
 	coreruntime "runtime"
-	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -55,11 +54,10 @@ type (
 		Member(name string) (Endpoint, bool)
 		Members() []Endpoint
 		Broadcast(msg *pb.Peer_Envelope, reliable bool)
-		BroadcastBinaryLog(b *pb.BinaryLog, toQueue bool)
+		BinaryLogBroadcast(b *pb.BinaryLog, toQueue bool)
 		Send(endpoint Endpoint, msg *pb.Peer_Envelope, reliable bool) error
 		Request(ctx context.Context, endpoint Endpoint, msg *pb.Peer_Envelope) (*pb.Peer_Envelope, error)
 		GetServiceRegistry() kit.ServiceRegistry
-		Version() (map[string][2]uint64, int)
 		MatchmakerAdd(extract *pb.MatchmakerExtract)
 		MatchmakerRemoveSession(sessionID, ticket string)
 		MatchmakerRemoveSessionAll(sessionID string)
@@ -151,9 +149,7 @@ func NewLocalPeer(db *sql.DB, logger *zap.Logger, name string, metadata map[stri
 
 	s.endpoint.BindMemberlistNode(m.LocalNode())
 	s.memberlist = m
-	s.binaryLog = NewLocalBinaryLog(ctx, logger, name, func() int {
-		return m.NumMembers()
-	})
+	s.binaryLog = NewLocalBinaryLog(logger, name)
 
 	s.transmitLimitedQueue = &memberlist.TransmitLimitedQueue{
 		NumNodes: func() int {
@@ -169,10 +165,6 @@ func NewLocalPeer(db *sql.DB, logger *zap.Logger, name string, metadata map[stri
 	// Process incoming
 	go s.processIncoming()
 	return s
-}
-
-func (s *LocalPeer) Version() (map[string][2]uint64, int) {
-	return s.binaryLog.GetBinaryLogVersions(), s.binaryLog.Len()
 }
 
 // when broadcasting an alive message. It's length is limited to
@@ -225,20 +217,21 @@ func (s *LocalPeer) GetBroadcasts(overhead, limit int) [][]byte {
 // boolean indicates this is for a join instead of a push/pull.
 func (s *LocalPeer) LocalState(join bool) []byte {
 	state := &pb.State{
-		Node:       s.endpoint.Name(),
-		BinaryLog:  s.binaryLog.GetBroadcasts(10240),
-		Presences:  make([]*pb.Presence, 0),
-		CheckPoint: s.binaryLog.GetCheckPoint(),
-		Version:    s.binaryLog.CurrentID(),
-		Matchmaker: make([]*pb.MatchmakerExtract, 0),
+		Node:  s.endpoint.Name(),
+		Nodes: make([]*pb.StateNode, 0),
 	}
+
+	nodesMap := make(map[string]int)
+	state.Nodes = append(state.Nodes, &pb.StateNode{
+		Node:       s.endpoint.Name(),
+		Version:    s.binaryLog.GetVersion(),
+		Presences:  make([]*pb.Presence, 0),
+		Matchmaker: make([]*pb.MatchmakerExtract, 0),
+	})
+	nodesMap[s.endpoint.Name()] = 0
 	presencesMap := make(map[uuid.UUID]int)
 	s.tracker.Range(func(sessionID uuid.UUID, presences []*Presence) bool {
 		for _, presence := range presences {
-			if !join && presence.GetNodeId() != s.endpoint.Name() {
-				continue
-			}
-
 			presenceStream := &pb.PresenceStream{
 				Mode:       uint32(presence.Stream.Mode),
 				Subject:    presence.Stream.Subject.String(),
@@ -255,10 +248,22 @@ func (s *LocalPeer) LocalState(join bool) []byte {
 				Reason:        atomic.LoadUint32(&presence.Meta.Reason),
 			}
 
+			nodeIdx, ok := nodesMap[presence.GetNodeId()]
+			if !ok {
+				state.Nodes = append(state.Nodes, &pb.StateNode{
+					Node:       presence.GetNodeId(),
+					Version:    s.binaryLog.GetVersionByNode(presence.GetNodeId()),
+					Presences:  make([]*pb.Presence, 0),
+					Matchmaker: make([]*pb.MatchmakerExtract, 0),
+				})
+				nodeIdx = len(state.Nodes) - 1
+				nodesMap[presence.GetNodeId()] = nodeIdx
+			}
+
 			idx, ok := presencesMap[presence.ID.SessionID]
 			if ok {
-				state.Presences[idx].Stream = append(state.Presences[idx].Stream, presenceStream)
-				state.Presences[idx].Meta = append(state.Presences[idx].Meta, presenceMeta)
+				state.Nodes[nodeIdx].Presences[idx].Stream = append(state.Nodes[nodeIdx].Presences[idx].Stream, presenceStream)
+				state.Nodes[nodeIdx].Presences[idx].Meta = append(state.Nodes[nodeIdx].Presences[idx].Meta, presenceMeta)
 				continue
 			}
 
@@ -269,14 +274,14 @@ func (s *LocalPeer) LocalState(join bool) []byte {
 				Meta:      []*pb.PresenceMeta{presenceMeta},
 				Node:      presence.GetNodeId(),
 			}
-			state.Presences = append(state.Presences, p)
-			presencesMap[presence.ID.SessionID] = len(state.Presences) - 1
+			state.Nodes[nodeIdx].Presences = append(state.Nodes[nodeIdx].Presences, p)
+			presencesMap[presence.ID.SessionID] = len(state.Nodes[nodeIdx].Presences) - 1
 		}
 		return true
 	})
 
 	for _, extract := range s.matchmaker.Extract() {
-		state.Matchmaker = append(state.Matchmaker, matchmakerExtract2pb(extract))
+		state.Nodes[0].Matchmaker = append(state.Nodes[0].Matchmaker, matchmakerExtract2pb(extract))
 	}
 
 	bytes, err := proto.Marshal(state)
@@ -284,8 +289,6 @@ func (s *LocalPeer) LocalState(join bool) []byte {
 		s.logger.Warn("failed to marshal LocalState", zap.Error(err))
 		return nil
 	}
-
-	//s.metrics.PeerSent(int64(len(bytes)))
 	return bytes
 }
 
@@ -386,8 +389,7 @@ func (s *LocalPeer) NotifyLeave(node *memberlist.Node) {
 	s.members.Delete(node.Name)
 	if !s.wk.Stopped() {
 		s.wk.Submit(func() {
-			s.binaryLog.ClearBinaryLogByNode(node.Name)
-			s.tracker.ClearTrackByNode(node.Name)
+			s.tracker.ClearTrackByNode(map[string]bool{node.Name: true})
 			s.logger.Debug("NotifyLeave", zap.String("name", node.Name))
 			//s.metrics.GaugePeers(float64(s.NumMembers()))
 		})
@@ -638,23 +640,21 @@ func (s *LocalPeer) Request(ctx context.Context, endpoint Endpoint, msg *pb.Peer
 	return nil, status.Error(codes.DeadlineExceeded, "DeadlineExceeded")
 }
 
-func (s *LocalPeer) BroadcastBinaryLog(b *pb.BinaryLog, toQueue bool) {
+func (s *LocalPeer) BinaryLogBroadcast(b *pb.BinaryLog, toQueue bool) {
 	if b == nil {
 		return
 	}
 
-	b.Id = s.binaryLog.NextID()
 	b.Node = s.endpoint.Name()
-	b.Timestamp = timestamppb.New(time.Now().UTC())
-	bytes, _ := proto.Marshal(&pb.Frame{
+	b.Version = s.binaryLog.RefreshVersion()
+	frame := &pb.Frame{
 		Id:        uuid.Must(uuid.NewV4()).String(),
 		Inbox:     "",
 		Node:      b.Node,
-		Timestamp: b.Timestamp,
+		Timestamp: timestamppb.New(time.Now().UTC()),
 		Payload:   &pb.Frame_BinaryLog{BinaryLog: b},
-	})
-
-	s.binaryLog.Push(b)
+	}
+	bytes, _ := proto.Marshal(frame)
 
 	// 如果不加入队列
 	// 那么就直接实时发出去
@@ -671,13 +671,12 @@ func (s *LocalPeer) BroadcastBinaryLog(b *pb.BinaryLog, toQueue bool) {
 		})
 		return
 	}
+
 	s.transmitLimitedQueue.QueueBroadcast(&PeerBroadcast{
-		name:     strconv.FormatUint(b.Id, 10),
+		name:     frame.Id,
 		msg:      bytes,
 		finished: nil,
 	})
-
-	// s.metrics.PeerSent(int64(len(bytes)))
 }
 
 func (s *LocalPeer) Event(ctx context.Context, in *api.AnyRequest, names ...string) error {
@@ -957,10 +956,9 @@ func (s *LocalPeer) onNotifyMsg(msg []byte) {
 		return
 	}
 
-	// fmt.Println("onNotifyMsg:", frame)
 	switch v := frame.Payload.(type) {
 	case *pb.Frame_BinaryLog:
-		s.onBinaryLog(frame.GetBinaryLog())
+		s.handleBinaryLog(frame.GetBinaryLog())
 
 	case *pb.Frame_Status:
 	case *pb.Frame_Envelope:
@@ -995,18 +993,29 @@ func (s *LocalPeer) onMergeRemoteState(buf []byte, join bool) {
 		return
 	}
 
-	for _, v := range state.GetBinaryLog() {
-		s.onBinaryLog(v)
+	nodeNames := make(map[string]bool)
+	nodeMap := make(map[string]*pb.StateNode)
+	currentNode := s.endpoint.Name()
+	for _, stateNode := range state.GetNodes() {
+		if stateNode.Node == currentNode {
+			continue
+		}
+
+		if stateNode.Version <= s.binaryLog.GetVersionByNode(stateNode.Node) {
+			continue
+		}
+		nodeNames[stateNode.Node] = true
+		nodeMap[stateNode.Node] = stateNode
 	}
 
-	s.tracker.MergeRemoteState(state.GetNode(), state.GetPresences(), join)
-	s.binaryLog.MergeCheckPoint(state.CheckPoint, join)
-	s.binaryLog.SetLocalCheckPoint(state.GetNode(), state.GetVersion())
+	s.tracker.ClearTrackByNode(nodeNames)
+	s.matchmaker.RemoveAll(nodeNames)
+	for node, stateNode := range nodeMap {
+		s.binaryLog.SetVersionByNode(node, stateNode.Version)
+		s.tracker.MergeRemoteState(node, stateNode.GetPresences())
 
-	s.matchmaker.RemoveAll(state.Node)
-	if matchmakerExtractSize := len(state.GetMatchmaker()); matchmakerExtractSize > 0 {
-		matchmakerExtracts := make([]*MatchmakerExtract, matchmakerExtractSize)
-		for k, v := range state.GetMatchmaker() {
+		matchmakerExtracts := make([]*MatchmakerExtract, len(stateNode.GetMatchmaker()))
+		for k, v := range stateNode.GetMatchmaker() {
 			matchmakerExtracts[k] = pb2MatchmakerExtract(v)
 		}
 		s.matchmaker.Insert(matchmakerExtracts)
