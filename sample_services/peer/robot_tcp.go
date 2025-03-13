@@ -481,6 +481,7 @@ IncomingLoop:
 				return
 			}
 
+			fmt.Println("SYN:", syn)
 			key1 := dh.DHKey(r.x1, big.NewInt(syn.E1))
 			key2 := dh.DHKey(r.x2, big.NewInt(syn.E2))
 			en, err := rc4.NewCipher([]byte(fmt.Sprintf("%v%v", "NK", key1)))

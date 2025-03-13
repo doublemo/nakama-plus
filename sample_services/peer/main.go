@@ -15,7 +15,7 @@ import (
 func main() {
 	ctx, ctxCancelFn := context.WithCancel(context.Background())
 	consoleLogger := server.NewJSONLogger(os.Stdout, zapcore.InfoLevel, server.JSONFormat)
-	client := NewRobotTCP(ctx, consoleLogger, "localhost:8350", "kaXMH1i2m5BzRm5F5uvePclHSM7Zjc4g", 101111, 0)
+	client := NewRobotTCP(ctx, consoleLogger, "192.168.0.127:8350", "kaXMH1i2m5BzRm5F5uvePclHSM7Zjc4g", 101111, 0)
 	if err := client.Login(); err != nil {
 		consoleLogger.Fatal("登录失败", zap.Error(err))
 	}
@@ -36,7 +36,7 @@ func main() {
 	}
 
 	//time.Sleep(time.Second * 1)
-	client2 := NewRobot(ctx, consoleLogger, "localhost:9350", "kaXMH1i2m5BzRm5F5uvePclHSM7Zjc4g", 101112)
+	client2 := NewRobot(ctx, consoleLogger, "192.168.0.127:9350", "kaXMH1i2m5BzRm5F5uvePclHSM7Zjc4g", 101112)
 	if err := client2.Login(); err != nil {
 		consoleLogger.Fatal("登录失败", zap.Error(err))
 	}
