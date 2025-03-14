@@ -24,7 +24,6 @@ type PeerLeader struct {
 }
 
 func NewPeerLeader(ctx context.Context, logger *zap.Logger, etcdClient *kit.EtcdClientV3) (*PeerLeader, error) {
-	// 创建 Session（租约自动续期）
 	session, err := concurrency.NewSession(etcdClient.GetClient(), concurrency.WithTTL(10))
 	if err != nil {
 		return nil, err
@@ -36,7 +35,6 @@ func NewPeerLeader(ctx context.Context, logger *zap.Logger, etcdClient *kit.Etcd
 		electionKey = strings.Join(servicePrefix[0:len(servicePrefix)-1], "/") + "/leader"
 	}
 
-	// 创建选举对象
 	election := concurrency.NewElection(session, electionKey)
 	ctx, cancel := context.WithCancel(ctx)
 	return &PeerLeader{
@@ -67,10 +65,8 @@ func (s *PeerLeader) Run(endpoint Endpoint, memberlist *memberlist.Memberlist) {
 				s.update(endpoint, memberlist)
 				s.logger.Info("The current node has become the leader", zap.String("node", endpoint.Name()))
 
-				// Leader 保活监控
 				select {
 				case <-s.session.Done():
-					// 租约失效，退出 Leader 状态
 					endpoint.Leader(false)
 					s.update(endpoint, memberlist)
 					s.logger.Info("The current node has lost its Leader status", zap.String("node", endpoint.Name()))
@@ -94,7 +90,6 @@ func (s *PeerLeader) update(endpoint Endpoint, memberlist *memberlist.Memberlist
 	memberlist.UpdateNode(time.Second)
 }
 
-// Stop 停止选举并释放资源
 func (s *PeerLeader) Stop() {
 	s.once.Do(func() {
 		if s.cancel == nil {
