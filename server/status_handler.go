@@ -19,6 +19,7 @@ import (
 	"math"
 	"net"
 	"runtime"
+	"sort"
 	"strconv"
 
 	"github.com/doublemo/nakama-kit/kit"
@@ -93,6 +94,10 @@ func (s *LocalStatusHandler) GetStatus(ctx context.Context) ([]*console.StatusLi
 			Leader:         member.Leader(),
 		})
 	}
+
+	sort.Slice(status, func(i, j int) bool {
+		return status[i].Name < status[j].Name
+	})
 	return status, nil
 }
 
