@@ -2,11 +2,6 @@ module github.com/doublemo/nakama-plus/v3
 
 go 1.24.0
 
-replace (
-	github.com/doublemo/nakama-common v1.36.1 => ../nakama-common
-	github.com/doublemo/nakama-kit v1.1.0 => ../nakama-kit
-)
-
 require (
 	github.com/blugelabs/bluge v0.2.2
 	github.com/blugelabs/bluge_segment_api v0.2.0
@@ -14,7 +9,7 @@ require (
 	github.com/dgryski/dgoogauth v0.0.0-20190221195224-5a805980a5f3
 	github.com/dop251/goja v0.0.0-20240516125602-ccbae20bcec2
 	github.com/doublemo/nakama-common v1.36.1
-	github.com/doublemo/nakama-kit v1.1.0
+	github.com/doublemo/nakama-kit v1.2.0
 	github.com/gofrs/uuid/v5 v5.3.0
 	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/gorilla/handlers v1.5.2

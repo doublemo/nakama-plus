@@ -12,7 +12,4 @@ type Peer interface {
 
 	// Send
 	SendMS(ctx context.Context, in *api.AnyRequest) error
-
-	//Event
-	Event(ctx context.Context, in *api.AnyRequest, names ...string) error
 }
