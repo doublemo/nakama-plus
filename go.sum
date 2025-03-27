@@ -91,6 +91,8 @@ github.com/dop251/goja v0.0.0-20240516125602-ccbae20bcec2 h1:OFTHt+yJDo/uaIKMGjE
 github.com/dop251/goja v0.0.0-20240516125602-ccbae20bcec2/go.mod h1:o31y53rb/qiIAONF7w3FHJZRqqP3fzHUr1HqanthByw=
 github.com/doublemo/nakama-common v1.36.1 h1:cKZTaqpK1E/6+SBP0Mvr85JyigcCVo/NeV1Qfx7XcaY=
 github.com/doublemo/nakama-common v1.36.1/go.mod h1:u0MEKhSBOMkjdFMahD1A6XB7mm4/6yjc5gO4UEdqZLQ=
+github.com/doublemo/nakama-common v1.36.2 h1:Vr/AtVVrth8tADb5IAPDQ2OE4NEdculAyX7aEQs83pM=
+github.com/doublemo/nakama-common v1.36.2/go.mod h1:u0MEKhSBOMkjdFMahD1A6XB7mm4/6yjc5gO4UEdqZLQ=
 github.com/doublemo/nakama-kit v1.2.0 h1:tmOChJPrChLt63vxVvdFTgJ/YZDWLvHqLQp/jYzR4xw=
 github.com/doublemo/nakama-kit v1.2.0/go.mod h1:POTHUNabL9VDzYYz+lvHa1mcDNlT4LbEIzywpfYiG3c=
 github.com/felixge/httpsnoop v1.0.4 h1:NFTV2Zj1bL4mc9sqWACXbQFVBBg2W3GPvqp8/ESS2Wg=

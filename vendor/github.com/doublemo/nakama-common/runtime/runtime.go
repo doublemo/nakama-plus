@@ -888,6 +888,9 @@ type Initializer interface {
 
 	// RegisterAfterAny can be used to execute additional business logic after invoking the microservice interface.
 	RegisterAfterAny(fn func(ctx context.Context, logger Logger, db *sql.DB, nk NakamaModule, out *api.AnyResponseWriter, in *api.AnyRequest) error) error
+
+	// RegisterEvent can be used to define a function handler that triggers when peer events are received or generated.
+	RegisterEventPeer(fn func(ctx context.Context, logger Logger, evt *api.AnyRequest)) error
 }
 
 type PresenceReason uint8
