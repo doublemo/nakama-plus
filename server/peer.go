@@ -615,7 +615,6 @@ func (s *LocalPeer) Request(ctx context.Context, endpoint Endpoint, msg *pb.Peer
 	if err != nil {
 		return nil, err
 	}
-	//s.metrics.PeerSent(int64(len(b)))
 	replyChan := make(chan *pb.Frame, 1)
 	s.inbox.Register(request.Inbox, replyChan)
 	defer func() {

@@ -234,6 +234,7 @@ func (s *LocalPeer) onRequest(frame *pb.Frame) {
 	case *pb.Peer_Envelope_MatchSendData:
 		sendData := request.GetMatchSendData()
 		s.matchRegistry.SendData(uuid.FromStringOrNil(sendData.Id), s.endpoint.Name(), uuid.FromStringOrNil(sendData.UserId), uuid.FromStringOrNil(sendData.SessionId), sendData.Username, sendData.FromNode, sendData.OpCode, sendData.Data, sendData.Reliable, sendData.ReceiveTime)
+		w(&pb.Peer_Envelope{})
 		return
 	case *pb.Peer_Envelope_MatchSignal:
 		sig := request.GetMatchSignal()
