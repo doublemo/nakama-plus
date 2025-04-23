@@ -825,6 +825,8 @@ func (r *LocalMatchRegistry) SendData(id uuid.UUID, node string, userID, session
 			},
 		}})
 
+		fmt.Println("------", node, r.node, err)
+
 		if err != nil {
 			r.logger.Error("Failed to SendData", zap.Error(err))
 		}
