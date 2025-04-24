@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/doublemo/nakama-common/api"
 	"github.com/doublemo/nakama-common/rtapi"
 	"github.com/doublemo/nakama-plus/v3/internal/bytes"
 	"github.com/doublemo/nakama-plus/v3/internal/dh"
@@ -177,6 +178,62 @@ func (r *RobotTcp) Login() error {
 		return err
 	}
 	return nil
+}
+
+func (r *RobotTcp) ListMatches() (*api.MatchList, error) {
+	url := "http://" + r.url + "/v2/match?limit=100"
+	request, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	request.Header.Add("Content-Type", "application/json")
+	request.Header.Add("Authorization", "Bearer "+r.session.Load().Token)
+	resp, err := r.httpClient.Do(request)
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	r.logger.Info("ListMatches", zap.String("body", string(body)), zap.String("url", url), zap.Int("status", resp.StatusCode))
+	var list api.MatchList
+	if err := json.Unmarshal(body, &list); err != nil {
+		return nil, err
+	}
+	return &list, nil
+}
+
+func (r *RobotTcp) rpcCreateMatch() (string, error) {
+	url := "http://" + r.url + "/v2/rpc/rpc_create_match"
+	request, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return "", err
+	}
+
+	request.Header.Add("Content-Type", "application/json")
+	request.Header.Add("Authorization", "Bearer "+r.session.Load().Token)
+	resp, err := r.httpClient.Do(request)
+	if err != nil {
+		return "", err
+	}
+
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	r.logger.Info("rpcCreateMatch", zap.String("body", string(body)), zap.String("url", url), zap.Int("status", resp.StatusCode))
+	var data map[string]string
+	if err := json.Unmarshal(body, &data); err != nil {
+		return "", err
+	}
+	return data["payload"], nil
 }
 
 func (r *RobotTcp) CreateParty() (*rtapi.Party, error) {

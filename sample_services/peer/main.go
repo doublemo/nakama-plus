@@ -31,7 +31,12 @@ func main() {
 		consoleLogger.Fatal("创建队伍失败", zap.Error(err))
 	}
 
-	match, err := client.CreateMatch("rob")
+	// match, err := client.CreateMatch("rob")
+	// if err != nil {
+	// 	consoleLogger.Fatal("匹配创建失败", zap.Error(err))
+	// }
+
+	matchId, err := client.rpcCreateMatch()
 	if err != nil {
 		consoleLogger.Fatal("匹配创建失败", zap.Error(err))
 	}
@@ -44,13 +49,14 @@ func main() {
 
 	client2.PartyJoin(party.PartyId)
 	client2.ChannelJoin("room", 1)
-	if _, err := client2.MatchJoin(match.MatchId, make(map[string]string)); err != nil {
-		consoleLogger.Fatal("加入比赛失败", zap.Error(err), zap.String("id", match.MatchId))
+	consoleLogger.Info("match.MatchId", zap.String("id", matchId))
+	if _, err := client2.MatchJoin(matchId, make(map[string]string)); err != nil {
+		consoleLogger.Fatal("加入比赛失败", zap.Error(err), zap.String("id", matchId))
 	}
 
 	client2.MatchmakerAdd()
 	client.MatchmakerAdd()
-	// _ = channel
+	_ = channel
 	go func() {
 		t := time.NewTicker(time.Second * 10)
 		defer t.Stop()
@@ -63,14 +69,16 @@ func main() {
 
 			case <-t.C:
 				i++
-				if i%2 == 0 {
-					client2.MatchSendData(match.MatchId, 10007, []byte(`{"b":"33333"}`), nil)
-					client2.PartyDataSend(party.PartyId, 3, []byte(`{"mm":"test222"}`))
-					client2.ChannelWriteMessage(channel.Id, `{"body":"hello"}`)
-				} else {
-					client.PartyDataSend(party.PartyId, 13, []byte(`{"mm":"test222"}`))
-					client.MatchSendData(match.MatchId, 10001, []byte(`{"b":"444"}`), nil)
-				}
+
+				client2.MatchSendData(matchId, 10007, []byte(`{"b":"33333"}`), nil)
+				// if i%2 == 0 {
+				// 	client2.MatchSendData(match.MatchId, 10007, []byte(`{"b":"33333"}`), nil)
+				// 	client2.PartyDataSend(party.PartyId, 3, []byte(`{"mm":"test222"}`))
+				// 	client2.ChannelWriteMessage(channel.Id, `{"body":"hello"}`)
+				// } else {
+				// 	client.PartyDataSend(party.PartyId, 13, []byte(`{"mm":"test222"}`))
+				// 	client.MatchSendData(match.MatchId, 10001, []byte(`{"b":"444"}`), nil)
+				// }
 
 			}
 		}

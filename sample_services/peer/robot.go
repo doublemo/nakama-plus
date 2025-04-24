@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/doublemo/nakama-common/api"
 	"github.com/doublemo/nakama-common/rtapi"
 	"github.com/doublemo/nakama-plus/v3/server"
 	"github.com/gorilla/websocket"
@@ -121,6 +122,34 @@ func (r *Robot) Login() error {
 	r.conn.Store(conn)
 	go r.loop()
 	return nil
+}
+
+func (r *Robot) ListMatches() (*api.MatchList, error) {
+	url := "http://" + r.url + "/v2/match?limit=100"
+	request, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	request.Header.Add("Content-Type", "application/json")
+	request.Header.Add("Authorization", "Bearer "+r.session.Load().Token)
+	resp, err := r.httpClient.Do(request)
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	r.logger.Info("ListMatches", zap.String("body", string(body)), zap.String("url", url), zap.Int("status", resp.StatusCode))
+	var list api.MatchList
+	if err := json.Unmarshal(body, &list); err != nil {
+		return nil, err
+	}
+	return &list, nil
 }
 
 func (r *Robot) CreateParty() (*rtapi.Party, error) {
