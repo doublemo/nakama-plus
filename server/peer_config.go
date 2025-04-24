@@ -115,7 +115,7 @@ func toMemberlistConfig(s Peer, name string, c *PeerConfig) *memberlist.Config {
 		cfg.SecretKey = []byte(c.SecretKey)
 	}
 
-	cfg.Logger = log.New(os.Stdout, "peer", 0)
+	cfg.Logger = log.New(os.Stdout, "", 0)
 	cfg.Name = name
 	cfg.Ping = s
 	cfg.Delegate = s
