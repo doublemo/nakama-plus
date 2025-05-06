@@ -1153,7 +1153,7 @@ func (n *RuntimeJavascriptNakamaModule) aesEncrypt(keySize int, input, key strin
 		return "", fmt.Errorf("error getting iv: %v", err.Error())
 	}
 
-	stream := cipher.NewCFBEncrypter(block, iv)
+	stream := cipher.NewCFBEncrypter(block, iv) //nolint:staticcheck
 	stream.XORKeyStream(cipherText[aes.BlockSize:], []byte(input))
 
 	return base64.StdEncoding.EncodeToString(cipherText), nil
@@ -1184,7 +1184,7 @@ func (n *RuntimeJavascriptNakamaModule) aesDecrypt(keySize int, input, key strin
 	iv := cipherText[:aes.BlockSize]
 	cipherText = cipherText[aes.BlockSize:]
 
-	stream := cipher.NewCFBDecrypter(block, iv)
+	stream := cipher.NewCFBDecrypter(block, iv) //nolint:staticcheck
 	stream.XORKeyStream(cipherText, cipherText)
 
 	return string(cipherText), nil
