@@ -70,15 +70,14 @@ func main() {
 			case <-t.C:
 				i++
 
-				client2.MatchSendData(matchId, 10007, []byte(`{"b":"33333"}`), nil)
-				// if i%2 == 0 {
-				// 	client2.MatchSendData(match.MatchId, 10007, []byte(`{"b":"33333"}`), nil)
-				// 	client2.PartyDataSend(party.PartyId, 3, []byte(`{"mm":"test222"}`))
-				// 	client2.ChannelWriteMessage(channel.Id, `{"body":"hello"}`)
-				// } else {
-				// 	client.PartyDataSend(party.PartyId, 13, []byte(`{"mm":"test222"}`))
-				// 	client.MatchSendData(match.MatchId, 10001, []byte(`{"b":"444"}`), nil)
-				// }
+				if i%2 == 0 {
+					client2.MatchSendData(matchId, 10007, []byte(`{"b":"33333"}`), nil)
+					client2.PartyDataSend(party.PartyId, 3, []byte(`{"mm":"test222"}`))
+					client2.ChannelWriteMessage(channel.Id, `{"body":"hello"}`)
+				} else {
+					client.PartyDataSend(party.PartyId, 13, []byte(`{"mm":"test222"}`))
+					client.MatchSendData(matchId, 10001, []byte(`{"b":"444"}`), nil)
+				}
 
 			}
 		}
