@@ -111,8 +111,8 @@ github.com/dop251/goja/ftoa/internal/fast
 github.com/dop251/goja/parser
 github.com/dop251/goja/token
 github.com/dop251/goja/unistring
-# github.com/doublemo/nakama-common v1.36.2
-## explicit; go 1.23.3
+# github.com/doublemo/nakama-common v1.37.0
+## explicit; go 1.24.3
 github.com/doublemo/nakama-common/api
 github.com/doublemo/nakama-common/rtapi
 github.com/doublemo/nakama-common/runtime
@@ -470,8 +470,8 @@ google.golang.org/grpc/tap
 # google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.5.1
 ## explicit; go 1.21
 google.golang.org/grpc/cmd/protoc-gen-go-grpc
-# google.golang.org/protobuf v1.36.5
-## explicit; go 1.21
+# google.golang.org/protobuf v1.36.6
+## explicit; go 1.22
 google.golang.org/protobuf/cmd/protoc-gen-go
 google.golang.org/protobuf/cmd/protoc-gen-go/internal_gengo
 google.golang.org/protobuf/compiler/protogen
