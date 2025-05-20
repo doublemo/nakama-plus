@@ -7238,7 +7238,7 @@ func (n *RuntimeLuaNakamaModule) leaderboardList(l *lua.LState) int {
 	var listCursor *LeaderboardListCursor
 	cursor := l.OptString(2, "")
 	if cursor != "" {
-		cb, err := base64.StdEncoding.DecodeString(cursor)
+		cb, err := base64.URLEncoding.DecodeString(cursor)
 		if err != nil {
 			l.ArgError(2, "expects cursor to be valid when provided")
 			return 0
@@ -8633,7 +8633,7 @@ func (n *RuntimeLuaNakamaModule) tournamentList(l *lua.LState) int {
 	var listCursor *TournamentListCursor
 	cursor := l.OptString(6, "")
 	if cursor != "" {
-		cb, err := base64.StdEncoding.DecodeString(cursor)
+		cb, err := base64.URLEncoding.DecodeString(cursor)
 		if err != nil {
 			l.ArgError(6, "expects cursor to be valid when provided")
 			return 0
