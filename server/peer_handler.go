@@ -28,12 +28,16 @@ func (s *LocalPeer) handlerByPeerResponseWriter(client kit.Client, msg *pb.Peer_
 		s.logger.Debug("recv info")
 	}
 
+	if msg.Context == nil {
+		msg.Context = make(map[string]string)
+	}
+
 	anyResponseWriter, ns := toAnyResponseWriter(msg)
 	if ns != nil {
-		_ = SendAnyResponseWriter(context.Background(), s.logger, s.db, s.tracker, s.messageRouter, nil, ns, msg.GetRecipient())
+		_ = sendAnyResponseWriter(context.Background(), s.logger, s.db, s.tracker, s.messageRouter, "", nil, ns, msg.GetRecipient())
 		return
 	}
-	_ = SendAnyResponseWriter(context.Background(), s.logger, s.db, s.tracker, s.messageRouter, anyResponseWriter, nil, msg.GetRecipient())
+	_ = sendAnyResponseWriter(context.Background(), s.logger, s.db, s.tracker, s.messageRouter, msg.Context["client_cid"], anyResponseWriter, nil, msg.GetRecipient())
 }
 
 func (s *LocalPeer) ToClient(envelope *rtapi.Envelope, recipients []*pb.Recipienter) {

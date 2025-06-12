@@ -37,6 +37,7 @@ func (p *Pipeline) any(logger *zap.Logger, session Session, envelope *rtapi.Enve
 	req.Context = make(map[string]string)
 	req.Context["client_ip"] = session.ClientIP()
 	req.Context["client_port"] = session.ClientPort()
+	req.Context["client_cid"] = envelope.Cid
 	req.Context["userId"] = session.UserID().String()
 	req.Context["username"] = session.Username()
 	req.Context["expiry"] = strconv.FormatInt(session.Expiry(), 10)

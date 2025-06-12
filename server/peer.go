@@ -808,7 +808,7 @@ func (s *LocalPeer) InvokeMS(ctx context.Context, in *api.AnyRequest) (*api.AnyR
 
 	w, ns := toAnyResponseWriter(resp)
 	if ns != nil {
-		_ = SendAnyResponseWriter(context.Background(), s.logger, s.db, s.tracker, s.messageRouter, nil, ns, resp.GetRecipient())
+		_ = sendAnyResponseWriter(context.Background(), s.logger, s.db, s.tracker, s.messageRouter, "", nil, ns, resp.GetRecipient())
 	}
 	return w, nil
 }

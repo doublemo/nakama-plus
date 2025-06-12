@@ -92,10 +92,11 @@ func toAnyResponseWriter(resp *pb.Peer_ResponseWriter) (*api.AnyResponseWriter, 
 	return out, notifications
 }
 
-func SendAnyResponseWriter(ctx context.Context, logger *zap.Logger, db *sql.DB, gotracker Tracker, messageRouter MessageRouter, anyResponseWriter *api.AnyResponseWriter, notifications *rtapi.Notifications, recipients []*pb.Recipienter) error {
+func sendAnyResponseWriter(ctx context.Context, logger *zap.Logger, db *sql.DB, gotracker Tracker, messageRouter MessageRouter, cid string, anyResponseWriter *api.AnyResponseWriter, notifications *rtapi.Notifications, recipients []*pb.Recipienter) error {
 	recipientSize := len(recipients)
 	if anyResponseWriter != nil {
 		envelope := &rtapi.Envelope{
+			Cid: cid,
 			Message: &rtapi.Envelope_AnyResponseWriter{
 				AnyResponseWriter: anyResponseWriter,
 			},
