@@ -45,7 +45,7 @@ func (p *Pipeline) any(logger *zap.Logger, session Session, envelope *rtapi.Enve
 	}
 
 	peer, ok := p.runtime.GetPeer()
-	if ok {
+	if !ok {
 		_ = session.Send(&rtapi.Envelope{Cid: envelope.Cid, Message: &rtapi.Envelope_Error{Error: &rtapi.Error{
 			Code:    int32(codes.Unavailable),
 			Message: "Service Unavailable",
