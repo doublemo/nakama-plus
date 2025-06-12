@@ -1296,7 +1296,7 @@
     },
     "/v2/any/{name}/{cid}": {
       "get": {
-        "summary": "Any Call services",
+        "summary": "Execute Call services on the server.",
         "operationId": "Nakama_Any2",
         "responses": {
           "200": {
@@ -1367,10 +1367,16 @@
         ],
         "tags": [
           "Nakama"
+        ],
+        "security": [
+          {
+            "BearerJwt": [],
+            "HttpKeyAuth": []
+          }
         ]
       },
       "post": {
-        "summary": "Any Call services",
+        "summary": "Execute Call services on the server.",
         "operationId": "Nakama_Any",
         "responses": {
           "200": {
@@ -1440,6 +1446,12 @@
         ],
         "tags": [
           "Nakama"
+        ],
+        "security": [
+          {
+            "BearerJwt": [],
+            "HttpKeyAuth": []
+          }
         ]
       }
     },

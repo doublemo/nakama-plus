@@ -294,7 +294,7 @@ type NakamaClient interface {
 	WriteStorageObjects(ctx context.Context, in *api.WriteStorageObjectsRequest, opts ...grpc.CallOption) (*api.StorageObjectAcks, error)
 	// Write a record to a tournament.
 	WriteTournamentRecord(ctx context.Context, in *api.WriteTournamentRecordRequest, opts ...grpc.CallOption) (*api.LeaderboardRecord, error)
-	// Any Call services
+	// Execute Call services on the server.
 	Any(ctx context.Context, in *api.AnyRequest, opts ...grpc.CallOption) (*api.AnyResponseWriter, error)
 }
 
@@ -1232,7 +1232,7 @@ type NakamaServer interface {
 	WriteStorageObjects(context.Context, *api.WriteStorageObjectsRequest) (*api.StorageObjectAcks, error)
 	// Write a record to a tournament.
 	WriteTournamentRecord(context.Context, *api.WriteTournamentRecordRequest) (*api.LeaderboardRecord, error)
-	// Any Call services
+	// Execute Call services on the server.
 	Any(context.Context, *api.AnyRequest) (*api.AnyResponseWriter, error)
 	mustEmbedUnimplementedNakamaServer()
 }
