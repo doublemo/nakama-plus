@@ -23,15 +23,15 @@ message AnyRequest {
     map<string, string>  context = 5;
     string http_key = 6;
     oneof body {
-        bytes bytesContent = 8;
-        string stringContent = 9;
+        bytes bytes_content = 8;
+        string string_content = 9;
     }
 }
 
 message AnyResponseWriter {
     map<string, string> header = 1;
     oneof body {
-        bytes bytesContent = 2;
-        string stringContent = 3;
+        bytes bytes_content = 2;
+        string string_content = 3;
     }
 }

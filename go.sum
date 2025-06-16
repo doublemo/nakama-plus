@@ -81,10 +81,10 @@ github.com/dlclark/regexp2 v1.11.4 h1:rPYF9/LECdNymJufQKmri9gV604RvvABwgOA8un7yA
 github.com/dlclark/regexp2 v1.11.4/go.mod h1:DHkYz0B9wPfa6wondMfaivmHpzrQ3v9q8cnmRbL6yW8=
 github.com/dop251/goja v0.0.0-20250309171923-bcd7cc6bf64c h1:mxWGS0YyquJ/ikZOjSrRjjFIbUqIP9ojyYQ+QZTU3Rg=
 github.com/dop251/goja v0.0.0-20250309171923-bcd7cc6bf64c/go.mod h1:MxLav0peU43GgvwVgNbLAj1s/bSGboKkhuULvq/7hx4=
-github.com/doublemo/nakama-common v1.37.0 h1:V1CGaKUljm/tytG4CooBeCvyYcvPEiCqpyzSHJrNn/s=
-github.com/doublemo/nakama-common v1.37.0/go.mod h1:g0LoonvOM9MFiJIUU2m6QHo4xQWkHN16hM9NaFtCtTc=
-github.com/doublemo/nakama-kit v1.2.0 h1:tmOChJPrChLt63vxVvdFTgJ/YZDWLvHqLQp/jYzR4xw=
-github.com/doublemo/nakama-kit v1.2.0/go.mod h1:POTHUNabL9VDzYYz+lvHa1mcDNlT4LbEIzywpfYiG3c=
+github.com/doublemo/nakama-common v1.37.1 h1:rYUyyvl3snDLHwQl3np+7T85+GYmclf/nW1++1tRwiE=
+github.com/doublemo/nakama-common v1.37.1/go.mod h1:g0LoonvOM9MFiJIUU2m6QHo4xQWkHN16hM9NaFtCtTc=
+github.com/doublemo/nakama-kit v1.2.1 h1:WNkkenDywzM2aujn+8eK7pYZtq8McdRqTL5I+ZCBDKQ=
+github.com/doublemo/nakama-kit v1.2.1/go.mod h1:fT2GJ0Ax3JVbRr2nlmHybLAI6s1WrSJfCf7hVjzmK/s=
 github.com/felixge/httpsnoop v1.0.4 h1:NFTV2Zj1bL4mc9sqWACXbQFVBBg2W3GPvqp8/ESS2Wg=
 github.com/felixge/httpsnoop v1.0.4/go.mod h1:m8KPJKqk1gH5J9DgRY2ASl2lWCfGKXixSwevea8zH2U=
 github.com/fogleman/gg v1.2.1-0.20190220221249-0403632d5b90/go.mod h1:R/bRT+9gY/C5z7JzPU0zXsXHKM4/ayA+zqcVNZzPa1k=

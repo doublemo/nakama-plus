@@ -135,9 +135,9 @@ message Envelope {
     // Presence update for a particular party.
     PartyPresenceEvent party_presence_event = 50;
     // Any request
-    api.AnyRequest anyRequest = 51;
+    api.AnyRequest any_request = 51;
     // Any response
-    api.AnyResponseWriter anyResponseWriter = 52;
+    api.AnyResponseWriter any_response_writer = 52;
   }
 }
 
