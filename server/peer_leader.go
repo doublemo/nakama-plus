@@ -32,7 +32,7 @@ func NewPeerLeader(ctx context.Context, logger *zap.Logger, etcdClient *kit.Etcd
 	electionKey := "/nakama-plus/leader"
 	servicePrefix := strings.Split(strings.Trim(etcdClient.ServicePrefix(), "/"), "/")
 	if len(servicePrefix) >= 2 {
-		electionKey = strings.Join(servicePrefix[0:len(servicePrefix)-1], "/") + "/leader"
+		electionKey = "/" + strings.Join(servicePrefix[0:len(servicePrefix)-1], "/") + "/leader"
 	}
 
 	election := concurrency.NewElection(session, electionKey)
@@ -58,6 +58,7 @@ func (s *PeerLeader) Run(endpoint Endpoint, memberlist *memberlist.Memberlist) {
 				err := s.election.Campaign(s.ctx, endpoint.Name())
 				if err != nil {
 					s.logger.Info("Failed in then campaign for leader", zap.String("node", endpoint.Name()))
+					<-time.After(time.Second)
 					continue
 				}
 

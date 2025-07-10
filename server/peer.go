@@ -8,6 +8,7 @@ package server
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"math"
 	coreruntime "runtime"
 	"sync"
@@ -448,10 +449,17 @@ func (s *LocalPeer) Shutdown() {
 			s.logger.Warn("failed to leave cluster", zap.Error(err))
 		}
 
-		if err := s.memberlist.Shutdown(); err != nil {
-			s.logger.Error("failed to shutdown cluster", zap.Error(err))
+		timeoutCtx, timeoutCancel := context.WithTimeout(s.ctx, time.Second*10)
+		go func() {
+			defer timeoutCancel()
+			if err := s.memberlist.Shutdown(); err != nil {
+				s.logger.Error("failed to shutdown cluster", zap.Error(err))
+			}
+		}()
+		<-timeoutCtx.Done()
+		if err := timeoutCtx.Err(); !errors.Is(err, context.Canceled) {
+			s.logger.Warn("Failed to shutdown memberlist", zap.Error(err))
 		}
-
 		s.wk.StopWait()
 		s.ctxCancelFn()
 	})
