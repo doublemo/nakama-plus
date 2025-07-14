@@ -121,6 +121,7 @@ func NewLocalPartyRegistry(ctx context.Context, logger, startupLogger *zap.Logge
 		stoppedCh: make(chan struct{}, 2),
 
 		parties: &MapOf[uuid.UUID, *PartyHandler]{},
+		peer:    &atomic.Pointer[Peer]{},
 	}
 
 	go func() {
