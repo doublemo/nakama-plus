@@ -132,6 +132,8 @@ func (p *Pipeline) ProcessRequest(logger *zap.Logger, session Session, in *rtapi
 		pipelineFn = p.partyMatchmakerRemove
 	case *rtapi.Envelope_PartyDataSend:
 		pipelineFn = p.partyDataSend
+	case *rtapi.Envelope_PartyUpdate:
+		pipelineFn = p.partyUpdate
 	case *rtapi.Envelope_AnyRequest:
 		pipelineFn = p.any
 	default:

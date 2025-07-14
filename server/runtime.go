@@ -215,6 +215,8 @@ type (
 	RuntimeAfterGetSubscriptionFunction                    func(ctx context.Context, logger *zap.Logger, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, out *api.ValidatedSubscription, in *api.GetSubscriptionRequest) error
 	RuntimeBeforeGetMatchmakerStatsFunction                func(ctx context.Context, logger *zap.Logger, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string) (error, codes.Code)
 	RuntimeAfterGetMatchmakerStatsFunction                 func(ctx context.Context, logger *zap.Logger, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, out *api.MatchmakerStats) error
+	RuntimeBeforeListPartiesFunction                       func(ctx context.Context, logger *zap.Logger, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.ListPartiesRequest) (*api.ListPartiesRequest, error, codes.Code)
+	RuntimeAfterListPartiesFunction                        func(ctx context.Context, logger *zap.Logger, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, out *api.PartyList, in *api.ListPartiesRequest) error
 
 	RuntimeMatchmakerMatchedFunction  func(ctx context.Context, entries []*MatchmakerEntry) (string, bool, error)
 	RuntimeMatchmakerOverrideFunction func(ctx context.Context, candidateMatches [][]*MatchmakerEntry) (matches [][]*MatchmakerEntry)
@@ -441,6 +443,7 @@ type RuntimeBeforeReqFunctions struct {
 	beforeListSubscriptionsFunction                 RuntimeBeforeListSubscriptionsFunction
 	beforeGetSubscriptionFunction                   RuntimeBeforeGetSubscriptionFunction
 	beforeGetMatchmakerStatsFunction                RuntimeBeforeGetMatchmakerStatsFunction
+	beforeListPartiesFunction                       RuntimeBeforeListPartiesFunction
 	beforeAnyFunction                               RuntimeBeforeAnyFunction
 }
 
@@ -526,6 +529,7 @@ type RuntimeAfterReqFunctions struct {
 	afterListSubscriptionsFunction                 RuntimeAfterListSubscriptionsFunction
 	afterGetSubscriptionFunction                   RuntimeAfterGetSubscriptionFunction
 	afterGetMatchmakerStatsFunction                RuntimeAfterGetMatchmakerStatsFunction
+	afterListPartiesFunction                       RuntimeAfterListPartiesFunction
 	afterAnyFunction                               RuntimeAfterAnyFunction
 }
 
@@ -663,7 +667,7 @@ func CheckRuntime(logger *zap.Logger, config Config, version string) error {
 	return nil
 }
 
-func NewRuntime(ctx context.Context, logger, startupLogger *zap.Logger, db *sql.DB, protojsonMarshaler *protojson.MarshalOptions, protojsonUnmarshaler *protojson.UnmarshalOptions, config Config, version string, socialClient *social.Client, leaderboardCache LeaderboardCache, leaderboardRankCache LeaderboardRankCache, leaderboardScheduler LeaderboardScheduler, sessionRegistry SessionRegistry, sessionCache SessionCache, statusRegistry StatusRegistry, matchRegistry MatchRegistry, tracker Tracker, metrics Metrics, streamManager StreamManager, router MessageRouter, storageIndex StorageIndex, fmCallbackHandler runtime.FmCallbackHandler) (*Runtime, *RuntimeInfo, error) {
+func NewRuntime(ctx context.Context, logger, startupLogger *zap.Logger, db *sql.DB, protojsonMarshaler *protojson.MarshalOptions, protojsonUnmarshaler *protojson.UnmarshalOptions, config Config, version string, socialClient *social.Client, leaderboardCache LeaderboardCache, leaderboardRankCache LeaderboardRankCache, leaderboardScheduler LeaderboardScheduler, sessionRegistry SessionRegistry, sessionCache SessionCache, statusRegistry StatusRegistry, matchRegistry MatchRegistry, partyRegistry PartyRegistry, tracker Tracker, metrics Metrics, streamManager StreamManager, router MessageRouter, storageIndex StorageIndex, fmCallbackHandler runtime.FmCallbackHandler) (*Runtime, *RuntimeInfo, error) {
 	runtimeConfig := config.GetRuntime()
 	startupLogger.Info("Initialising runtime", zap.String("path", runtimeConfig.Path))
 
@@ -689,19 +693,19 @@ func NewRuntime(ctx context.Context, logger, startupLogger *zap.Logger, db *sql.
 		!config.GetSatori().CacheDisabled,
 		[]string{RuntimeExecutionModeRPC.String(), RuntimeExecutionModeBefore.String(), RuntimeExecutionModeAfter.String()},
 	)
-	goModules, goRPCFns, goBeforeRtFns, goAfterRtFns, goBeforeReqFns, goAfterReqFns, goMatchmakerMatchedFn, goMatchmakerCustomMatchingFn, goTournamentEndFn, goTournamentResetFn, goLeaderboardResetFn, goShutdownFn, goPurchaseNotificationAppleFn, goSubscriptionNotificationAppleFn, goPurchaseNotificationGoogleFn, goSubscriptionNotificationGoogleFn, goIndexFilterFns, fleetManager, httpHandlers, allEventFns, goMatchNamesListFn, err := NewRuntimeProviderGo(ctx, logger, startupLogger, db, protojsonMarshaler, config, version, socialClient, leaderboardCache, leaderboardRankCache, leaderboardScheduler, sessionRegistry, sessionCache, statusRegistry, matchRegistry, tracker, metrics, streamManager, router, storageIndex, satoriClient, runtimeConfig.Path, paths, eventQueue, matchProvider, fmCallbackHandler)
+	goModules, goRPCFns, goBeforeRtFns, goAfterRtFns, goBeforeReqFns, goAfterReqFns, goMatchmakerMatchedFn, goMatchmakerCustomMatchingFn, goTournamentEndFn, goTournamentResetFn, goLeaderboardResetFn, goShutdownFn, goPurchaseNotificationAppleFn, goSubscriptionNotificationAppleFn, goPurchaseNotificationGoogleFn, goSubscriptionNotificationGoogleFn, goIndexFilterFns, fleetManager, httpHandlers, allEventFns, goMatchNamesListFn, err := NewRuntimeProviderGo(ctx, logger, startupLogger, db, protojsonMarshaler, config, version, socialClient, leaderboardCache, leaderboardRankCache, leaderboardScheduler, sessionRegistry, sessionCache, statusRegistry, matchRegistry, partyRegistry, tracker, metrics, streamManager, router, storageIndex, satoriClient, runtimeConfig.Path, paths, eventQueue, matchProvider, fmCallbackHandler)
 	if err != nil {
 		startupLogger.Error("Error initialising Go runtime provider", zap.Error(err))
 		return nil, nil, err
 	}
 
-	luaModules, luaRPCFns, luaBeforeRtFns, luaAfterRtFns, luaBeforeReqFns, luaAfterReqFns, luaMatchmakerMatchedFn, luaTournamentEndFn, luaTournamentResetFn, luaLeaderboardResetFn, luaShutdownFn, luaPurchaseNotificationAppleFn, luaSubscriptionNotificationAppleFn, luaPurchaseNotificationGoogleFn, luaSubscriptionNotificationGoogleFn, luaIndexFilterFns, eventPeerFunction, err := NewRuntimeProviderLua(ctx, logger, startupLogger, db, protojsonMarshaler, protojsonUnmarshaler, config, version, socialClient, leaderboardCache, leaderboardRankCache, leaderboardScheduler, sessionRegistry, sessionCache, statusRegistry, matchRegistry, tracker, metrics, streamManager, router, satoriClient, allEventFns.eventFunction, runtimeConfig.Path, paths, matchProvider, storageIndex)
+	luaModules, luaRPCFns, luaBeforeRtFns, luaAfterRtFns, luaBeforeReqFns, luaAfterReqFns, luaMatchmakerMatchedFn, luaTournamentEndFn, luaTournamentResetFn, luaLeaderboardResetFn, luaShutdownFn, luaPurchaseNotificationAppleFn, luaSubscriptionNotificationAppleFn, luaPurchaseNotificationGoogleFn, luaSubscriptionNotificationGoogleFn, luaIndexFilterFns, eventPeerFunction, err := NewRuntimeProviderLua(ctx, logger, startupLogger, db, protojsonMarshaler, protojsonUnmarshaler, config, version, socialClient, leaderboardCache, leaderboardRankCache, leaderboardScheduler, sessionRegistry, sessionCache, statusRegistry, matchRegistry, partyRegistry, tracker, metrics, streamManager, router, satoriClient, allEventFns.eventFunction, runtimeConfig.Path, paths, matchProvider, storageIndex)
 	if err != nil {
 		startupLogger.Error("Error initialising Lua runtime provider", zap.Error(err))
 		return nil, nil, err
 	}
 
-	jsModules, jsRPCFns, jsBeforeRtFns, jsAfterRtFns, jsBeforeReqFns, jsAfterReqFns, jsMatchmakerMatchedFn, jsTournamentEndFn, jsTournamentResetFn, jsLeaderboardResetFn, jsShutdownFn, jsPurchaseNotificationAppleFn, jsSubscriptionNotificationAppleFn, jsPurchaseNotificationGoogleFn, jsSubscriptionNotificationGoogleFn, jsIndexFilterFns, eventPeerFunction, err := NewRuntimeProviderJS(ctx, logger, startupLogger, db, protojsonMarshaler, protojsonUnmarshaler, config, version, socialClient, leaderboardCache, leaderboardRankCache, leaderboardScheduler, sessionRegistry, sessionCache, statusRegistry, matchRegistry, tracker, metrics, streamManager, router, satoriClient, allEventFns.eventFunction, runtimeConfig.Path, runtimeConfig.JsEntrypoint, matchProvider, storageIndex)
+	jsModules, jsRPCFns, jsBeforeRtFns, jsAfterRtFns, jsBeforeReqFns, jsAfterReqFns, jsMatchmakerMatchedFn, jsTournamentEndFn, jsTournamentResetFn, jsLeaderboardResetFn, jsShutdownFn, jsPurchaseNotificationAppleFn, jsSubscriptionNotificationAppleFn, jsPurchaseNotificationGoogleFn, jsSubscriptionNotificationGoogleFn, jsIndexFilterFns, eventPeerFunction, err := NewRuntimeProviderJS(ctx, logger, startupLogger, db, protojsonMarshaler, protojsonUnmarshaler, config, version, socialClient, leaderboardCache, leaderboardRankCache, leaderboardScheduler, sessionRegistry, sessionCache, statusRegistry, matchRegistry, partyRegistry, tracker, metrics, streamManager, router, satoriClient, allEventFns.eventFunction, runtimeConfig.Path, runtimeConfig.JsEntrypoint, matchProvider, storageIndex)
 	if err != nil {
 		startupLogger.Error("Error initialising JavaScript runtime provider", zap.Error(err))
 		return nil, nil, err
@@ -1024,6 +1028,9 @@ func NewRuntime(ctx context.Context, logger, startupLogger *zap.Logger, db *sql.
 	}
 	if allBeforeReqFunctions.beforeListSubscriptionsFunction != nil {
 		startupLogger.Info("Registered JavaScript runtime Before function invocation", zap.String("id", "listsubscriptions"))
+	}
+	if allBeforeReqFunctions.beforeListPartiesFunction != nil {
+		startupLogger.Info("Registered JavaScript runtime Before function invocation", zap.String("id", "listparties"))
 	}
 	if allBeforeReqFunctions.beforeEventFunction != nil {
 		startupLogger.Info("Registered JavaScript runtime Before custom events function invocation")
@@ -1348,6 +1355,10 @@ func NewRuntime(ctx context.Context, logger, startupLogger *zap.Logger, db *sql.
 	if luaBeforeReqFns.beforeListSubscriptionsFunction != nil {
 		allBeforeReqFunctions.beforeListSubscriptionsFunction = luaBeforeReqFns.beforeListSubscriptionsFunction
 		startupLogger.Info("Registered Lua runtime Before function invocation", zap.String("id", "listsubscriptions"))
+	}
+	if luaBeforeReqFns.beforeListPartiesFunction != nil {
+		allBeforeReqFunctions.beforeListPartiesFunction = luaBeforeReqFns.beforeListPartiesFunction
+		startupLogger.Info("Registered Lua runtime Before function invocation", zap.String("id", "listparties"))
 	}
 	if luaBeforeReqFns.beforeEventFunction != nil {
 		allBeforeReqFunctions.beforeEventFunction = luaBeforeReqFns.beforeEventFunction
@@ -1675,6 +1686,10 @@ func NewRuntime(ctx context.Context, logger, startupLogger *zap.Logger, db *sql.
 		allBeforeReqFunctions.beforeListSubscriptionsFunction = goBeforeReqFns.beforeListSubscriptionsFunction
 		startupLogger.Info("Registered Go runtime Before function invocation", zap.String("id", "listsubscriptions"))
 	}
+	if goBeforeReqFns.beforeListPartiesFunction != nil {
+		allBeforeReqFunctions.beforeListPartiesFunction = goBeforeReqFns.beforeListPartiesFunction
+		startupLogger.Info("Registered Go runtime Before function invocation", zap.String("id", "listparties"))
+	}
 	if goBeforeReqFns.beforeEventFunction != nil {
 		allBeforeReqFunctions.beforeEventFunction = goBeforeReqFns.beforeEventFunction
 		startupLogger.Info("Registered Go runtime Before custom events function invocation")
@@ -1922,6 +1937,9 @@ func NewRuntime(ctx context.Context, logger, startupLogger *zap.Logger, db *sql.
 	}
 	if allAfterReqFunctions.afterListSubscriptionsFunction != nil {
 		startupLogger.Info("Registered JavaScript runtime After function invocation", zap.String("id", "listsubscriptions"))
+	}
+	if allAfterReqFunctions.afterListPartiesFunction != nil {
+		startupLogger.Info("Registered JavaScript runtime Before function invocation", zap.String("id", "listparties"))
 	}
 	if allAfterReqFunctions.afterEventFunction != nil {
 		startupLogger.Info("Registered JavaScript runtime After custom events function invocation")
@@ -2242,6 +2260,10 @@ func NewRuntime(ctx context.Context, logger, startupLogger *zap.Logger, db *sql.
 	if luaAfterReqFns.afterListSubscriptionsFunction != nil {
 		allAfterReqFunctions.afterListSubscriptionsFunction = luaAfterReqFns.afterListSubscriptionsFunction
 		startupLogger.Info("Registered Lua runtime After function invocation", zap.String("id", "listsubscriptions"))
+	}
+	if luaAfterReqFns.afterListPartiesFunction != nil {
+		allAfterReqFunctions.afterListPartiesFunction = luaAfterReqFns.afterListPartiesFunction
+		startupLogger.Info("Registered Lua runtime Before function invocation", zap.String("id", "listparties"))
 	}
 	if luaAfterReqFns.afterEventFunction != nil {
 		allAfterReqFunctions.afterEventFunction = luaAfterReqFns.afterEventFunction
@@ -2568,6 +2590,10 @@ func NewRuntime(ctx context.Context, logger, startupLogger *zap.Logger, db *sql.
 	if goAfterReqFns.afterListSubscriptionsFunction != nil {
 		allAfterReqFunctions.afterListSubscriptionsFunction = goAfterReqFns.afterListSubscriptionsFunction
 		startupLogger.Info("Registered Go runtime After function invocation", zap.String("id", "listsubscriptions"))
+	}
+	if goAfterReqFns.afterListPartiesFunction != nil {
+		allAfterReqFunctions.afterListPartiesFunction = goAfterReqFns.afterListPartiesFunction
+		startupLogger.Info("Registered Go runtime Before function invocation", zap.String("id", "listparties"))
 	}
 	if goAfterReqFns.afterEventFunction != nil {
 		allAfterReqFunctions.afterEventFunction = goAfterReqFns.afterEventFunction
@@ -3486,6 +3512,14 @@ func (r *Runtime) BeforeValidatePurchaseFacebookInstant() RuntimeBeforeValidateP
 
 func (r *Runtime) AfterValidatePurchaseFacebookInstant() RuntimeAfterValidatePurchaseFacebookInstantFunction {
 	return r.afterReqFunctions.afterValidatePurchaseFacebookInstantFunction
+}
+
+func (r *Runtime) BeforeListParties() RuntimeBeforeListPartiesFunction {
+	return r.beforeReqFunctions.beforeListPartiesFunction
+}
+
+func (r *Runtime) AfterListParties() RuntimeAfterListPartiesFunction {
+	return r.afterReqFunctions.afterListPartiesFunction
 }
 
 func (r *Runtime) BeforeEvent() RuntimeBeforeEventFunction {

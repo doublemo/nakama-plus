@@ -273,6 +273,8 @@ func (im *RuntimeJavascriptInitModule) mappings(r *goja.Runtime) map[string]func
 		"registerAfterListSubscriptions":                  im.registerAfterListSubscriptions(r),
 		"registerBeforeGetSubscription":                   im.registerBeforeGetSubscription(r),
 		"registerAfterGetSubscription":                    im.registerAfterGetSubscription(r),
+		"registerBeforeListParties":                       im.registerBeforeListParties(r),
+		"registerAfterListParties":                        im.registerAfterListParties(r),
 		"registerBeforeEvent":                             im.registerBeforeEvent(r),
 		"registerAfterEvent":                              im.registerAfterEvent(r),
 		"registerStorageIndex":                            im.registerStorageIndex(r),
@@ -1133,6 +1135,14 @@ func (im *RuntimeJavascriptInitModule) registerBeforeGetSubscription(r *goja.Run
 
 func (im *RuntimeJavascriptInitModule) registerAfterGetSubscription(r *goja.Runtime) func(goja.FunctionCall) goja.Value {
 	return im.registerHook(r, RuntimeExecutionModeAfter, "registerAfterGetSubscription", "getsubscription")
+}
+
+func (im *RuntimeJavascriptInitModule) registerBeforeListParties(r *goja.Runtime) func(goja.FunctionCall) goja.Value {
+	return im.registerHook(r, RuntimeExecutionModeBefore, "registerBeforeListParties", "listparties")
+}
+
+func (im *RuntimeJavascriptInitModule) registerAfterListParties(r *goja.Runtime) func(goja.FunctionCall) goja.Value {
+	return im.registerHook(r, RuntimeExecutionModeAfter, "registerAfterGetSubscription", "listparties")
 }
 
 func (im *RuntimeJavascriptInitModule) registerBeforeEvent(r *goja.Runtime) func(goja.FunctionCall) goja.Value {
