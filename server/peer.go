@@ -864,8 +864,6 @@ func (s *LocalPeer) processIncoming() {
 	}
 }
 
-// func (s *LocalPeer) processOutgoing() {}
-
 func (s *LocalPeer) processWatch() {
 	defer func() {
 		if r := recover(); r != nil {
