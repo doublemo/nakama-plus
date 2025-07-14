@@ -11,6 +11,7 @@ import (
 	"errors"
 	"math"
 	coreruntime "runtime"
+	"runtime/debug"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -867,16 +868,23 @@ func (s *LocalPeer) processIncoming() {
 
 func (s *LocalPeer) processWatch() {
 	defer func() {
-		s.logger.Info("stoped to register service")
+		if r := recover(); r != nil {
+			s.logger.Error("Recovered from panic in processWatch", zap.Any("error", r), zap.String("debug", string(debug.Stack())))
+		}
+		s.logger.Info("Stopped service watch for cluster")
 	}()
 
-	s.logger.Info("started to register service")
+	s.logger.Info("Starting service watch for cluster")
 	ch := make(chan struct{}, 1)
 	go s.etcdClient.Watch(ch)
 
 	for {
 		select {
-		case <-ch:
+		case _, ok := <-ch:
+			if !ok {
+				s.logger.Warn("Watch channel closed unexpectedly")
+				return
+			}
 			s.onServiceUpdate()
 
 		case <-s.ctx.Done():
@@ -967,7 +975,7 @@ func (s *LocalPeer) onServiceUpdate() {
 		}
 		return true
 	})
-	s.logger.Info("updated services", zap.Strings("nodes", nodesname), zap.Strings("removed", nodesremoved))
+	s.logger.Info("Updated services for cluster", zap.Strings("nodes", nodesname), zap.Strings("removed", nodesremoved))
 }
 
 func (s *LocalPeer) onNotifyMsg(msg []byte) {
