@@ -229,7 +229,7 @@ func (s *LocalPeer) LocalState(join bool) []byte {
 	nodesMap := make(map[string]int)
 	state.Nodes = append(state.Nodes, &pb.StateNode{
 		Node:            s.endpoint.Name(),
-		Version:         s.binaryLog.RefreshVersion(),
+		Version:         s.binaryLog.GetVersion(),
 		Presences:       make([]*pb.Presence, 0),
 		Matchmaker:      make([]*pb.MatchmakerExtract, 0),
 		PartyIndexEntry: make([]*pb.Party_IndexEntry, 0),
