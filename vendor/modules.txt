@@ -116,7 +116,7 @@ github.com/dop251/goja/unistring
 github.com/doublemo/nakama-common/api
 github.com/doublemo/nakama-common/rtapi
 github.com/doublemo/nakama-common/runtime
-# github.com/doublemo/nakama-kit v1.2.1 => ../nakama-kit
+# github.com/doublemo/nakama-kit v1.2.2
 ## explicit; go 1.24.3
 github.com/doublemo/nakama-kit/kit
 github.com/doublemo/nakama-kit/kit/grpc-pool
