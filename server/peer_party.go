@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/blugelabs/bluge"
@@ -12,15 +13,25 @@ import (
 )
 
 func (p *LocalPartyRegistry) SyncData(ctx context.Context, nodeName string, data []*pb.Party_IndexEntry) error {
+	startTime := time.Now()
 	batch := bluge.NewBatch()
-	if _, err := p.fillDeleteAllFromNodeOptimized(ctx, batch, nodeName); err != nil {
-		return err
+	defer batch.Reset()
+	deletedCount, err := p.fillDeleteAllFromNodeOptimized(ctx, batch, nodeName)
+	if err != nil {
+		p.logger.Error("failed to delete old data from node",
+			zap.String("node", nodeName),
+			zap.Error(err))
+		return fmt.Errorf("failed to delete old data from node %s: %w", nodeName, err)
 	}
 
+	p.logger.Debug("deleted old records", zap.String("node", nodeName), zap.Int("count", deletedCount))
+	successCount := 0
 	for _, index := range data {
 		var label map[string]any
 		if err := json.Unmarshal(index.Label, &label); err != nil {
-			p.logger.Error("error unmarshal party label", zap.Error(err))
+			p.logger.Warn("failed to unmarshal party label",
+				zap.String("partyID", index.Id),
+				zap.Error(err))
 			continue
 		}
 
@@ -33,20 +44,34 @@ func (p *LocalPartyRegistry) SyncData(ctx context.Context, nodeName string, data
 			CreateTime:  time.Unix(index.CreateTime, 0),
 		})
 		if err != nil {
-			p.logger.Error("error mapping party index entry to doc: %v", zap.Error(err))
+			p.logger.Error("failed to map party index entry to document",
+				zap.String("partyID", index.Id),
+				zap.Error(err))
+			continue
 		}
 		batch.Update(bluge.Identifier(index.Id), doc)
+		successCount++
 	}
 
 	if err := p.indexWriter.Batch(batch); err != nil {
-		p.logger.Error("error processing party label updates", zap.Error(err))
+		p.logger.Error("failed to execute batch operation",
+			zap.String("node", nodeName),
+			zap.Error(err))
+		return fmt.Errorf("failed to execute batch operation for node %s: %w", nodeName, err)
 	}
-	batch.Reset()
+
+	p.logger.Info("successfully synced node data",
+		zap.String("node", nodeName),
+		zap.Int("deleted", deletedCount),
+		zap.Int("added", successCount),
+		zap.Int("totalProcessed", len(data)),
+		zap.Duration("duration", time.Since(startTime)))
 	return nil
 }
 
 func (p *LocalPartyRegistry) deleteAllFromNodeOptimized(ctx context.Context, nodeName string) error {
 	batch := bluge.NewBatch()
+	defer batch.Reset()
 	n, err := p.fillDeleteAllFromNodeOptimized(ctx, batch, nodeName)
 	if err != nil {
 		return err
@@ -86,7 +111,7 @@ func (p *LocalPartyRegistry) fillDeleteAllFromNodeOptimized(ctx context.Context,
 		})
 
 		if err != nil {
-			return 0, err
+			return 0, fmt.Errorf("error visiting stored fields: %w", err)
 		}
 	}
 	return n, nil
