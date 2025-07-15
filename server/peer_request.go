@@ -186,6 +186,17 @@ func (s *LocalPeer) onRequest(frame *pb.Frame) {
 		}
 		w(&pb.Peer_Envelope{})
 		return
+
+	case *pb.Peer_Envelope_PartyUpdate:
+		update := request.GetPartyUpdate()
+		err := s.partyRegistry.PartyUpdate(s.ctx, uuid.FromStringOrNil(update.Id), update.Node, update.SessionID, update.FromNode, update.LabelString, update.Open, update.Hidden)
+		if err != nil {
+			w(&pb.Peer_Envelope{Payload: newEnvelopeError(err)})
+			return
+		}
+		w(&pb.Peer_Envelope{})
+		return
+
 	case *pb.Peer_Envelope_MatchId:
 		id := request.GetMatchId()
 		idComponents := strings.SplitN(id, ".", 2)

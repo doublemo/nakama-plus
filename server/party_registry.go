@@ -217,7 +217,7 @@ func (p *LocalPartyRegistry) Create(open, hidden bool, maxSize int, presence *rt
 	p.pendingUpdatesMutex.Unlock()
 
 	if peer, ok := p.getPeer(); ok {
-		peer.RefreshVersion()
+		peer.PartyCreate(entry)
 	}
 	return partyHandler, nil
 }
@@ -230,7 +230,7 @@ func (p *LocalPartyRegistry) Delete(id uuid.UUID) {
 
 	p.parties.Delete(id)
 	if peer, ok := p.getPeer(); ok {
-		peer.RefreshVersion()
+		peer.PartyClose(idStr)
 	}
 }
 
@@ -554,7 +554,26 @@ func (p *LocalPartyRegistry) PartyUpdate(ctx context.Context, id uuid.UUID, node
 		return ErrPartyHiddenNonEmptyLabel
 	}
 	if node != p.node {
-		return ErrPartyNotFound
+		peer, endpoint, ok := p.getEndpoint(node)
+		if !ok {
+			return ErrPartyNotFound
+		}
+
+		//remote node
+		_, err := peer.Request(ctx, endpoint, &pb.Peer_Envelope{
+			Payload: &pb.Peer_Envelope_PartyUpdate{
+				PartyUpdate: &pb.Party_IndexEntry{
+					Id:          id.String(),
+					Node:        node,
+					Open:        open,
+					Hidden:      hidden,
+					FromNode:    fromNode,
+					LabelString: label,
+					SessionID:   sessionID,
+				},
+			},
+		})
+		return err
 	}
 
 	ph, found := p.parties.Load(id)

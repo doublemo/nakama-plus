@@ -12,6 +12,32 @@ import (
 	"go.uber.org/zap"
 )
 
+func (s *LocalPeer) PartyCreate(entry *PartyIndexEntry) {
+	s.BinaryLogBroadcast(&pb.BinaryLog{
+		Node:    s.endpoint.Name(),
+		Payload: &pb.BinaryLog_PartyCreate{PartyCreate: partyIndex2pb(entry)},
+	}, true)
+}
+
+func (s *LocalPeer) PartyClose(id string) {
+	s.BinaryLogBroadcast(&pb.BinaryLog{
+		Node:    s.endpoint.Name(),
+		Payload: &pb.BinaryLog_PartyClose{PartyClose: id},
+	}, true)
+}
+
+func (p *LocalPartyRegistry) handleFromRemotePartyCreate(entry *PartyIndexEntry) {
+	p.pendingUpdatesMutex.Lock()
+	p.pendingUpdates[fmt.Sprintf("%v.%v", entry.Id, entry.Node)] = entry
+	p.pendingUpdatesMutex.Unlock()
+}
+
+func (p *LocalPartyRegistry) handleFromRemotePartyClose(id string) {
+	batch := bluge.NewBatch()
+	batch.Delete(bluge.Identifier(id))
+	p.indexWriter.Batch(batch)
+}
+
 func (p *LocalPartyRegistry) SyncData(ctx context.Context, nodeName string, data []*pb.Party_IndexEntry) error {
 	startTime := time.Now()
 	batch := bluge.NewBatch()
@@ -133,4 +159,20 @@ func partyIndex2pb(index *PartyIndexEntry) *pb.Party_IndexEntry {
 		LabelString: index.LabelString,
 		CreateTime:  index.CreateTime.Unix(),
 	}
+}
+
+func pb2partyIndex(index *pb.Party_IndexEntry) *PartyIndexEntry {
+	entry := &PartyIndexEntry{
+		Id:          index.Id,
+		Node:        index.Node,
+		Open:        index.Open,
+		Hidden:      index.Hidden,
+		MaxSize:     int(index.MaxSize),
+		Label:       make(map[string]any),
+		LabelString: index.LabelString,
+		CreateTime:  time.Unix(index.CreateTime, 0),
+	}
+
+	_ = json.Unmarshal(index.Label, &entry.Label)
+	return entry
 }

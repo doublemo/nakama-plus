@@ -53,7 +53,6 @@ type (
 		Members() []Endpoint
 		Broadcast(msg *pb.Peer_Envelope, reliable bool)
 		BinaryLogBroadcast(b *pb.BinaryLog, toQueue bool)
-		RefreshVersion()
 		Send(endpoint Endpoint, msg *pb.Peer_Envelope, reliable bool) error
 		Request(ctx context.Context, endpoint Endpoint, msg *pb.Peer_Envelope) (*pb.Peer_Envelope, error)
 		GetServiceRegistry() kit.ServiceRegistry
@@ -64,6 +63,8 @@ type (
 		MatchmakerRemovePartyAll(partyID string)
 		MatchmakerRemoveAll(node string)
 		MatchmakerRemove(tickets []string)
+		PartyCreate(entry *PartyIndexEntry)
+		PartyClose(id string)
 		ToClient(envelope *rtapi.Envelope, recipients []*pb.Recipienter)
 		InvokeMS(ctx context.Context, in *api.AnyRequest) (*api.AnyResponseWriter, error)
 		SendMS(ctx context.Context, in *api.AnyRequest) error
@@ -228,7 +229,7 @@ func (s *LocalPeer) LocalState(join bool) []byte {
 	nodesMap := make(map[string]int)
 	state.Nodes = append(state.Nodes, &pb.StateNode{
 		Node:            s.endpoint.Name(),
-		Version:         s.binaryLog.GetVersion(),
+		Version:         s.binaryLog.RefreshVersion(),
 		Presences:       make([]*pb.Presence, 0),
 		Matchmaker:      make([]*pb.MatchmakerExtract, 0),
 		PartyIndexEntry: make([]*pb.Party_IndexEntry, 0),
@@ -719,10 +720,6 @@ func (s *LocalPeer) BinaryLogBroadcast(b *pb.BinaryLog, toQueue bool) {
 	})
 }
 
-func (s *LocalPeer) RefreshVersion() {
-	s.binaryLog.RefreshVersion()
-}
-
 func (s *LocalPeer) Event(ctx context.Context, in *api.AnyRequest, names ...string) error {
 	request := &pb.Frame{
 		Id:        uuid.Must(uuid.NewV4()).String(),
@@ -1069,6 +1066,7 @@ func (s *LocalPeer) onMergeRemoteState(buf []byte, join bool) {
 		}
 		s.matchmaker.Insert(matchmakerExtracts)
 		s.partyRegistry.SyncData(s.ctx, node, stateNode.GetPartyIndexEntry())
+		s.logger.Debug("processed MergeRemoteState", zap.String("node", node), zap.Any("state", stateNode))
 	}
 }
 

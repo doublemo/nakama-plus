@@ -1,6 +1,7 @@
 package server
 
 import (
+	"strings"
 	"time"
 
 	"github.com/doublemo/nakama-kit/pb"
@@ -39,9 +40,8 @@ func (b *LocalBinaryLog) GetVersion() int64 {
 }
 
 func (b *LocalBinaryLog) RefreshVersion() int64 {
-	ver := time.Now().UTC().UnixNano()
-	b.version.Store(ver)
-	return ver
+	b.version.Store(time.Now().UTC().UnixNano())
+	return b.version.Load()
 }
 
 func (b *LocalBinaryLog) GetVersionByNode(node string) int64 {
@@ -57,49 +57,72 @@ func (b *LocalBinaryLog) SetVersionByNode(node string, ver int64) {
 }
 
 func (s *LocalPeer) handleBinaryLog(v *pb.BinaryLog) {
+	logFields := []zap.Field{
+		zap.String("node", v.Node),
+		zap.Int64("version", v.Version),
+	}
+
 	switch payload := v.Payload.(type) {
 	case *pb.BinaryLog_Ban:
 		s.onBan(v.Node, payload.Ban)
+		s.logger.Debug("processed ban log", append(logFields, zap.Any("payload", payload.Ban))...)
 	case *pb.BinaryLog_Track:
 		s.onTrack(v.Node, payload.Track)
+		s.logger.Debug("processed track log", append(logFields, zap.Any("payload", payload.Track))...)
 	case *pb.BinaryLog_Untrack:
 		s.onUntrack(v.Node, payload.Untrack)
+		s.logger.Debug("processed untrack log", append(logFields, zap.Any("payload", payload.Untrack))...)
 	case *pb.BinaryLog_MatchmakerAdd:
 		extract := pb2MatchmakerExtract(payload.MatchmakerAdd)
 		_, _, err := s.matchmaker.Add(s.ctx, extract.Presences, extract.SessionID, extract.PartyId, extract.Query, extract.MinCount, extract.MaxCount, extract.CountMultiple, extract.StringProperties, extract.NumericProperties)
-		if err != nil {
-			s.logger.Error("BinaryLog_MatchmakerAdd", zap.Error(err), zap.Any("extract", extract))
-		}
+		s.handleMatchmakerResult("MatchmakerAdd", err, extract, logFields)
 
 	case *pb.BinaryLog_MatchmakerRemoveSession:
 		extract := payload.MatchmakerRemoveSession
-		if err := s.matchmaker.RemoveSession(extract.SessionId, extract.Ticket); err != nil {
-			s.logger.Error("BinaryLog_MatchmakerRemoveSession", zap.Error(err), zap.Any("extract", extract))
-		}
+		err := s.matchmaker.RemoveSession(extract.SessionId, extract.Ticket)
+		s.handleMatchmakerResult("MatchmakerRemoveSession", err, extract, logFields)
 
 	case *pb.BinaryLog_MatchmakerRemoveSessionAll:
 		extract := payload.MatchmakerRemoveSessionAll
-		if err := s.matchmaker.RemoveSessionAll(extract.SessionId); err != nil {
-			s.logger.Error("BinaryLog_MatchmakerRemoveSessionAll", zap.Error(err), zap.Any("extract", extract))
-		}
+		err := s.matchmaker.RemoveSessionAll(extract.SessionId)
+		s.handleMatchmakerResult("MatchmakerRemoveSessionAll", err, extract, logFields)
 
 	case *pb.BinaryLog_MatchmakerRemoveParty:
 		extract := payload.MatchmakerRemoveParty
-		if err := s.matchmaker.RemoveParty(extract.PartyId, extract.Ticket); err != nil {
-			s.logger.Error("BinaryLog_MatchmakerRemoveParty", zap.Error(err), zap.Any("extract", extract))
-		}
+		err := s.matchmaker.RemoveParty(extract.PartyId, extract.Ticket)
+		s.handleMatchmakerResult("MatchmakerRemoveParty", err, extract, logFields)
 
 	case *pb.BinaryLog_MatchmakerRemovePartyAll:
 		extract := payload.MatchmakerRemovePartyAll
-		if err := s.matchmaker.RemovePartyAll(extract.PartyId); err != nil {
-			s.logger.Error("BinaryLog_MatchmakerRemovePartyAll", zap.Error(err), zap.Any("extract", extract))
-		}
+		err := s.matchmaker.RemovePartyAll(extract.PartyId)
+		s.handleMatchmakerResult("MatchmakerRemovePartyAll", err, extract, logFields)
 
 	case *pb.BinaryLog_MatchmakerRemoveAll:
 		s.matchmaker.RemoveAll(map[string]bool{payload.MatchmakerRemoveAll.Node: true})
+		s.logger.Debug("processed matchmaker remove all", append(logFields, zap.String("targetNode", payload.MatchmakerRemoveAll.Node))...)
 
 	case *pb.BinaryLog_MatchmakerRemove:
 		s.matchmaker.Remove(payload.MatchmakerRemove.Ticket)
+		s.logger.Debug("processed matchmaker remove", append(logFields, zap.String("ticket", strings.Join(payload.MatchmakerRemove.Ticket, ",")))...)
+	case *pb.BinaryLog_PartyCreate:
+		s.partyRegistry.(*LocalPartyRegistry).handleFromRemotePartyCreate(pb2partyIndex(payload.PartyCreate))
+		s.logger.Debug("processed party create", append(logFields, zap.Any("payload", payload.PartyCreate))...)
+
+	case *pb.BinaryLog_PartyClose:
+		s.partyRegistry.(*LocalPartyRegistry).handleFromRemotePartyClose(payload.PartyClose)
+		s.logger.Debug("processed party close", append(logFields, zap.String("id", payload.PartyClose))...)
 	}
 	s.binaryLog.SetVersionByNode(v.Node, v.Version)
+}
+
+func (s *LocalPeer) handleMatchmakerResult(operation string, err error, payload interface{}, baseFields []zap.Field) {
+	fields := append(baseFields,
+		zap.String("operation", operation),
+		zap.Any("payload", payload))
+
+	if err != nil {
+		s.logger.Error("matchmaker operation failed", append(fields, zap.Error(err))...)
+	} else {
+		s.logger.Debug("matchmaker operation succeeded", fields...)
+	}
 }

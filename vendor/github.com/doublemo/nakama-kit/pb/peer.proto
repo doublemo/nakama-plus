@@ -87,19 +87,20 @@ message Peer{
             Party.MatchmakerAddReply PartyMatchmakerAddReply = 15;
             Party.MatchmakerRemove partyMatchmakerRemove = 16;
             Party.DataSend partyDataSend = 17;
-            string matchId = 18;
-            Match.JoinAttempt matchJoinAttempt = 19;
-            Match.JoinAttemptReply mathJoinAttemptReply = 20;
-            Match.SendData matchSendData = 21;
-            Match.Signal matchSignal = 22;
-            string matchState = 23;
-            api.Match match = 24;
-            realtime.Error error = 25;
-            string ping = 26;
-            string pong = 27;
-            string matchSignalReply = 28;
-            Match.State matchStateReply = 29;
-            realtime.Envelope nkEnvelope = 30;
+            Party.IndexEntry partyUpdate = 18;
+            string matchId = 19;
+            Match.JoinAttempt matchJoinAttempt = 20;
+            Match.JoinAttemptReply mathJoinAttemptReply = 21;
+            Match.SendData matchSendData = 22;
+            Match.Signal matchSignal = 23;
+            string matchState = 24;
+            api.Match match = 25;
+            realtime.Error error = 26;
+            string ping = 27;
+            string pong = 28;
+            string matchSignalReply = 29;
+            Match.State matchStateReply = 30;
+            realtime.Envelope nkEnvelope = 31;
         }
     }
 }
@@ -273,13 +274,15 @@ message BinaryLog {
         UntrackValue untrack = 4;
         BanValue ban = 5;
         Presence updateTrack = 6;
-        MatchmakerExtract MatchmakerAdd = 7;
-        MatchmakerExtract MatchmakerRemoveSession = 8;
-        MatchmakerExtract MatchmakerRemoveSessionAll = 9;
-        MatchmakerExtract MatchmakerRemoveParty = 10;
-        MatchmakerExtract MatchmakerRemovePartyAll = 11;
-        MatchmakerExtract MatchmakerRemoveAll = 12;
-        PartyMatchmakerRemove MatchmakerRemove = 13;
+        MatchmakerExtract matchmakerAdd = 7;
+        MatchmakerExtract matchmakerRemoveSession = 8;
+        MatchmakerExtract matchmakerRemoveSessionAll = 9;
+        MatchmakerExtract matchmakerRemoveParty = 10;
+        MatchmakerExtract matchmakerRemovePartyAll = 11;
+        MatchmakerExtract matchmakerRemoveAll = 12;
+        PartyMatchmakerRemove matchmakerRemove = 13;
+        Party.IndexEntry partyCreate = 14;
+        string partyClose = 15;
     }
 
 
@@ -413,6 +416,8 @@ message Party {
         bytes label = 6;
         string labelString = 7;
         int64 createTime = 8;
+        string sessionID = 9;
+        string fromNode = 10;
     }
 }
 
