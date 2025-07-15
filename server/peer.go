@@ -1,8 +1,3 @@
-// Copyright 2024 The Bombus Authors
-//
-// Use of this source code is governed by a MIT style
-// license that can be found in the LICENSE file.
-
 package server
 
 import (
@@ -26,6 +21,7 @@ import (
 	"github.com/doublemo/nakama-plus/v3/internal/worker"
 	"github.com/gofrs/uuid/v5"
 	"github.com/hashicorp/memberlist"
+	uberatomic "go.uber.org/atomic"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -108,6 +104,7 @@ type (
 		protojsonMarshaler   *protojson.MarshalOptions
 		protojsonUnmarshaler *protojson.UnmarshalOptions
 		db                   *sql.DB
+		partyIndexOffset     *uberatomic.Int64
 
 		once sync.Once
 		sync.Mutex
@@ -144,6 +141,7 @@ func NewLocalPeer(db *sql.DB, logger *zap.Logger, name string, metadata map[stri
 		protojsonUnmarshaler: protojsonUnmarshaler,
 		db:                   db,
 		runtime:              runtime,
+		partyIndexOffset:     uberatomic.NewInt64(0),
 	}
 
 	cfg := toMemberlistConfig(s, name, c)
@@ -228,10 +226,11 @@ func (s *LocalPeer) LocalState(join bool) []byte {
 
 	nodesMap := make(map[string]int)
 	state.Nodes = append(state.Nodes, &pb.StateNode{
-		Node:       s.endpoint.Name(),
-		Version:    s.binaryLog.GetVersion(),
-		Presences:  make([]*pb.Presence, 0),
-		Matchmaker: make([]*pb.MatchmakerExtract, 0),
+		Node:            s.endpoint.Name(),
+		Version:         s.binaryLog.GetVersion(),
+		Presences:       make([]*pb.Presence, 0),
+		Matchmaker:      make([]*pb.MatchmakerExtract, 0),
+		PartyIndexEntry: make([]*pb.Party_IndexEntry, 0),
 	})
 	nodesMap[s.endpoint.Name()] = 0
 	presencesMap := make(map[uuid.UUID]int)
@@ -289,9 +288,25 @@ func (s *LocalPeer) LocalState(join bool) []byte {
 		state.Nodes[0].Matchmaker = append(state.Nodes[0].Matchmaker, matchmakerExtract2pb(extract))
 	}
 
+	if partyIndexs, err := s.partyRegistry.Extract(s.ctx, int(s.partyIndexOffset.Load()), 10000); err != nil {
+		s.logger.Warn("Failed to get party index", zap.Error(err))
+		s.partyIndexOffset.Store(0)
+	} else {
+		for _, index := range partyIndexs {
+			state.Nodes[0].PartyIndexEntry = append(state.Nodes[0].PartyIndexEntry, partyIndex2pb(index))
+		}
+
+		indexSize := len(partyIndexs)
+		if indexSize == 0 {
+			s.partyIndexOffset.Store(0)
+		} else {
+			s.partyIndexOffset.Store(int64(indexSize) + 10000)
+		}
+	}
+
 	bytes, err := proto.Marshal(state)
 	if err != nil {
-		s.logger.Warn("failed to marshal LocalState", zap.Error(err))
+		s.logger.Warn("Failed to marshal LocalState", zap.Error(err))
 		return nil
 	}
 	return bytes
@@ -386,6 +401,8 @@ func (s *LocalPeer) NotifyLeave(node *memberlist.Node) {
 	if !s.wk.Stopped() {
 		s.wk.Submit(func() {
 			s.tracker.ClearTrackByNode(map[string]bool{node.Name: true})
+			s.matchmaker.RemoveAll(map[string]bool{node.Name: true})
+			s.partyRegistry.(*LocalPartyRegistry).deleteAllFromNodeOptimized(s.ctx, node.Name)
 			s.logger.Debug("NotifyLeave", zap.String("name", node.Name))
 			//s.metrics.GaugePeers(float64(s.NumMembers()))
 		})
@@ -1046,6 +1063,7 @@ func (s *LocalPeer) onMergeRemoteState(buf []byte, join bool) {
 			matchmakerExtracts[k] = pb2MatchmakerExtract(v)
 		}
 		s.matchmaker.Insert(matchmakerExtracts)
+		s.partyRegistry.SyncData(s.ctx, node, stateNode.GetPartyIndexEntry())
 	}
 }
 

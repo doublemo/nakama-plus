@@ -67,6 +67,9 @@ type PartyRegistry interface {
 	PartyUpdate(ctx context.Context, id uuid.UUID, node, sessionID, fromNode, label string, open, hidden bool) error
 	PartyList(ctx context.Context, limit int, open *bool, showHidden bool, query, cursor string) ([]*api.Party, string, error)
 	LabelUpdate(id uuid.UUID, node, label string, open, hidden bool, maxSize int, createTime time.Time) error
+
+	Extract(ctx context.Context, offset, limit int) ([]*PartyIndexEntry, error)
+	SyncData(ctx context.Context, nodeName string, data []*pb.Party_IndexEntry) error
 }
 
 type LocalPartyRegistry struct {
@@ -593,6 +596,24 @@ func (p *LocalPartyRegistry) LabelUpdate(id uuid.UUID, node, label string, open,
 	p.pendingUpdatesMutex.Unlock()
 
 	return nil
+}
+
+func (p *LocalPartyRegistry) Extract(ctx context.Context, offset, limit int) ([]*PartyIndexEntry, error) {
+	request := bluge.NewTopNSearch(limit+1, bluge.NewMatchAllQuery())
+	request.SetFrom(offset)
+	indexReader, err := p.indexWriter.Reader()
+	if err != nil {
+		return nil, err
+	}
+
+	defer indexReader.Close()
+
+	iter, err := indexReader.Search(ctx, request)
+	if err != nil {
+		p.logger.Error("error search index reader", zap.Error(err))
+		return nil, err
+	}
+	return p.queryMatchesToEntries(iter)
 }
 
 type PartyListCursor struct {

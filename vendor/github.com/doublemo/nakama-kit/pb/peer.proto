@@ -148,6 +148,7 @@ message StateNode {
     int64  version = 2;
     repeated Presence Presences = 3; 
     repeated MatchmakerExtract matchmaker = 4;
+    repeated Party.IndexEntry partyIndexEntry = 5;
 }
 
 message Status {
@@ -401,6 +402,17 @@ message Party {
         string fromNode = 3;
         int64 opCode = 4;
         bytes data = 5;
+    }
+
+    message IndexEntry {
+        string id = 1;
+        string node = 2;
+        bool open = 3;
+        bool hidden = 4;
+        int32 maxSize = 5;
+        bytes label = 6;
+        string labelString = 7;
+        int64 createTime = 8;
     }
 }
 
