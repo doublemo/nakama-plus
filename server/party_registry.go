@@ -229,6 +229,9 @@ func (p *LocalPartyRegistry) Delete(id uuid.UUID) {
 	p.pendingUpdatesMutex.Unlock()
 
 	p.parties.Delete(id)
+	if peer, ok := p.getPeer(); ok {
+		peer.RefreshVersion()
+	}
 }
 
 func (p *LocalPartyRegistry) Join(id uuid.UUID, presences []*Presence) {
