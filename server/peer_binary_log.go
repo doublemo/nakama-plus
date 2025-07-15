@@ -62,6 +62,11 @@ func (s *LocalPeer) handleBinaryLog(v *pb.BinaryLog) {
 		zap.Int64("version", v.Version),
 	}
 
+	if lastVersion := s.binaryLog.GetVersionByNode(v.Node); lastVersion >= v.Version {
+		s.logger.Debug("Skip log", append(logFields, zap.Int64("lastVersion", lastVersion))...)
+		return
+	}
+
 	switch payload := v.Payload.(type) {
 	case *pb.BinaryLog_Ban:
 		s.onBan(v.Node, payload.Ban)
