@@ -216,6 +216,9 @@ func (p *LocalPartyRegistry) Create(open, hidden bool, maxSize int, presence *rt
 	p.pendingUpdates[idStr] = entry
 	p.pendingUpdatesMutex.Unlock()
 
+	if peer, ok := p.getPeer(); ok {
+		peer.RefreshVersion()
+	}
 	return partyHandler, nil
 }
 

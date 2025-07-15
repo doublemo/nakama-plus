@@ -53,6 +53,7 @@ type (
 		Members() []Endpoint
 		Broadcast(msg *pb.Peer_Envelope, reliable bool)
 		BinaryLogBroadcast(b *pb.BinaryLog, toQueue bool)
+		RefreshVersion()
 		Send(endpoint Endpoint, msg *pb.Peer_Envelope, reliable bool) error
 		Request(ctx context.Context, endpoint Endpoint, msg *pb.Peer_Envelope) (*pb.Peer_Envelope, error)
 		GetServiceRegistry() kit.ServiceRegistry
@@ -716,6 +717,10 @@ func (s *LocalPeer) BinaryLogBroadcast(b *pb.BinaryLog, toQueue bool) {
 		msg:      bytes,
 		finished: nil,
 	})
+}
+
+func (s *LocalPeer) RefreshVersion() {
+	s.binaryLog.RefreshVersion()
 }
 
 func (s *LocalPeer) Event(ctx context.Context, in *api.AnyRequest, names ...string) error {

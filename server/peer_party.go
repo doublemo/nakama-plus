@@ -25,6 +25,10 @@ func (p *LocalPartyRegistry) SyncData(ctx context.Context, nodeName string, data
 	}
 
 	p.logger.Debug("deleted old records", zap.String("node", nodeName), zap.Int("count", deletedCount))
+	if deletedCount == 0 && len(data) == 0 {
+		return nil
+	}
+
 	successCount := 0
 	for _, index := range data {
 		var label map[string]any
