@@ -6,6 +6,7 @@
 [![License](https://img.shields.io/github/license/heroiclabs/nakama.svg)](https://github.com/heroiclabs/nakama/blob/master/LICENSE)
 
 > Distributed server for social and realtime games and apps.
+
 > This project adds cluster and microservice support to Nakama. In daily work, you might want to deploy Nakama in a cluster where data across all nodes is synchronized, or add sub-services around Nakama to distribute server load. We hope this project proves helpful to you.
 
 ## Features
