@@ -11,6 +11,14 @@ import (
 	"go.uber.org/zap"
 )
 
+/**
+ * toPeerRequest converts an API AnyRequest to a Peer_Request.
+ * This function transforms the API request format into the internal peer request format,
+ * copying all relevant fields including CID, name, query parameters, headers, and content.
+ *
+ * @param req The API request to convert
+ * @return The converted Peer_Request object
+ */
 func toPeerRequest(req *api.AnyRequest) *pb.Peer_Request {
 	in := &pb.Peer_Request{
 		Query:   make(map[string]*pb.Peer_Query),

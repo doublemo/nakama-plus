@@ -368,7 +368,7 @@ func (s *LocalPeer) NotifyPingComplete(other *memberlist.Node, rtt time.Duration
 
 	endpoint.PingRTT(rtt)
 	if rtt.Milliseconds() > 500 {
-		s.logger.Warn("ping too slow", zap.Duration("rrt", rtt), zap.String("name", other.Name), zap.String("address", other.Address()))
+		s.logger.Warn("ping too slow", zap.Duration("rtt", rtt), zap.String("name", other.Name), zap.String("address", other.Address()))
 	}
 
 	if size := len(payload); size < 1 {
@@ -1107,10 +1107,11 @@ func (s *LocalPeer) onMergeRemoteState(buf []byte, join bool) {
 }
 
 func (s *LocalPeer) onResponseWriter(frame *pb.Frame) {
-	if len(frame.Inbox) != 1 {
-		s.inbox.Send(frame)
+	if len(frame.Inbox) == 0 {
+		s.logger.Warn("Received response frame with empty inbox")
 		return
 	}
+	s.inbox.Send(frame)
 }
 
 func (s *LocalPeer) onBan(node string, presence *pb.BanValue) {}

@@ -25,8 +25,10 @@ import (
 )
 
 func (p *Pipeline) any(logger *zap.Logger, session Session, envelope *rtapi.Envelope) (bool, *rtapi.Envelope) {
+	// Get the Any request from the envelope
 	req := envelope.GetAnyRequest()
 	if req.Name == "" {
+		// Return an error if the name is not set
 		_ = session.Send(&rtapi.Envelope{Cid: envelope.Cid, Message: &rtapi.Envelope_Error{Error: &rtapi.Error{
 			Code:    int32(rtapi.Error_BAD_INPUT),
 			Message: "Name must be set",
@@ -34,6 +36,7 @@ func (p *Pipeline) any(logger *zap.Logger, session Session, envelope *rtapi.Enve
 		return false, nil
 	}
 
+	// Initialize the context map and populate it with session information
 	req.Context = make(map[string]string)
 	req.Context["client_ip"] = session.ClientIP()
 	req.Context["client_port"] = session.ClientPort()
@@ -41,12 +44,15 @@ func (p *Pipeline) any(logger *zap.Logger, session Session, envelope *rtapi.Enve
 	req.Context["userId"] = session.UserID().String()
 	req.Context["username"] = session.Username()
 	req.Context["expiry"] = strconv.FormatInt(session.Expiry(), 10)
+	// Add all session variables to the context with "vars_" prefix
 	for k, v := range session.Vars() {
 		req.Context["vars_"+k] = v
 	}
 
+	// Get the peer from runtime
 	peer, ok := p.runtime.GetPeer()
 	if !ok {
+		// Return an error if the peer is not available
 		_ = session.Send(&rtapi.Envelope{Cid: envelope.Cid, Message: &rtapi.Envelope_Error{Error: &rtapi.Error{
 			Code:    int32(codes.Unavailable),
 			Message: "Service Unavailable",
@@ -54,7 +60,9 @@ func (p *Pipeline) any(logger *zap.Logger, session Session, envelope *rtapi.Enve
 		return false, nil
 	}
 
+	// Send the message to the peer
 	if err := peer.SendMS(context.Background(), req); err != nil {
+		// Handle any errors that occur during sending
 		code, ok := status.FromError(err)
 		if !ok {
 			code = status.New(codes.Internal, err.Error())
@@ -65,5 +73,6 @@ func (p *Pipeline) any(logger *zap.Logger, session Session, envelope *rtapi.Enve
 		}}}, true)
 		return false, nil
 	}
+	// Return success
 	return true, nil
 }
