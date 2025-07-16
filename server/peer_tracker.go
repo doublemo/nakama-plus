@@ -169,7 +169,7 @@ func (t *LocalTracker) TrackPeer(sessionID uuid.UUID, userID uuid.UUID, ops []*T
 		presence.Meta[k] = presenceMeta2PB(v.Meta)
 	}
 
-	t.peer.BinaryLogBroadcast(&pb.BinaryLog{
+	t.peer.BinaryLogBroadcast(pb.BinaryLog{
 		Node:    t.name,
 		Payload: &pb.BinaryLog_Track{Track: presence},
 	}, true)
@@ -194,7 +194,7 @@ func (t *LocalTracker) UntrackPeer(sessionID uuid.UUID, userID uuid.UUID, stream
 		untrack.Stream[k] = presenceStream2PB(*v)
 	}
 
-	t.peer.BinaryLogBroadcast(&pb.BinaryLog{
+	t.peer.BinaryLogBroadcast(pb.BinaryLog{
 		Node:    t.name,
 		Payload: &pb.BinaryLog_Untrack{Untrack: untrack},
 	}, true)
@@ -214,7 +214,7 @@ func (t *LocalTracker) UpdateTrackPeer(sessionID uuid.UUID, userID uuid.UUID, op
 		presence.Meta[k] = presenceMeta2PB(v.Meta)
 	}
 
-	t.peer.BinaryLogBroadcast(&pb.BinaryLog{
+	t.peer.BinaryLogBroadcast(pb.BinaryLog{
 		Node:    t.name,
 		Payload: &pb.BinaryLog_UpdateTrack{UpdateTrack: presence},
 	}, true)

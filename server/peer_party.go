@@ -13,14 +13,14 @@ import (
 )
 
 func (s *LocalPeer) PartyCreate(entry *PartyIndexEntry) {
-	s.BinaryLogBroadcast(&pb.BinaryLog{
+	s.BinaryLogBroadcast(pb.BinaryLog{
 		Node:    s.endpoint.Name(),
 		Payload: &pb.BinaryLog_PartyCreate{PartyCreate: partyIndex2pb(entry)},
 	}, true)
 }
 
 func (s *LocalPeer) PartyClose(id string) {
-	s.BinaryLogBroadcast(&pb.BinaryLog{
+	s.BinaryLogBroadcast(pb.BinaryLog{
 		Node:    s.endpoint.Name(),
 		Payload: &pb.BinaryLog_PartyClose{PartyClose: id},
 	}, true)

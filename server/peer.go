@@ -52,7 +52,7 @@ type (
 		Member(name string) (Endpoint, bool)
 		Members() []Endpoint
 		Broadcast(msg *pb.Peer_Envelope, reliable bool)
-		BinaryLogBroadcast(b *pb.BinaryLog, toQueue bool)
+		BinaryLogBroadcast(b pb.BinaryLog, toQueue bool)
 		Send(endpoint Endpoint, msg *pb.Peer_Envelope, reliable bool) error
 		Request(ctx context.Context, endpoint Endpoint, msg *pb.Peer_Envelope) (*pb.Peer_Envelope, error)
 		GetServiceRegistry() kit.ServiceRegistry
@@ -78,35 +78,41 @@ type (
 		data    []byte
 	}
 
+	binaryLogMsg struct {
+		toQueue bool
+		msg     pb.BinaryLog
+	}
+
 	LocalPeer struct {
-		ctx                  context.Context
-		ctxCancelFn          context.CancelFunc
-		logger               *zap.Logger
-		config               *PeerConfig
-		runtimeConfig        *RuntimeConfig
-		memberlist           *memberlist.Memberlist
-		transmitLimitedQueue *memberlist.TransmitLimitedQueue
-		members              *MapOf[string, Endpoint]
-		endpoint             Endpoint
-		serviceRegistry      kit.ServiceRegistry
-		etcdClient           *kit.EtcdClientV3
-		leader               *PeerLeader
-		runtime              *Runtime
-		metrics              Metrics
-		sessionRegistry      SessionRegistry
-		messageRouter        MessageRouter
-		tracker              Tracker
-		matchRegistry        MatchRegistry
-		matchmaker           Matchmaker
-		partyRegistry        PartyRegistry
-		binaryLog            BinaryLog
-		inbox                *PeerInbox
-		msgChan              chan *peerMsg
-		wk                   *worker.WorkerPool
-		protojsonMarshaler   *protojson.MarshalOptions
-		protojsonUnmarshaler *protojson.UnmarshalOptions
-		db                   *sql.DB
-		partyIndexOffset     *uberatomic.Int64
+		ctx                    context.Context
+		ctxCancelFn            context.CancelFunc
+		logger                 *zap.Logger
+		config                 *PeerConfig
+		runtimeConfig          *RuntimeConfig
+		memberlist             *memberlist.Memberlist
+		transmitLimitedQueue   *memberlist.TransmitLimitedQueue
+		members                *MapOf[string, Endpoint]
+		endpoint               Endpoint
+		serviceRegistry        kit.ServiceRegistry
+		etcdClient             *kit.EtcdClientV3
+		leader                 *PeerLeader
+		runtime                *Runtime
+		metrics                Metrics
+		sessionRegistry        SessionRegistry
+		messageRouter          MessageRouter
+		tracker                Tracker
+		matchRegistry          MatchRegistry
+		matchmaker             Matchmaker
+		partyRegistry          PartyRegistry
+		binaryLog              BinaryLog
+		inbox                  *PeerInbox
+		msgChan                chan *peerMsg
+		binaryLogBroadcastChan chan *binaryLogMsg
+		wk                     *worker.WorkerPool
+		protojsonMarshaler     *protojson.MarshalOptions
+		protojsonUnmarshaler   *protojson.UnmarshalOptions
+		db                     *sql.DB
+		partyIndexOffset       *uberatomic.Int64
 
 		once sync.Once
 		sync.Mutex
@@ -121,29 +127,30 @@ func NewLocalPeer(db *sql.DB, logger *zap.Logger, name string, metadata map[stri
 	c := config.GetCluster()
 	endpoint := NewPeerEndpont(name, metadata, int32(pb.NodeMeta_OK), c.Weight, c.Balancer, false, protojsonMarshaler)
 	s := &LocalPeer{
-		ctx:                  ctx,
-		ctxCancelFn:          ctxCancelFn,
-		config:               c,
-		runtimeConfig:        config.GetRuntime(),
-		logger:               logger,
-		members:              &MapOf[string, Endpoint]{},
-		endpoint:             endpoint,
-		serviceRegistry:      kit.NewLocalServiceRegistry(ctx, logger, name),
-		metrics:              metrics,
-		sessionRegistry:      sessionRegistry,
-		matchRegistry:        matchRegistry,
-		matchmaker:           matchmaker,
-		partyRegistry:        partyRegistry,
-		tracker:              tracker,
-		inbox:                NewPeerInbox(),
-		msgChan:              make(chan *peerMsg, c.BroadcastQueueSize),
-		wk:                   worker.New(128),
-		messageRouter:        messageRouter,
-		protojsonMarshaler:   protojsonMarshaler,
-		protojsonUnmarshaler: protojsonUnmarshaler,
-		db:                   db,
-		runtime:              runtime,
-		partyIndexOffset:     uberatomic.NewInt64(0),
+		ctx:                    ctx,
+		ctxCancelFn:            ctxCancelFn,
+		config:                 c,
+		runtimeConfig:          config.GetRuntime(),
+		logger:                 logger,
+		members:                &MapOf[string, Endpoint]{},
+		endpoint:               endpoint,
+		serviceRegistry:        kit.NewLocalServiceRegistry(ctx, logger, name),
+		metrics:                metrics,
+		sessionRegistry:        sessionRegistry,
+		matchRegistry:          matchRegistry,
+		matchmaker:             matchmaker,
+		partyRegistry:          partyRegistry,
+		tracker:                tracker,
+		inbox:                  NewPeerInbox(),
+		msgChan:                make(chan *peerMsg, c.BroadcastQueueSize),
+		binaryLogBroadcastChan: make(chan *binaryLogMsg, 16),
+		wk:                     worker.New(128),
+		messageRouter:          messageRouter,
+		protojsonMarshaler:     protojsonMarshaler,
+		protojsonUnmarshaler:   protojsonUnmarshaler,
+		db:                     db,
+		runtime:                runtime,
+		partyIndexOffset:       uberatomic.NewInt64(0),
 	}
 
 	cfg := toMemberlistConfig(s, name, c)
@@ -169,6 +176,7 @@ func NewLocalPeer(db *sql.DB, logger *zap.Logger, name string, metadata map[stri
 
 	// Process incoming
 	go s.processIncoming()
+	go s.processBinaryLogBroadcast()
 	return s
 }
 
@@ -681,43 +689,12 @@ func (s *LocalPeer) Request(ctx context.Context, endpoint Endpoint, msg *pb.Peer
 	return nil, status.Error(codes.DeadlineExceeded, "DeadlineExceeded")
 }
 
-func (s *LocalPeer) BinaryLogBroadcast(b *pb.BinaryLog, toQueue bool) {
-	if b == nil {
-		return
+func (s *LocalPeer) BinaryLogBroadcast(b pb.BinaryLog, toQueue bool) {
+	select {
+	case s.binaryLogBroadcastChan <- &binaryLogMsg{toQueue: toQueue, msg: b}:
+	default:
+		s.logger.Warn("binaryLogBroadcastChan full")
 	}
-
-	b.Node = s.endpoint.Name()
-	b.Version = s.binaryLog.RefreshVersion()
-	frame := &pb.Frame{
-		Id:        uuid.Must(uuid.NewV4()).String(),
-		Inbox:     "",
-		Node:      b.Node,
-		Timestamp: timestamppb.New(time.Now().UTC()),
-		Payload:   &pb.Frame_BinaryLog{BinaryLog: b},
-	}
-	bytes, _ := proto.Marshal(frame)
-
-	// 如果不加入队列
-	// 那么就直接实时发出去
-	if !toQueue {
-		s.members.Range(func(key string, value Endpoint) bool {
-			if value.Name() == s.endpoint.Name() {
-				return true
-			}
-
-			if err := s.memberlist.SendReliable(value.MemberlistNode(), bytes); err != nil {
-				s.logger.Error("Failed to send broadcast", zap.String("name", key))
-			}
-			return true
-		})
-		return
-	}
-
-	s.transmitLimitedQueue.QueueBroadcast(&PeerBroadcast{
-		name:     frame.Id,
-		msg:      bytes,
-		finished: nil,
-	})
 }
 
 func (s *LocalPeer) Event(ctx context.Context, in *api.AnyRequest, names ...string) error {
@@ -857,6 +834,12 @@ func (s *LocalPeer) SendMS(ctx context.Context, in *api.AnyRequest) error {
 }
 
 func (s *LocalPeer) processIncoming() {
+	defer func() {
+		if r := recover(); r != nil {
+			s.logger.Error("Recovered from panic in processIncoming", zap.Any("error", r), zap.String("debug", string(debug.Stack())))
+		}
+	}()
+
 	for {
 		select {
 		case <-s.ctx.Done():
@@ -906,6 +889,59 @@ func (s *LocalPeer) processWatch() {
 
 		case <-s.ctx.Done():
 			return
+		}
+	}
+}
+
+func (s *LocalPeer) processBinaryLogBroadcast() {
+	defer func() {
+		if r := recover(); r != nil {
+			s.logger.Error("Recovered from panic in processBinaryLogBroadcast", zap.Any("error", r), zap.String("debug", string(debug.Stack())))
+		}
+	}()
+
+	for {
+		select {
+		case <-s.ctx.Done():
+			return
+
+		case m, ok := <-s.binaryLogBroadcastChan:
+			if !ok {
+				return
+			}
+
+			m.msg.Node = s.endpoint.Name()
+			m.msg.Version = s.binaryLog.RefreshVersion()
+			frame := &pb.Frame{
+				Id:        uuid.Must(uuid.NewV4()).String(),
+				Inbox:     "",
+				Node:      m.msg.Node,
+				Timestamp: timestamppb.New(time.Now().UTC()),
+				Payload:   &pb.Frame_BinaryLog{BinaryLog: &m.msg},
+			}
+			bytes, _ := proto.Marshal(frame)
+
+			// 如果不加入队列
+			// 那么就直接实时发出去
+			if !m.toQueue {
+				s.members.Range(func(key string, value Endpoint) bool {
+					if value.Name() == s.endpoint.Name() {
+						return true
+					}
+
+					if err := s.memberlist.SendReliable(value.MemberlistNode(), bytes); err != nil {
+						s.logger.Error("Failed to send broadcast", zap.String("name", key))
+					}
+					return true
+				})
+				return
+			}
+
+			s.transmitLimitedQueue.QueueBroadcast(&PeerBroadcast{
+				name:     frame.Id,
+				msg:      bytes,
+				finished: nil,
+			})
 		}
 	}
 }
