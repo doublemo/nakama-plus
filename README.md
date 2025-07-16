@@ -1,9 +1,9 @@
 ![Nakama](.github/logo.png?raw=true "Nakama logo")
 ======
 
-[![GitHub release](https://img.shields.io/github/v/release/doublemo/nakama-plus)](https://heroiclabs.com/docs/nakama/getting-started/install/)
+[![GitHub release](https://img.shields.io/github/v/release/doublemo/nakama-plus.svg)](https://heroiclabs.com/docs/nakama/getting-started/install/)
 [![Forum](https://img.shields.io/badge/forum-online-success.svg)](https://forum.heroiclabs.com)
-[![License](https://img.shields.io/github/license/heroiclabs/nakama.svg)](https://github.com/heroiclabs/nakama/blob/master/LICENSE)
+[![License](https://img.shields.io/github/license/doublemo/nakama-plus.svg)](https://github.com/heroiclabs/nakama/blob/master/LICENSE)
 
 > Distributed server for social and realtime games and apps.
 
