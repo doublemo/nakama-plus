@@ -89,6 +89,8 @@ github.com/doublemo/nakama-kit v1.2.1 h1:WNkkenDywzM2aujn+8eK7pYZtq8McdRqTL5I+ZC
 github.com/doublemo/nakama-kit v1.2.1/go.mod h1:fT2GJ0Ax3JVbRr2nlmHybLAI6s1WrSJfCf7hVjzmK/s=
 github.com/doublemo/nakama-kit v1.2.2 h1:BQdatDJdMyGgtYpRIKtAE2opZb3JXRBzhvPo3iLkijs=
 github.com/doublemo/nakama-kit v1.2.2/go.mod h1:k8fVH0Uu5oFId7+pTZvwoWOzhGIzJXMCEGcTmucHJ/A=
+github.com/doublemo/nakama-kit v1.3.0 h1:ZXsk/sfbZHpXppUc97DZcwyETq8LGe9hHmIbBc9x7cM=
+github.com/doublemo/nakama-kit v1.3.0/go.mod h1:k8fVH0Uu5oFId7+pTZvwoWOzhGIzJXMCEGcTmucHJ/A=
 github.com/felixge/httpsnoop v1.0.4 h1:NFTV2Zj1bL4mc9sqWACXbQFVBBg2W3GPvqp8/ESS2Wg=
 github.com/felixge/httpsnoop v1.0.4/go.mod h1:m8KPJKqk1gH5J9DgRY2ASl2lWCfGKXixSwevea8zH2U=
 github.com/fogleman/gg v1.2.1-0.20190220221249-0403632d5b90/go.mod h1:R/bRT+9gY/C5z7JzPU0zXsXHKM4/ayA+zqcVNZzPa1k=
