@@ -6,6 +6,7 @@
 [![License](https://img.shields.io/github/license/heroiclabs/nakama.svg)](https://github.com/heroiclabs/nakama/blob/master/LICENSE)
 
 > Distributed server for social and realtime games and apps.
+> This project adds cluster and microservice support to Nakama. In daily work, you might want to deploy Nakama in a cluster where data across all nodes is synchronized, or add sub-services around Nakama to distribute server load. We hope this project proves helpful to you.
 
 ## Features
 
@@ -20,6 +21,8 @@
 * **Purchase Validation** - Validate in-app purchases and subscriptions.
 * **In-App Notifications** - Send messages and notifications to connected client sockets.
 * **Runtime code** - Extend the server with custom logic written in Lua, TypeScript/JavaScript, or native Go code.
+* **Cluster Support** - Supports Nakama for distributed deployment, with data synchronized to all nodes in the cluster via gossip.
+* **Microservices** - Enables Nakama to function as a heavy-duty gateway, with sub-features split and deployed as microservices. All services within the cluster support automatic service discovery.
 * **Matchmaker**, **dashboard**, **metrics**, and [more](https://heroiclabs.com/docs).
 
 Build scalable games and apps with a production ready server used by ambitious game studios and app developers [all around the world](https://heroiclabs.com/customers/). Have a look at the [documentation](https://heroiclabs.com/docs) and join the [developer community](https://forum.heroiclabs.com) for more info.
