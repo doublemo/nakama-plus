@@ -195,12 +195,23 @@ func (s *LocalPeer) NodeMeta(limit int) []byte {
 // so would block the entire UDP packet receive loop. Additionally, the byte
 // slice may be modified after the call returns, so it should be copied if needed
 func (s *LocalPeer) NotifyMsg(msg []byte) {
-	//s.metrics.PeerRecv(int64(len(msg)))
+	if len(msg) == 0 {
+		s.logger.Debug("Received empty message, ignoring")
+		return
+	}
+
+	// Copy message data to prevent modification after return
+	msgCopy := make([]byte, len(msg))
+	copy(msgCopy, msg)
 
 	select {
-	case s.msgChan <- &peerMsg{msgType: PeerMsg_NOTIFY, data: msg}:
+	case s.msgChan <- &peerMsg{msgType: PeerMsg_NOTIFY, data: msgCopy}:
+		// Message queued successfully
 	default:
-		s.logger.Warn("msg incoming queue full")
+		s.logger.Warn("Message incoming queue full, dropping message",
+			zap.Int("queue_size", cap(s.msgChan)),
+			zap.Int("message_size", len(msg)))
+		// Consider implementing metrics here to track dropped messages
 	}
 }
 
@@ -327,7 +338,14 @@ func (s *LocalPeer) LocalState(join bool) []byte {
 // remote side's LocalState call. The 'join'
 // boolean indicates this is for a join instead of a push/pull.
 func (s *LocalPeer) MergeRemoteState(buf []byte, join bool) {
-	//s.metrics.PeerRecv(int64(len(buf)))
+	if len(buf) == 0 {
+		s.logger.Debug("Received empty remote state, ignoring")
+		return
+	}
+
+	// Copy buffer to prevent modification after return
+	bufCopy := make([]byte, len(buf))
+	copy(bufCopy, buf)
 
 	msgType := PeerMsg_REMOTESTATE
 	if join {
@@ -335,9 +353,13 @@ func (s *LocalPeer) MergeRemoteState(buf []byte, join bool) {
 	}
 
 	select {
-	case s.msgChan <- &peerMsg{msgType: msgType, data: buf}:
+	case s.msgChan <- &peerMsg{msgType: msgType, data: bufCopy}:
+		// State queued successfully
 	default:
-		s.logger.Warn("msg incoming queue full")
+		s.logger.Warn("Remote state queue full, dropping state merge",
+			zap.Bool("is_join", join),
+			zap.Int("state_size", len(buf)),
+			zap.Int("queue_size", cap(s.msgChan)))
 	}
 }
 
@@ -390,14 +412,30 @@ func (s *LocalPeer) NotifyJoin(node *memberlist.Node) {
 		return
 	}
 
-	var md pb.NodeMeta
-	if err := proto.Unmarshal(node.Meta, &md); err != nil {
-		s.logger.Warn("Failed to unmarshal meta", zap.Error(err), zap.String("name", node.Name))
+	if node.Meta == nil || len(node.Meta) == 0 {
+		s.logger.Warn("Node joined with empty metadata", zap.String("node", node.Name))
 		return
 	}
 
-	s.members.Store(node.Name, NewPeerEndpont(md.GetName(), md.GetVars(), int32(md.GetStatus()), md.GetWeight(), int32(md.GetBalancer()), md.GetLeader(), s.protojsonMarshaler, node))
-	s.logger.Debug("NotifyJoin", zap.String("name", md.GetName()))
+	var md pb.NodeMeta
+	if err := proto.Unmarshal(node.Meta, &md); err != nil {
+		s.logger.Warn("Failed to unmarshal node metadata",
+			zap.Error(err),
+			zap.String("node", node.Name),
+			zap.String("address", node.Address()),
+			zap.Int("meta_size", len(node.Meta)))
+		return
+	}
+
+	endpoint := NewPeerEndpont(md.GetName(), md.GetVars(), int32(md.GetStatus()), md.GetWeight(), int32(md.GetBalancer()), md.GetLeader(), s.protojsonMarshaler, node)
+	s.members.Store(node.Name, endpoint)
+
+	s.logger.Info("Node joined cluster",
+		zap.String("node", md.GetName()),
+		zap.String("address", node.Address()),
+		zap.Int32("status", int32(md.GetStatus())),
+		zap.Int32("weight", md.GetWeight()),
+		zap.Bool("leader", md.GetLeader()))
 }
 
 // NotifyLeave is invoked when a node is detected to have left.
@@ -407,15 +445,44 @@ func (s *LocalPeer) NotifyLeave(node *memberlist.Node) {
 		return
 	}
 
-	s.members.Delete(node.Name)
+	// Remove from members first
+	endpoint, existed := s.members.LoadAndDelete(node.Name)
+	if !existed {
+		s.logger.Debug("Node leave notification for unknown node", zap.String("node", node.Name))
+		return
+	}
+
+	s.logger.Info("Node left cluster",
+		zap.String("node", endpoint.Name()),
+		zap.String("address", node.Address()))
+
+	// Clean up resources asynchronously to avoid blocking
 	if !s.wk.Stopped() {
 		s.wk.Submit(func() {
-			s.tracker.ClearTrackByNode(map[string]bool{node.Name: true})
-			s.matchmaker.RemoveAll(map[string]bool{node.Name: true})
-			s.partyRegistry.(*LocalPartyRegistry).deleteAllFromNodeOptimized(s.ctx, node.Name)
-			s.logger.Debug("NotifyLeave", zap.String("name", node.Name))
-			//s.metrics.GaugePeers(float64(s.NumMembers()))
+			defer func() {
+				if r := recover(); r != nil {
+					s.logger.Error("Panic during node cleanup",
+						zap.String("node", node.Name),
+						zap.Any("error", r))
+				}
+			}()
+
+			// Clean up tracking data
+			nodeMap := map[string]bool{node.Name: true}
+			s.tracker.ClearTrackByNode(nodeMap)
+			s.matchmaker.RemoveAll(nodeMap)
+
+			// Clean up party registry
+			if partyReg, ok := s.partyRegistry.(*LocalPartyRegistry); ok {
+				partyReg.deleteAllFromNodeOptimized(s.ctx, node.Name)
+			}
+
+			s.logger.Debug("Completed cleanup for departed node",
+				zap.String("node", node.Name),
+				zap.Int("remaining_members", s.NumMembers()))
 		})
+	} else {
+		s.logger.Warn("Worker pool stopped, skipping node cleanup", zap.String("node", node.Name))
 	}
 }
 
@@ -458,37 +525,71 @@ func (s *LocalPeer) Shutdown() {
 			return
 		}
 
+		s.logger.Info("Starting peer shutdown", zap.String("node", s.endpoint.Name()))
+
 		defer func() {
-			s.logger.Info("Peer shutdown complete", zap.String("node", s.endpoint.Name()), zap.Int("numMembers", s.memberlist.NumMembers()))
+			if r := recover(); r != nil {
+				s.logger.Error("Panic during shutdown", zap.Any("error", r))
+			}
+			s.logger.Info("Peer shutdown complete",
+				zap.String("node", s.endpoint.Name()),
+				zap.Int("numMembers", s.memberlist.NumMembers()))
 		}()
 
+		// Stop leader election first
 		if s.leader != nil {
+			s.logger.Debug("Stopping leader election")
 			s.leader.Stop()
 		}
 
+		// Deregister from etcd
 		if s.etcdClient != nil {
+			s.logger.Debug("Deregistering from etcd")
 			if err := s.etcdClient.Deregister(s.endpoint.Name()); err != nil {
-				s.logger.Warn("failed to shutdown Deregister", zap.Error(err))
+				s.logger.Warn("Failed to deregister from etcd", zap.Error(err))
 			}
 		}
 
+		// Shutdown service registry
+		s.logger.Debug("Shutting down service registry")
 		s.serviceRegistry.Shutdown()
-		if err := s.memberlist.Leave(time.Second * 15); err != nil {
-			s.logger.Warn("failed to leave cluster", zap.Error(err))
+
+		// Leave cluster gracefully
+		s.logger.Debug("Leaving cluster")
+		leaveTimeout := 15 * time.Second
+		if err := s.memberlist.Leave(leaveTimeout); err != nil {
+			s.logger.Warn("Failed to leave cluster gracefully",
+				zap.Error(err),
+				zap.Duration("timeout", leaveTimeout))
 		}
 
-		timeoutCtx, timeoutCancel := context.WithTimeout(s.ctx, time.Second*10)
+		// Shutdown memberlist with timeout
+		s.logger.Debug("Shutting down memberlist")
+		shutdownTimeout := 10 * time.Second
+		timeoutCtx, timeoutCancel := context.WithTimeout(s.ctx, shutdownTimeout)
+
+		shutdownDone := make(chan error, 1)
 		go func() {
 			defer timeoutCancel()
-			if err := s.memberlist.Shutdown(); err != nil {
-				s.logger.Error("failed to shutdown cluster", zap.Error(err))
-			}
+			shutdownDone <- s.memberlist.Shutdown()
 		}()
-		<-timeoutCtx.Done()
-		if err := timeoutCtx.Err(); !errors.Is(err, context.Canceled) {
-			s.logger.Warn("Failed to shutdown memberlist", zap.Error(err))
+
+		select {
+		case err := <-shutdownDone:
+			if err != nil {
+				s.logger.Error("Failed to shutdown memberlist", zap.Error(err))
+			}
+		case <-timeoutCtx.Done():
+			if errors.Is(timeoutCtx.Err(), context.DeadlineExceeded) {
+				s.logger.Warn("Memberlist shutdown timed out",
+					zap.Duration("timeout", shutdownTimeout))
+			}
 		}
+
+		// Stop worker pool
 		s.wk.StopWait()
+
+		// Cancel context last
 		s.ctxCancelFn()
 	})
 }
@@ -567,6 +668,11 @@ func (s *LocalPeer) GetServiceRegistry() kit.ServiceRegistry {
 }
 
 func (s *LocalPeer) Broadcast(msg *pb.Peer_Envelope, reliable bool) {
+	if msg == nil {
+		s.logger.Warn("Attempted to broadcast nil message")
+		return
+	}
+
 	request := &pb.Frame{
 		Id:        uuid.Must(uuid.NewV4()).String(),
 		Node:      s.endpoint.Name(),
@@ -577,26 +683,48 @@ func (s *LocalPeer) Broadcast(msg *pb.Peer_Envelope, reliable bool) {
 	if msg.Cid == "" {
 		msg.Cid = "REQ"
 	}
-	b, _ := proto.Marshal(request)
-	//s.metrics.PeerSent(int64(len(b)))
 
-	var err error
+	b, err := proto.Marshal(request)
+	if err != nil {
+		s.logger.Error("Failed to marshal broadcast message", zap.Error(err))
+		return
+	}
+
+	// Track broadcast metrics
+	broadcastSize := int64(len(b))
+	memberCount := 0
+	failedCount := 0
+
 	s.members.Range(func(key string, value Endpoint) bool {
 		if value.Name() == s.endpoint.Name() {
 			return true
 		}
 
+		memberCount++
+		var sendErr error
 		if !reliable {
-			err = s.memberlist.SendBestEffort(value.MemberlistNode(), b)
+			sendErr = s.memberlist.SendBestEffort(value.MemberlistNode(), b)
 		} else {
-			err = s.memberlist.SendReliable(value.MemberlistNode(), b)
+			sendErr = s.memberlist.SendReliable(value.MemberlistNode(), b)
 		}
 
-		if err != nil {
-			s.logger.Error("Failed to send broadcast", zap.String("name", key))
+		if sendErr != nil {
+			failedCount++
+			s.logger.Error("Failed to send broadcast to node",
+				zap.String("node", key),
+				zap.String("address", value.MemberlistNode().Address()),
+				zap.Bool("reliable", reliable),
+				zap.Error(sendErr))
 		}
 		return true
 	})
+
+	if failedCount > 0 {
+		s.logger.Warn("Broadcast completed with failures",
+			zap.Int("total_members", memberCount),
+			zap.Int("failed_sends", failedCount),
+			zap.Int64("message_size", broadcastSize))
+	}
 }
 
 func (s *LocalPeer) Send(endpoint Endpoint, msg *pb.Peer_Envelope, reliable bool) error {
@@ -622,18 +750,24 @@ func (s *LocalPeer) Send(endpoint Endpoint, msg *pb.Peer_Envelope, reliable bool
 
 func (s *LocalPeer) Request(ctx context.Context, endpoint Endpoint, msg *pb.Peer_Envelope) (*pb.Peer_Envelope, error) {
 	if endpoint == nil {
-		return nil, status.Error(codes.NotFound, "endpoint is not found")
+		return nil, status.Error(codes.NotFound, "endpoint not found")
 	}
 
+	if msg == nil {
+		return nil, status.Error(codes.InvalidArgument, "message cannot be nil")
+	}
+
+	// Set up context with timeout
+	const defaultTimeout = 30 * time.Second
 	if ctx == nil {
 		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(context.Background(), time.Second*30)
-		defer func() { cancel() }()
+		ctx, cancel = context.WithTimeout(context.Background(), defaultTimeout)
+		defer cancel()
 	} else {
 		if _, ok := ctx.Deadline(); !ok {
 			var cancel context.CancelFunc
-			ctx, cancel = context.WithTimeout(ctx, time.Second*30)
-			defer func() { cancel() }()
+			ctx, cancel = context.WithTimeout(ctx, defaultTimeout)
+			defer cancel()
 		}
 	}
 
@@ -649,51 +783,64 @@ func (s *LocalPeer) Request(ctx context.Context, endpoint Endpoint, msg *pb.Peer
 
 	b, err := proto.Marshal(request)
 	if err != nil {
-		return nil, err
+		return nil, status.Error(codes.Internal, "failed to marshal request: "+err.Error())
 	}
+
 	replyChan := make(chan *pb.Frame, 1)
 	s.inbox.Register(request.Inbox, replyChan)
 	defer func() {
-		defer s.inbox.Deregister(request.Inbox)
+		s.inbox.Deregister(request.Inbox)
 		close(replyChan)
 	}()
 
+	// Send request with error handling
 	if err := s.memberlist.SendReliable(endpoint.MemberlistNode(), b); err != nil {
-		return nil, err
+		return nil, status.Error(codes.Unavailable,
+			"failed to send request to "+endpoint.Name()+": "+err.Error())
 	}
 
+	// Wait for response with proper timeout handling
 	select {
-	case m, ok := <-replyChan:
+	case response, ok := <-replyChan:
 		if !ok {
-			return nil, status.Error(codes.DeadlineExceeded, "DeadlineExceeded")
+			return nil, status.Error(codes.Internal, "reply channel closed unexpectedly")
 		}
 
-		writer := m.GetEnvelope()
-		if writer == nil {
-			return nil, status.Error(codes.InvalidArgument, "InvalidArgument")
+		envelope := response.GetEnvelope()
+		if envelope == nil {
+			return nil, status.Error(codes.InvalidArgument, "received invalid response format")
 		}
 
-		switch v := writer.Payload.(type) {
+		// Handle error responses
+		switch payload := envelope.Payload.(type) {
 		case *pb.Peer_Envelope_Error:
-			if err := v.Error; err != nil {
-				return nil, status.Error(codes.Code(err.Code), err.Message)
+			if payload.Error != nil {
+				return nil, status.Error(codes.Code(payload.Error.Code), payload.Error.Message)
 			}
-
-		default:
 		}
-		return writer, nil
+
+		return envelope, nil
 
 	case <-ctx.Done():
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			return nil, status.Error(codes.DeadlineExceeded,
+				"request timeout after "+defaultTimeout.String())
+		}
+		return nil, status.Error(codes.Canceled, "request canceled")
 	}
-
-	return nil, status.Error(codes.DeadlineExceeded, "DeadlineExceeded")
 }
 
 func (s *LocalPeer) BinaryLogBroadcast(b pb.BinaryLog, toQueue bool) {
 	select {
 	case s.binaryLogBroadcastChan <- &binaryLogMsg{toQueue: toQueue, msg: b}:
+		// Binary log queued successfully
 	default:
-		s.logger.Warn("binaryLogBroadcastChan full")
+		s.logger.Warn("Binary log broadcast channel full, dropping message",
+			zap.String("node", b.Node),
+			zap.Int64("version", b.Version),
+			zap.Bool("to_queue", toQueue),
+			zap.Int("channel_capacity", cap(s.binaryLogBroadcastChan)))
+		// Consider implementing metrics to track dropped binary log messages
 	}
 }
 
