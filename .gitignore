@@ -209,7 +209,7 @@ pids
 lib-cov
 
 # Coverage directory used by tools like istanbul
-coverage
+#coverage
 *.lcov
 
 # nyc test coverage
@@ -718,4 +718,4 @@ MigrationBackup/
 # End of https://www.toptal.com/developers/gitignore/api/go,angular,node,intellij+all,visualstudiocode,visualstudio,sublimetext,windows,linux,macos
 
 config.yml
-!vendor/golang.org/x/text/language/coverage.go
+!vendor/**/coverage.go
