@@ -4,6 +4,14 @@ All notable changes to this project are documented below.
 The format is based on [keep a changelog](http://keepachangelog.com) and this project uses [semantic versioning](http://semver.org).
 
 ## [Unreleased]
+### Added
+- New "MatchmakerProcessor" hook to set custom matching behaviour tapping into the complete ticket pool.
+
+### Changed
+- Update Satori client to latest API spec.
+
+### Fixed
+- Fix an issue where the leaderboard ranks were sometimes incorrectly calculated when fetching a previous page of records.
 
 ## [3.28.0] - 2025-07-14
 ### Added
