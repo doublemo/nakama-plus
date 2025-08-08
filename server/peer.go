@@ -412,7 +412,7 @@ func (s *LocalPeer) NotifyJoin(node *memberlist.Node) {
 		return
 	}
 
-	if node.Meta == nil || len(node.Meta) == 0 {
+	if len(node.Meta) == 0 {
 		s.logger.Warn("Node joined with empty metadata", zap.String("node", node.Name))
 		return
 	}

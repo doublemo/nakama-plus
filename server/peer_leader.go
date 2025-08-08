@@ -8,6 +8,7 @@ import (
 
 	"github.com/doublemo/nakama-kit/kit"
 	"github.com/hashicorp/memberlist"
+	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.etcd.io/etcd/client/v3/concurrency"
 	"go.uber.org/zap"
 )
@@ -58,18 +59,19 @@ func (s *PeerLeader) Run(endpoint Endpoint, memberlist *memberlist.Memberlist) {
 			case <-s.ctx.Done():
 				return
 			case <-s.session.Done():
-				s.logger.Warn("Session expired, reconnecting")
 				s.reconnect()
 				continue
 			default:
 			}
 
-			// 如果之前我们是 leader, 并且 lease 没过期，使用 ResumeElection 恢复之
 			if s.resumeKey != "" {
 				s.election = concurrency.ResumeElection(s.session, s.electionKey, s.resumeKey, s.resumeRev)
-				// 跳过 Campaign，直接进入观察模式
-				s.observeLeadership(endpoint, memberlist)
-				// observe 返回的话说明 session 再次失效，重试循环
+				err := s.observeLeadership(endpoint, memberlist)
+				if err != nil {
+					s.logger.Warn("Failed to resume leadership", zap.Error(err))
+					s.resumeKey = ""
+					s.resumeRev = 0
+				}
 				continue
 			}
 
@@ -79,20 +81,27 @@ func (s *PeerLeader) Run(endpoint Endpoint, memberlist *memberlist.Memberlist) {
 				continue
 			}
 
-			// 成为 leader
 			s.resumeKey = s.election.Key()
 			s.resumeRev = s.election.Header().Revision
 			endpoint.Leader(true)
 			s.update(endpoint, memberlist)
 			s.logger.Info("Became leader", zap.String("node", endpoint.Name()))
 
-			s.observeLeadership(endpoint, memberlist)
+			err := s.observeLeadership(endpoint, memberlist)
+			if err != nil {
+				s.logger.Warn("Lost leadership", zap.Error(err))
+				endpoint.Leader(false)
+				s.update(endpoint, memberlist)
+				s.resumeKey = ""
+				s.resumeRev = 0
+			}
 		}
 	}()
+
+	go s.heartbeat()
 }
 
-// observeLeadership 维护 leader 状态，session 失效返回后重建重选
-func (s *PeerLeader) observeLeadership(endpoint Endpoint, memberlist *memberlist.Memberlist) {
+func (s *PeerLeader) observeLeadership(endpoint Endpoint, memberlist *memberlist.Memberlist) error {
 	leaderCtx, cancel := context.WithCancel(s.ctx)
 	defer cancel()
 	ch := s.election.Observe(leaderCtx)
@@ -101,11 +110,10 @@ func (s *PeerLeader) observeLeadership(endpoint Endpoint, memberlist *memberlist
 		select {
 		case resp, ok := <-ch:
 			if !ok {
-				// session error 或 reconnect 信号
 				endpoint.Leader(false)
 				s.update(endpoint, memberlist)
 				s.logger.Warn("Observe closed, resetting leader status")
-				return
+				return nil
 			}
 			val := string(resp.Kvs[0].Value)
 			isLeader := val == endpoint.Name()
@@ -116,12 +124,12 @@ func (s *PeerLeader) observeLeadership(endpoint Endpoint, memberlist *memberlist
 			endpoint.Leader(false)
 			s.update(endpoint, memberlist)
 			s.logger.Warn("Session expired during observe")
-			return
+			return nil
 		case <-s.ctx.Done():
 			if endpoint.Leader() {
 				_ = s.election.Resign(context.Background())
 			}
-			return
+			return nil
 		}
 	}
 }
@@ -150,6 +158,31 @@ func (s *PeerLeader) reconnect() {
 		s.election = concurrency.NewElection(sess, s.electionKey)
 		s.logger.Info("Session reconnected")
 		return
+	}
+}
+
+func (s *PeerLeader) heartbeat() {
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-s.ctx.Done():
+			return
+		case <-ticker.C:
+			resp, err := s.etcdClient.GetClient().Grant(context.Background(), 10)
+			if err != nil {
+				s.logger.Warn("Heartbeat grant failed", zap.Error(err))
+				s.reconnect()
+				continue
+			}
+
+			_, err = s.etcdClient.GetClient().KeepAliveOnce(context.Background(), clientv3.LeaseID(resp.ID))
+			if err != nil {
+				s.logger.Warn("Heartbeat keepalive failed", zap.Error(err))
+				s.reconnect()
+			}
+		}
 	}
 }
 
