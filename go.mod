@@ -2,14 +2,19 @@ module github.com/doublemo/nakama-plus/v3
 
 go 1.24.5
 
+replace github.com/doublemo/nakama-common v1.39.0 => ../nakama-common
+
 require (
 	github.com/blugelabs/bluge v0.2.2
 	github.com/blugelabs/bluge_segment_api v0.2.0
 	github.com/blugelabs/query_string v0.3.0
+	github.com/dgraph-io/ristretto v0.2.0
 	github.com/dgryski/dgoogauth v0.0.0-20190221195224-5a805980a5f3
 	github.com/dop251/goja v0.0.0-20250309171923-bcd7cc6bf64c
 	github.com/doublemo/nakama-common v1.39.0
 	github.com/doublemo/nakama-kit v1.3.0
+	github.com/eko/gocache/lib/v4 v4.2.0
+	github.com/eko/gocache/store/ristretto/v4 v4.2.2
 	github.com/felixge/httpsnoop v1.0.4
 	github.com/gofrs/uuid/v5 v5.3.2
 	github.com/golang-jwt/jwt/v5 v5.2.3
@@ -24,6 +29,7 @@ require (
 	github.com/klauspost/compress v1.18.0
 	github.com/prometheus/client_golang v1.22.0
 	github.com/prometheus/common v0.65.0
+	github.com/spf13/cast v1.3.0
 	github.com/stretchr/testify v1.10.0
 	github.com/uber-go/tally/v4 v4.1.17
 	go.etcd.io/etcd/client/v3 v3.5.14
@@ -63,6 +69,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dgryski/go-metro v0.0.0-20211217172704-adc40b04c140 // indirect
 	github.com/dlclark/regexp2 v1.11.4 // indirect
+	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/go-sourcemap/sourcemap v2.1.4+incompatible // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/mock v1.6.0 // indirect
@@ -89,11 +96,16 @@ require (
 	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
 	github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529 // indirect
+	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/twmb/murmur3 v1.1.8 // indirect
+	github.com/vmihailenco/msgpack/v5 v5.4.1 // indirect
+	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
 	go.etcd.io/etcd v3.3.27+incompatible // indirect
 	go.etcd.io/etcd/api/v3 v3.5.14 // indirect
 	go.etcd.io/etcd/client/pkg/v3 v3.5.14 // indirect
+	go.uber.org/mock v0.4.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
+	golang.org/x/exp v0.0.0-20240416160154-fe59bbe5cc7f // indirect
 	golang.org/x/net v0.41.0 // indirect
 	golang.org/x/sync v0.16.0 // indirect
 	golang.org/x/sys v0.34.0 // indirect

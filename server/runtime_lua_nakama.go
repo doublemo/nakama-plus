@@ -765,8 +765,31 @@ func (n *RuntimeLuaNakamaModule) localcacheGet(l *lua.LState) int {
 	}
 
 	defaultValue := l.Get(2)
+	var (
+		value  lua.LValue
+		found  bool
+		cacher *PeerCacher
+	)
 
-	value, found := n.localCache.Get(key)
+	direction := l.OptString(3, "")
+	peer, ok := n.router.GetPeer()
+	if ok {
+		cacher = peer.GetCacher()
+	}
+
+	if !ok || cacher == nil || direction == "LocalOnly" {
+		value, found = n.localCache.Get(key)
+	} else {
+		opts := make([]runtime.PeerCacheOption, 0)
+		if direction == "MemoryOnly" {
+			opts = append(opts, runtime.WithMemoryOnly(true))
+		}
+
+		if v, err := cacher.Get(key, opts...); err == nil {
+			value = RuntimeLuaConvertValue(l, v)
+			found = true
+		}
+	}
 
 	if found {
 		l.Push(value)
@@ -794,8 +817,54 @@ func (n *RuntimeLuaNakamaModule) localcachePut(l *lua.LState) int {
 		return 0
 	}
 
-	n.localCache.Put(key, value, ttl)
+	var (
+		cacher    *PeerCacher
+		direction string
+	)
+	peer, ok := n.router.GetPeer()
+	if ok {
+		cacher = peer.GetCacher()
+	}
 
+	opts := make(map[string]interface{})
+	if m := l.OptTable(4, nil); m != nil {
+		opts = RuntimeLuaConvertLuaTable(m)
+	}
+
+	if v, ok := opts["direction"]; ok {
+		if m, ok := v.(string); ok {
+			direction = m
+		}
+	}
+
+	if !ok || cacher == nil || direction == "LocalOnly" {
+		n.localCache.Put(key, value, ttl)
+		return 0
+	}
+
+	storeOpts := make([]runtime.PeerCacheOption, 0)
+	if direction == "MemoryOnly" {
+		storeOpts = append(storeOpts, runtime.WithMemoryOnly(true))
+	}
+
+	if v, ok := opts["tags"]; ok {
+		m, ok := v.([]interface{})
+		if ok {
+			tags := make([]string, len(m))
+			for k, vv := range m {
+				tags[k] = fmt.Sprint(vv)
+			}
+			storeOpts = append(storeOpts, runtime.WithTags(tags))
+		}
+	}
+
+	if ttl > 0 {
+		storeOpts = append(storeOpts, runtime.WithExpiration(time.Second*time.Duration(ttl)))
+	}
+
+	if err := cacher.Set(key, RuntimeLuaConvertLuaValue(value), storeOpts...); err != nil {
+		l.ArgError(4, err.Error())
+	}
 	return 0
 }
 
@@ -806,14 +875,65 @@ func (n *RuntimeLuaNakamaModule) localcacheDelete(l *lua.LState) int {
 		return 0
 	}
 
-	n.localCache.Delete(key)
+	var (
+		cacher    *PeerCacher
+		direction string
+	)
+	peer, ok := n.router.GetPeer()
+	if ok {
+		cacher = peer.GetCacher()
+	}
 
+	opts := make(map[string]interface{})
+	if m := l.OptTable(2, nil); m != nil {
+		opts = RuntimeLuaConvertLuaTable(m)
+	}
+
+	if v, ok := opts["direction"]; ok {
+		if m, ok := v.(string); ok {
+			direction = m
+		}
+	}
+
+	if !ok || cacher == nil || direction == "LocalOnly" {
+		n.localCache.Delete(key)
+		return 0
+	}
+
+	if v, ok := opts["tags"]; ok {
+		m, ok := v.([]interface{})
+		if ok {
+			tags := make([]string, len(m))
+			for k, vv := range m {
+				tags[k] = fmt.Sprint(vv)
+			}
+
+			if err := cacher.Invalidate(tags...); err != nil {
+				l.ArgError(2, err.Error())
+			}
+			return 0
+		}
+	}
+
+	if err := cacher.Delete(key); err != nil {
+		l.ArgError(2, err.Error())
+	}
 	return 0
 }
 
-func (n *RuntimeLuaNakamaModule) localcacheClear(_ *lua.LState) int {
-	n.localCache.Clear()
+func (n *RuntimeLuaNakamaModule) localcacheClear(l *lua.LState) int {
+	var cacher *PeerCacher
+	direction := l.OptString(1, "")
+	peer, ok := n.router.GetPeer()
+	if ok {
+		cacher = peer.GetCacher()
+	}
 
+	if !ok || cacher == nil || direction == "LocalOnly" {
+		n.localCache.Clear()
+	} else {
+		cacher.Clear()
+	}
 	return 0
 }
 

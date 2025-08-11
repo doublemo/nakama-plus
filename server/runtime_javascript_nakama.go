@@ -8561,7 +8561,31 @@ func (n *RuntimeJavascriptNakamaModule) localcacheGet(r *goja.Runtime) func(goja
 			defVal = f.Argument(1)
 		}
 
-		value, found := n.localCache.Get(key)
+		var (
+			value  interface{}
+			found  bool
+			cacher *PeerCacher
+		)
+
+		direction := getJsCacheOption(r, f.Argument(2)).direction
+		peer, ok := n.router.GetPeer()
+		if ok {
+			cacher = peer.GetCacher()
+		}
+
+		if !ok || cacher == nil || direction == "LocalOnly" {
+			value, found = n.localCache.Get(key)
+		} else {
+			opts := make([]runtime.PeerCacheOption, 0)
+			if direction == "MemoryOnly" {
+				opts = append(opts, runtime.WithMemoryOnly(true))
+			}
+
+			if v, err := cacher.Get(key, opts...); err == nil {
+				value = v
+				found = true
+			}
+		}
 		if !found {
 			return defVal
 		}
@@ -8599,8 +8623,36 @@ func (n *RuntimeJavascriptNakamaModule) localcachePut(r *goja.Runtime) func(goja
 			panic(r.NewTypeError("unsupported value type: must be string, numeric or boolean"))
 		}
 
-		n.localCache.Put(key, v, ttl)
+		var (
+			cacher *PeerCacher
+		)
+		peer, ok := n.router.GetPeer()
+		if ok {
+			cacher = peer.GetCacher()
+		}
 
+		op := getJsCacheOption(r, f.Argument(3))
+		if !ok || cacher == nil || op.direction == "LocalOnly" {
+			n.localCache.Put(key, v, ttl)
+			return goja.Undefined()
+		}
+
+		opts := make([]runtime.PeerCacheOption, 0)
+		if op.direction == "MemoryOnly" {
+			opts = append(opts, runtime.WithMemoryOnly(true))
+		}
+
+		if len(op.tags) > 0 {
+			opts = append(opts, runtime.WithTags(op.tags))
+		}
+
+		if ttl > 0 {
+			opts = append(opts, runtime.WithExpiration(time.Second*time.Duration(ttl)))
+		}
+
+		if err := cacher.Set(key, v, opts...); err != nil {
+			panic(r.NewTypeError(err.Error()))
+		}
 		return goja.Undefined()
 	}
 }
@@ -8612,16 +8664,50 @@ func (n *RuntimeJavascriptNakamaModule) localcacheDelete(r *goja.Runtime) func(g
 			panic(r.NewTypeError("expects non empty key string"))
 		}
 
-		n.localCache.Delete(key)
+		var (
+			cacher *PeerCacher
+		)
+		peer, ok := n.router.GetPeer()
+		if ok {
+			cacher = peer.GetCacher()
+		}
 
+		op := getJsCacheOption(r, f.Argument(1))
+		if !ok || cacher == nil || op.direction == "LocalOnly" {
+			n.localCache.Delete(key)
+			return goja.Undefined()
+		}
+
+		if len(op.tags) > 0 {
+			if err := cacher.Invalidate(op.tags...); err != nil {
+				panic(r.NewTypeError(err.Error()))
+			}
+			return goja.Undefined()
+		}
+
+		if err := cacher.Delete(key); err != nil {
+			panic(r.NewTypeError(err.Error()))
+		}
 		return goja.Undefined()
 	}
 }
 
 func (n *RuntimeJavascriptNakamaModule) localcacheClear(r *goja.Runtime) func(goja.FunctionCall) goja.Value {
 	return func(f goja.FunctionCall) goja.Value {
-		n.localCache.Clear()
+		var (
+			cacher *PeerCacher
+		)
+		peer, ok := n.router.GetPeer()
+		if ok {
+			cacher = peer.GetCacher()
+		}
 
+		op := getJsCacheOption(r, f.Argument(0))
+		if !ok || cacher == nil || op.direction == "LocalOnly" {
+			n.localCache.Clear()
+			return goja.Undefined()
+		}
+		cacher.Clear()
 		return goja.Undefined()
 	}
 }
@@ -10168,4 +10254,40 @@ func toString(value interface{}) string {
 		return string(v)
 	}
 	return ""
+}
+
+func getJsCacheOption(r *goja.Runtime, value goja.Value) struct {
+	direction string
+	tags      []string
+} {
+	op := struct {
+		direction string
+		tags      []string
+	}{
+		direction: "",
+		tags:      make([]string, 0),
+	}
+
+	if value == goja.Undefined() || value == goja.Null() {
+		return op
+	}
+
+	opts, ok := value.Export().(map[string]interface{})
+	if !ok {
+		panic(r.NewTypeError("expects string"))
+	}
+
+	if m, ok := opts["direction"]; ok {
+		op.direction = toString(m)
+	}
+
+	if m, ok := opts["tags"]; ok {
+		if values, ok := m.([]interface{}); ok {
+			op.tags = make([]string, len(values))
+			for k, v := range values {
+				op.tags[k] = toString(v)
+			}
+		}
+	}
+	return op
 }

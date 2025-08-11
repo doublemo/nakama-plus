@@ -255,7 +255,6 @@ func main() {
 
 	// Wait for a termination signal.
 	<-c
-
 	server.HandleShutdown(ctx, logger, matchRegistry, config.GetShutdownGraceSec(), runtime.Shutdown(), c)
 
 	// Signal cancellation to the global runtime context.

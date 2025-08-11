@@ -71,6 +71,7 @@ type (
 		Event(ctx context.Context, in *api.AnyRequest, names ...string) error
 		Leader() bool
 		AllowLeader() bool
+		GetCacher() *PeerCacher
 	}
 
 	peerMsg struct {
@@ -106,6 +107,7 @@ type (
 		partyRegistry          PartyRegistry
 		binaryLog              BinaryLog
 		inbox                  *PeerInbox
+		cacher                 *PeerCacher
 		msgChan                chan *peerMsg
 		binaryLogBroadcastChan chan *binaryLogMsg
 		wk                     *worker.WorkerPool
@@ -172,6 +174,7 @@ func NewLocalPeer(db *sql.DB, logger *zap.Logger, name string, metadata map[stri
 
 	if c.Etcd != nil && len(c.Etcd.Endpoints) > 0 {
 		s.etcdClient = kit.NewEtcdClientV3(context.Background(), logger, c.Etcd)
+		s.cacher = NewPeerCacher(logger, s.etcdClient.GetClient(), name)
 	}
 
 	// Process incoming
@@ -1011,6 +1014,10 @@ func (s *LocalPeer) processIncoming() {
 			}
 		}
 	}
+}
+
+func (s *LocalPeer) GetCacher() *PeerCacher {
+	return s.cacher
 }
 
 func (s *LocalPeer) processWatch() {
