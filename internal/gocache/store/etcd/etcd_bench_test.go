@@ -18,7 +18,7 @@ func BenchmarkEtcdStore_Set(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	p := NewEtcd(etcdClient)
+	p := NewEtcd(etcdClient, "test")
 	defer p.Close()
 
 	for k := 0.; k <= 10; k++ {
@@ -40,7 +40,7 @@ func BenchmarkEtcdStore_Get(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	p := NewEtcd(etcdClient)
+	p := NewEtcd(etcdClient, "test")
 	defer p.Close()
 
 	key := "test"

@@ -29,6 +29,7 @@ type (
 		Balancer            int32                   `yaml:"balancer" json:"balancer" usage:"balancer"`
 		Grpc                *kit.GrpcConfig         `yaml:"grpc" json:"grpc" usage:"grpc client setting"`
 		LeaderElection      bool                    `yaml:"leader_election" json:"leader_election" usage:"leader_election participates in the Leader election, default is True."`
+		Cache               *PeerCacherConfig       `yaml:"cache" json:"cache" usage:"Cache config"`
 	}
 )
 
@@ -65,6 +66,15 @@ func (c *PeerConfig) Clone() *PeerConfig {
 
 	if c.Grpc != nil {
 		newConfig.Grpc = c.Grpc.Clone()
+	}
+
+	if c.Cache != nil {
+		c.Cache = &PeerCacherConfig{
+			NumCounters: c.Cache.NumCounters,
+			MaxCost:     c.Cache.MaxCost,
+			BufferItems: c.Cache.BufferItems,
+			Prefix:      c.Cache.Prefix,
+		}
 	}
 	return newConfig
 }
@@ -129,5 +139,11 @@ func NewPeerConfig() *PeerConfig {
 		Members:            make([]string, 0),
 		Grpc:               kit.NewGrpcConfig(),
 		LeaderElection:     true,
+		Cache: &PeerCacherConfig{
+			NumCounters: 1e7,     // number of keys to track frequency of (10M).
+			MaxCost:     1 << 30, // maximum cost of cache (1GB).
+			BufferItems: 64,      // number of keys per Get buffer.
+			Prefix:      "/nakama/",
+		},
 	}
 }

@@ -19,7 +19,7 @@ const (
 	// EtcdType represents the storage type as a string value
 	EtcdType = "etcd"
 	// EtcdPrefix
-	EtcdPrefix = "/gocache_etcd"
+	EtcdPrefix = "gocache_etcd"
 )
 
 // EventHandler
@@ -33,16 +33,19 @@ type EtcdStore struct {
 	options     *lib_store.Options
 	onPut       atomic.Value
 	onDelete    atomic.Value
+
+	prefix string
 }
 
 // NewEtcd creates a new store to etcd instance(s)
-func NewEtcd(client *clientv3.Client, options ...lib_store.Option) *EtcdStore {
+func NewEtcd(client *clientv3.Client, prefix string, options ...lib_store.Option) *EtcdStore {
 	ctx, cancel := context.WithCancel(client.Ctx())
 	s := &EtcdStore{
 		ctx:         ctx,
 		ctxCancelFn: cancel,
 		client:      client,
 		options:     lib_store.ApplyOptions(options...),
+		prefix:      prefix,
 	}
 	go s.processWatch()
 	return s
@@ -237,20 +240,20 @@ func (s *EtcdStore) GetType() string {
 
 func (s *EtcdStore) keys(key ...string) string {
 	newKeys := make([]string, 0, len(key)+1)
-	newKeys = append(newKeys, EtcdPrefix, "values")
+	newKeys = append(newKeys, strings.Trim(s.prefix, "/"), EtcdPrefix, "values")
 	for _, k := range key {
 		newKeys = append(newKeys, strings.Trim(k, "/"))
 	}
-	return strings.Join(newKeys, "/")
+	return "/" + strings.Join(newKeys, "/")
 }
 
 func (s *EtcdStore) tagKeys(key ...string) string {
 	newKeys := make([]string, 0, len(key)+1)
-	newKeys = append(newKeys, EtcdPrefix, "tags")
+	newKeys = append(newKeys, strings.Trim(s.prefix, "/"), EtcdPrefix, "tags")
 	for _, k := range key {
 		newKeys = append(newKeys, strings.Trim(k, "/"))
 	}
-	return strings.Join(newKeys, "/")
+	return "/" + strings.Join(newKeys, "/")
 }
 
 // Clear resets all data in the store

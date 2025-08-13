@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"time"
 
 	"github.com/dgraph-io/ristretto"
 	"github.com/doublemo/nakama-common/runtime"
@@ -16,6 +17,27 @@ import (
 )
 
 type (
+	PeerCacherConfig struct {
+		// NumCounters determines the number of counters (keys) to keep that hold
+		// access frequency information. It's generally a good idea to have more
+		// counters than the max cache capacity, as this will improve eviction
+		// accuracy and subsequent hit ratios.
+		NumCounters int64 `yaml:"num_counters" json:"num_counters" usage:"NumCounters determines the number of counters (keys) to keep that hold access frequency information."`
+
+		// MaxCost can be considered as the cache capacity, in whatever units you
+		// choose to use.
+		MaxCost int64 `yaml:"max_cost" json:"max_cost" usage:"MaxCost can be considered as the cache capacity, in whatever units you choose to use."`
+
+		// BufferItems determines the size of Get buffers.
+		//
+		// Unless you have a rare use case, using `64` as the BufferItems value
+		// results in good performance.
+		BufferItems int64 `yaml:"buffer_items" json:"buffer_items" usage:"BufferItems determines the size of Get buffers."`
+
+		// prefix
+		Prefix string `yaml:"prefix" json:"prefix" usage:"prefix"`
+	}
+
 	PeerCacheValue struct {
 		Node  string
 		Value any
@@ -33,12 +55,12 @@ type (
 	}
 )
 
-func NewPeerCacher(logger *zap.Logger, etcdClient *clientv3.Client, node string) *PeerCacher {
-	storeEtcd := store_etcd.NewEtcd(etcdClient)
+func NewPeerCacher(logger *zap.Logger, etcdClient *clientv3.Client, node string, config *PeerCacherConfig) *PeerCacher {
+	storeEtcd := store_etcd.NewEtcd(etcdClient, config.Prefix, store.WithExpiration(24*time.Hour*30))
 	ristrettoClient, err := ristretto.NewCache(&ristretto.Config{
-		NumCounters: 1e7,     // number of keys to track frequency of (10M).
-		MaxCost:     1 << 30, // maximum cost of cache (1GB).
-		BufferItems: 64,      // number of keys per Get buffer.
+		NumCounters: config.NumCounters,
+		MaxCost:     config.MaxCost,
+		BufferItems: config.BufferItems, // number of keys per Get buffer.
 	})
 
 	if err != nil {

@@ -174,7 +174,7 @@ func NewLocalPeer(db *sql.DB, logger *zap.Logger, name string, metadata map[stri
 
 	if c.Etcd != nil && len(c.Etcd.Endpoints) > 0 {
 		s.etcdClient = kit.NewEtcdClientV3(context.Background(), logger, c.Etcd)
-		s.cacher = NewPeerCacher(logger, s.etcdClient.GetClient(), name)
+		s.cacher = NewPeerCacher(logger, s.etcdClient.GetClient(), name, c.Cache)
 	}
 
 	// Process incoming

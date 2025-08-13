@@ -29,7 +29,7 @@ func TestEtcdSet(t *testing.T) {
 
 	cacheKey := "my-key"
 	cacheValue := "my-cache-value"
-	store := NewEtcd(etcdClient, lib_store.WithExpiration(6*time.Second))
+	store := NewEtcd(etcdClient, "test", lib_store.WithExpiration(6*time.Second))
 	store.OnPut(func(evt *clientv3.Event) {
 		t.Log("evt:", evt.Type, string(evt.Kv.Key))
 	})
@@ -49,7 +49,7 @@ func TestEtcdDelete(t *testing.T) {
 	}
 
 	cacheKey := "my-key"
-	store := NewEtcd(etcdClient, lib_store.WithExpiration(6*time.Second))
+	store := NewEtcd(etcdClient, "test", lib_store.WithExpiration(6*time.Second))
 	store.OnPut(func(evt *clientv3.Event) {
 		t.Log("evt:", evt.Type, string(evt.Kv.Key))
 	})
