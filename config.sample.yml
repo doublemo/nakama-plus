@@ -86,3 +86,6 @@ cluster:
     heartbeat_timeout: 15
     ca_cert: "./data/cert/CA.pem"
     server_name_override: "example.com"
+
+  cache:
+    prefix: "nakama"
