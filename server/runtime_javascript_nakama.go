@@ -8567,17 +8567,17 @@ func (n *RuntimeJavascriptNakamaModule) localcacheGet(r *goja.Runtime) func(goja
 			cacher *PeerCacher
 		)
 
-		direction := getJsCacheOption(r, f.Argument(2)).direction
+		direction := ParseCacheDirection(getJsCacheOption(r, f.Argument(2)).direction)
 		peer, ok := n.router.GetPeer()
 		if ok {
 			cacher = peer.GetCacher()
 		}
 
-		if !ok || cacher == nil || direction == "LocalOnly" {
+		if direction == CacheDirectionLocalOnly || cacher == nil {
 			value, found = n.localCache.Get(key)
 		} else {
 			opts := make([]runtime.PeerCacheOption, 0)
-			if direction == "MemoryOnly" {
+			if direction == CacheDirectionMemoryOnly {
 				opts = append(opts, runtime.WithMemoryOnly(true))
 			}
 
@@ -8586,6 +8586,7 @@ func (n *RuntimeJavascriptNakamaModule) localcacheGet(r *goja.Runtime) func(goja
 				found = true
 			}
 		}
+
 		if !found {
 			return defVal
 		}
@@ -8632,13 +8633,14 @@ func (n *RuntimeJavascriptNakamaModule) localcachePut(r *goja.Runtime) func(goja
 		}
 
 		op := getJsCacheOption(r, f.Argument(3))
-		if !ok || cacher == nil || op.direction == "LocalOnly" {
+		direction := ParseCacheDirection(op.direction)
+		if !ok || cacher == nil || direction == CacheDirectionLocalOnly {
 			n.localCache.Put(key, v, ttl)
 			return goja.Undefined()
 		}
 
 		opts := make([]runtime.PeerCacheOption, 0)
-		if op.direction == "MemoryOnly" {
+		if direction == CacheDirectionMemoryOnly {
 			opts = append(opts, runtime.WithMemoryOnly(true))
 		}
 
@@ -8673,7 +8675,8 @@ func (n *RuntimeJavascriptNakamaModule) localcacheDelete(r *goja.Runtime) func(g
 		}
 
 		op := getJsCacheOption(r, f.Argument(1))
-		if !ok || cacher == nil || op.direction == "LocalOnly" {
+		direction := ParseCacheDirection(op.direction)
+		if !ok || cacher == nil || direction == CacheDirectionLocalOnly {
 			n.localCache.Delete(key)
 			return goja.Undefined()
 		}
@@ -8703,7 +8706,8 @@ func (n *RuntimeJavascriptNakamaModule) localcacheClear(r *goja.Runtime) func(go
 		}
 
 		op := getJsCacheOption(r, f.Argument(0))
-		if !ok || cacher == nil || op.direction == "LocalOnly" {
+		direction := ParseCacheDirection(op.direction)
+		if !ok || cacher == nil || direction == CacheDirectionLocalOnly {
 			n.localCache.Clear()
 			return goja.Undefined()
 		}

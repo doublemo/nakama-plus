@@ -17,6 +17,9 @@ import (
 )
 
 type (
+	// CacheDirection defines the type for cache direction
+	CacheDirection int
+
 	PeerCacherConfig struct {
 		// NumCounters determines the number of counters (keys) to keep that hold
 		// access frequency information. It's generally a good idea to have more
@@ -53,6 +56,17 @@ type (
 		storeEtcd      *marshaler.Marshaler
 		storeRistretto *marshaler.Marshaler
 	}
+)
+
+const (
+	// CacheDirectionLocalOnly indicates local cache
+	CacheDirectionLocalOnly CacheDirection = iota
+
+	// CacheDirectionMemoryOnly indicates memory-only cache
+	CacheDirectionMemoryOnly
+
+	// CacheDirectionPeer indicates peer cache
+	CacheDirectionPeer
 )
 
 func NewPeerCacher(logger *zap.Logger, etcdClient *clientv3.Client, node string, config *PeerCacherConfig) *PeerCacher {
@@ -177,4 +191,15 @@ func (s *PeerCacher) applyOptions(options ...runtime.PeerCacheOption) *runtime.P
 		fn(peerCacheOptions)
 	}
 	return peerCacheOptions
+}
+
+func ParseCacheDirection(s string) CacheDirection {
+	switch s {
+	case "MemoryOnly":
+		return CacheDirectionMemoryOnly
+	case "Peer":
+		return CacheDirectionPeer
+	default:
+		return CacheDirectionLocalOnly
+	}
 }

@@ -771,17 +771,17 @@ func (n *RuntimeLuaNakamaModule) localcacheGet(l *lua.LState) int {
 		cacher *PeerCacher
 	)
 
-	direction := l.OptString(3, "")
+	direction := ParseCacheDirection(l.OptString(3, ""))
 	peer, ok := n.router.GetPeer()
 	if ok {
 		cacher = peer.GetCacher()
 	}
 
-	if !ok || cacher == nil || direction == "LocalOnly" {
+	if !ok || cacher == nil || direction == CacheDirectionLocalOnly {
 		value, found = n.localCache.Get(key)
 	} else {
 		opts := make([]runtime.PeerCacheOption, 0)
-		if direction == "MemoryOnly" {
+		if direction == CacheDirectionMemoryOnly {
 			opts = append(opts, runtime.WithMemoryOnly(true))
 		}
 
@@ -819,7 +819,7 @@ func (n *RuntimeLuaNakamaModule) localcachePut(l *lua.LState) int {
 
 	var (
 		cacher    *PeerCacher
-		direction string
+		direction CacheDirection
 	)
 	peer, ok := n.router.GetPeer()
 	if ok {
@@ -833,17 +833,17 @@ func (n *RuntimeLuaNakamaModule) localcachePut(l *lua.LState) int {
 
 	if v, ok := opts["direction"]; ok {
 		if m, ok := v.(string); ok {
-			direction = m
+			direction = ParseCacheDirection(m)
 		}
 	}
 
-	if !ok || cacher == nil || direction == "LocalOnly" {
+	if !ok || cacher == nil || direction == CacheDirectionLocalOnly {
 		n.localCache.Put(key, value, ttl)
 		return 0
 	}
 
 	storeOpts := make([]runtime.PeerCacheOption, 0)
-	if direction == "MemoryOnly" {
+	if direction == CacheDirectionMemoryOnly {
 		storeOpts = append(storeOpts, runtime.WithMemoryOnly(true))
 	}
 
@@ -877,7 +877,7 @@ func (n *RuntimeLuaNakamaModule) localcacheDelete(l *lua.LState) int {
 
 	var (
 		cacher    *PeerCacher
-		direction string
+		direction CacheDirection
 	)
 	peer, ok := n.router.GetPeer()
 	if ok {
@@ -891,11 +891,11 @@ func (n *RuntimeLuaNakamaModule) localcacheDelete(l *lua.LState) int {
 
 	if v, ok := opts["direction"]; ok {
 		if m, ok := v.(string); ok {
-			direction = m
+			direction = ParseCacheDirection(m)
 		}
 	}
 
-	if !ok || cacher == nil || direction == "LocalOnly" {
+	if !ok || cacher == nil || direction == CacheDirectionLocalOnly {
 		n.localCache.Delete(key)
 		return 0
 	}
@@ -923,13 +923,13 @@ func (n *RuntimeLuaNakamaModule) localcacheDelete(l *lua.LState) int {
 
 func (n *RuntimeLuaNakamaModule) localcacheClear(l *lua.LState) int {
 	var cacher *PeerCacher
-	direction := l.OptString(1, "")
+	direction := ParseCacheDirection(l.OptString(1, ""))
 	peer, ok := n.router.GetPeer()
 	if ok {
 		cacher = peer.GetCacher()
 	}
 
-	if !ok || cacher == nil || direction == "LocalOnly" {
+	if !ok || cacher == nil || direction == CacheDirectionLocalOnly {
 		n.localCache.Clear()
 	} else {
 		cacher.Clear()
