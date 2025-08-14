@@ -4,6 +4,11 @@ All notable changes to this project are documented below.
 The format is based on [keep a changelog](http://keepachangelog.com) and this project uses [semantic versioning](http://semver.org).
 
 ## [Unreleased]
+
+### Added
+- Send In-App Notification for friend removal or friend request rejection.
+
+## [3.29.0] - 2025-07-29
 ### Added
 - New "MatchmakerProcessor" hook to set custom matching behaviour tapping into the complete ticket pool.
 
