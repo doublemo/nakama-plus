@@ -258,7 +258,9 @@ func (s *EtcdStore) tagKeys(key ...string) string {
 
 // Clear resets all data in the store
 func (s *EtcdStore) Clear(ctx context.Context) error {
-	_, err := s.client.Delete(ctx, EtcdPrefix+"/", clientv3.WithPrefix())
+	// 使用keys方法构建正确的键前缀
+	prefix := s.keys()
+	_, err := s.client.Delete(ctx, prefix, clientv3.WithPrefix())
 	return err
 }
 
