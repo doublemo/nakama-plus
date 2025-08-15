@@ -276,6 +276,11 @@
    rpc GetRuntime (google.protobuf.Empty) returns (RuntimeInfo) {
      option (google.api.http).get = "/v2/console/runtime";
    }
+
+    // Get console settings.
+  rpc GetSetting (SettingRequest) returns (Setting) {
+    option (google.api.http).get = "/v2/console/setting/{name}";
+  }
  
    // Get current status data for all nodes.
    rpc GetStatus (google.protobuf.Empty) returns (StatusList) {
@@ -321,6 +326,11 @@
    rpc ListLeaderboards (LeaderboardListRequest) returns (LeaderboardList) {
      option (google.api.http).get = "/v2/console/leaderboard";
    }
+
+   // List settings
+  rpc ListSettings (ListSettingsRequest) returns (SettingList) {
+    option (google.api.http).get = "/v2/console/setting";
+  }
  
    // List (and optionally filter) storage data.
    rpc ListStorage (ListStorageRequest) returns (StorageList) {
@@ -458,6 +468,14 @@
        body: "*"
      };
    }
+
+    // Update an existing setting.
+  rpc UpdateSetting (UpdateSettingRequest) returns (Setting) {
+    option (google.api.http) = {
+      post: "/v2/console/setting/{name}",
+      body: "*"
+    };
+  }
  
    // Write a new storage object or replace an existing one.
    rpc WriteStorageObject (WriteStorageObjectRequest) returns (api.StorageObjectAck) {
@@ -1246,3 +1264,38 @@ message GetNotificationRequest {
    google.protobuf.Timestamp update_time = 8;
  }
  
+// A single setting.
+message Setting {
+  // Name identifier.
+  string name = 1;
+  // Setting value.
+  string value = 2;
+  // Update time.
+  int64 update_time_sec = 3;
+}
+
+// Request to get a setting by name.
+message SettingRequest {
+  // The name of the setting
+  string name = 1;
+}
+
+// Request to list settings.
+message ListSettingsRequest {
+  // The list of setting names, if empty all settings are returned.
+  repeated string names = 1;
+}
+
+// Request to update an existing setting.
+message UpdateSettingRequest {
+  // Name identifier.
+  string name = 1;
+  // Setting value.
+  string value = 2;
+}
+
+// A list of settings.
+message SettingList {
+  // A list of settings.
+  repeated Setting settings = 1;
+}

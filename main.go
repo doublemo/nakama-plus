@@ -29,8 +29,8 @@ import (
 	"time"
 
 	"github.com/doublemo/nakama-plus/v3/console"
-	"github.com/doublemo/nakama-plus/v3/ga"
 	"github.com/doublemo/nakama-plus/v3/migrate"
+	"github.com/doublemo/nakama-plus/v3/se"
 	"github.com/doublemo/nakama-plus/v3/server"
 	"github.com/doublemo/nakama-plus/v3/social"
 	"github.com/gofrs/uuid/v5"
@@ -173,7 +173,6 @@ func main() {
 	socialClient := social.NewClient(logger, 5*time.Second, config.GetGoogleAuth().OAuthConfig)
 
 	// Start up server components.
-	cookie := newOrLoadCookie(config)
 	metrics := server.NewLocalMetrics(logger, startupLogger, db, config)
 	sessionRegistry := server.NewLocalSessionRegistry(metrics)
 	sessionCache := server.NewLocalSessionCache(config.GetSession().TokenExpirySec, config.GetSession().RefreshTokenExpirySec)
@@ -232,20 +231,21 @@ func main() {
 		startupLogger.Fatal("failed to join cluster", zap.Error(err))
 	}
 
+	telemetryEnabled := os.Getenv("NAKAMA_TELEMETRY") == "0"
+	console.UIFS.Nt = !telemetryEnabled
+	cookie := newOrLoadCookie(telemetryEnabled, config)
+
 	apiServer := server.StartApiServer(logger, startupLogger, db, jsonpbMarshaler, jsonpbUnmarshaler, config, version, socialClient, storageIndex, leaderboardCache, leaderboardRankCache, sessionRegistry, sessionCache, statusRegistry, matchRegistry, partyRegistry, matchmaker, tracker, router, streamManager, metrics, pipeline, runtime)
 	socketServer := server.StartSocketServer(logger, config, sessionRegistry, sessionCache, statusRegistry, matchmaker, tracker, metrics, runtime, jsonpbMarshaler, jsonpbUnmarshaler, pipeline)
 	consoleServer := server.StartConsoleServer(logger, startupLogger, db, config, tracker, router, streamManager, metrics, sessionRegistry, sessionCache, consoleSessionCache, loginAttemptCache, statusRegistry, statusHandler, runtimeInfo, matchRegistry, configWarnings, semver, leaderboardCache, leaderboardRankCache, leaderboardScheduler, storageIndex, apiServer, runtime, cookie)
-	console.UIFS.Nt = true
-	// gaenabled := len(os.Getenv("NAKAMA_TELEMETRY")) < 1
-	// console.UIFS.Nt = !gaenabled
-	// const gacode = "UA-89792135-1"
-	// var telemetryClient *http.Client
-	// if gaenabled {
-	// 	telemetryClient = &http.Client{
-	// 		Timeout: 1500 * time.Millisecond,
-	// 	}
-	// 	runTelemetry(telemetryClient, gacode, cookie)
-	// }
+
+	if telemetryEnabled {
+		const telemetryKey = "YU1bIKUhjQA9WC0O6ouIRIWTaPlJ5kFs"
+		_ = se.Start(telemetryKey, cookie, semver, "nakama")
+		defer func() {
+			_ = se.End(telemetryKey, cookie)
+		}()
+	}
 
 	// Respect OS stop signals.
 	c := make(chan os.Signal, 2)
@@ -294,19 +294,12 @@ func main() {
 // * Version of Nakama being used which includes build metadata.
 // * Amount of time the server ran for.
 //
-// This information is sent via Google Analytics which allows the Nakama team to
+// This information is sent via Segment which allows the Nakama team to
 // analyze usage patterns and errors in order to help improve the server.
-func runTelemetry(httpc *http.Client, gacode string, cookie string) {
-	if ga.SendSessionStart(httpc, gacode, cookie) != nil {
-		return
+func newOrLoadCookie(enabled bool, config server.Config) string {
+	if !enabled {
+		return ""
 	}
-	if ga.SendEvent(httpc, gacode, cookie, &ga.Event{Ec: "version", Ea: fmt.Sprintf("%s+%s", version, commitID)}) != nil {
-		return
-	}
-	_ = ga.SendEvent(httpc, gacode, cookie, &ga.Event{Ec: "variant", Ea: "nakama"})
-}
-
-func newOrLoadCookie(config server.Config) string {
 	filePath := filepath.FromSlash(config.GetDataDir() + "/" + cookieFilename)
 	b, err := os.ReadFile(filePath)
 	cookie := uuid.FromBytesOrNil(b)
