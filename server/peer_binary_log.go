@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/doublemo/nakama-kit/pb"
+	"github.com/gofrs/uuid/v5"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
 )
@@ -116,6 +117,57 @@ func (s *LocalPeer) handleBinaryLog(v *pb.BinaryLog) {
 	case *pb.BinaryLog_PartyClose:
 		s.partyRegistry.(*LocalPartyRegistry).handleFromRemotePartyClose(payload.PartyClose)
 		s.logger.Debug("processed party close", append(logFields, zap.String("id", payload.PartyClose))...)
+
+	case *pb.BinaryLog_LeaderboardCreate:
+		if cache, ok := s.leaderboardCache.(*LeaderboardCacheSync); ok {
+			leaderboard := pb2leaderboard(payload.LeaderboardCreate)
+			cache.HandleRemoteCreate(leaderboard)
+			s.logger.Debug("processed leaderboard create", append(logFields, zap.String("id", leaderboard.Id))...)
+		}
+
+	case *pb.BinaryLog_LeaderboardDelete:
+		if cache, ok := s.leaderboardCache.(*LeaderboardCacheSync); ok {
+			cache.HandleRemoteDelete(payload.LeaderboardDelete.Id)
+			s.logger.Debug("processed leaderboard delete", append(logFields, zap.String("id", payload.LeaderboardDelete.Id))...)
+		}
+
+	case *pb.BinaryLog_LeaderboardRankUpdate:
+		if cache, ok := s.leaderboardRankCache.(*LeaderboardRankCacheSync); ok {
+			update := payload.LeaderboardRankUpdate
+			ownerID, err := uuid.FromString(update.OwnerId)
+			if err != nil {
+				s.logger.Error("invalid owner ID in rank update", append(logFields, zap.Error(err))...)
+				return
+			}
+
+			cache.HandleRemoteRankUpdate(
+				update.LeaderboardId,
+				update.ExpiryUnix,
+				ownerID,
+				update.Score,
+				update.Subscore,
+				update.Generation,
+				int(update.SortOrder),
+			)
+			s.logger.Debug("processed leaderboard rank update", append(logFields,
+				zap.String("leaderboard_id", update.LeaderboardId),
+				zap.String("owner_id", update.OwnerId))...)
+		}
+
+	case *pb.BinaryLog_LeaderboardRankDelete:
+		if cache, ok := s.leaderboardRankCache.(*LeaderboardRankCacheSync); ok {
+			delete := payload.LeaderboardRankDelete
+			ownerID, err := uuid.FromString(delete.OwnerId)
+			if err != nil {
+				s.logger.Error("invalid owner ID in rank delete", append(logFields, zap.Error(err))...)
+				return
+			}
+
+			cache.HandleRemoteRankDelete(delete.LeaderboardId, delete.ExpiryUnix, ownerID)
+			s.logger.Debug("processed leaderboard rank delete", append(logFields,
+				zap.String("leaderboard_id", delete.LeaderboardId),
+				zap.String("owner_id", delete.OwnerId))...)
+		}
 	}
 	s.binaryLog.SetVersionByNode(v.Node, v.Version)
 }

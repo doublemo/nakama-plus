@@ -1,0 +1,48 @@
+// 这些消息类型需要添加到现有的 peer.proto 文件中
+
+// 在 BinaryLog 的 oneof payload 中添加：
+// LeaderboardCreate leaderboardCreate = 16;
+// LeaderboardDelete leaderboardDelete = 17;
+// LeaderboardRankUpdate leaderboardRankUpdate = 18;
+// LeaderboardRankDelete leaderboardRankDelete = 19;
+
+message LeaderboardCreate {
+  string id = 1;
+  bool authoritative = 2;
+  int32 sort_order = 3;
+  int32 operator = 4;
+  string reset_schedule = 5;
+  string metadata = 6;
+  int64 create_time = 7;
+  bool enable_ranks = 8;
+  // Tournament fields
+  string title = 9;
+  string description = 10;
+  int32 category = 11;
+  int32 duration = 12;
+  int32 max_size = 13;
+  int32 max_num_score = 14;
+  bool join_required = 15;
+  int64 start_time = 16;
+  int64 end_time = 17;
+}
+
+message LeaderboardDelete {
+  string id = 1;
+}
+
+message LeaderboardRankUpdate {
+  string leaderboard_id = 1;
+  int64 expiry_unix = 2;
+  string owner_id = 3;
+  int64 score = 4;
+  int64 subscore = 5;
+  int32 generation = 6;
+  int32 sort_order = 7;
+}
+
+message LeaderboardRankDelete {
+  string leaderboard_id = 1;
+  int64 expiry_unix = 2;
+  string owner_id = 3;
+}
