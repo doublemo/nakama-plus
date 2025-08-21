@@ -498,8 +498,8 @@ func GetChannelMessages(ctx context.Context, logger *zap.Logger, db *sql.DB, use
 			SenderId:   userID.String(),
 			Username:   dbUsername,
 			Content:    dbContent,
-			CreateTime: &timestamppb.Timestamp{Seconds: dbCreateTime.Time.Unix()},
-			UpdateTime: &timestamppb.Timestamp{Seconds: dbUpdateTime.Time.Unix()},
+			CreateTime: timestamppb.New(dbCreateTime.Time),
+			UpdateTime: timestamppb.New(dbUpdateTime.Time),
 			Persistent: &wrapperspb.BoolValue{Value: true},
 		})
 	}

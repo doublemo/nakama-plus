@@ -5,6 +5,10 @@ The format is based on [keep a changelog](http://keepachangelog.com) and this pr
 
 ## [Unreleased]
 
+### Fixed
+- Fix an issue with message ts precision in returned structs. [origin commit](https://github.com/playwindgames/nakama/commit/7e02d533248fe04265019e1bfd53161812bf84f3)
+
+
 ### Added
 - Send In-App Notification for friend removal or friend request rejection.
 
