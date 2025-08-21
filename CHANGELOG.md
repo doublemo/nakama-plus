@@ -7,7 +7,7 @@ The format is based on [keep a changelog](http://keepachangelog.com) and this pr
 
 ### Fixed
 - Fix an issue with message ts precision in returned structs. [origin commit](https://github.com/playwindgames/nakama/commit/7e02d533248fe04265019e1bfd53161812bf84f3)
-
+- Ensure persisted chat messages listing returns correct order. [origin commit](https://github.com/playwindgames/nakama/commit/8a72e2c4b7a13425daf992c9b19e8a54488ef7be)
 
 ### Added
 - Send In-App Notification for friend removal or friend request rejection.
