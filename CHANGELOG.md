@@ -5,12 +5,14 @@ The format is based on [keep a changelog](http://keepachangelog.com) and this pr
 
 ## [Unreleased]
 
+## [3.29.3] - 2025-08-21
 ### Fixed
 - Fix an issue with message ts precision in returned structs. [origin commit](https://github.com/playwindgames/nakama/commit/7e02d533248fe04265019e1bfd53161812bf84f3)
 - Ensure persisted chat messages listing returns correct order. [origin commit](https://github.com/playwindgames/nakama/commit/8a72e2c4b7a13425daf992c9b19e8a54488ef7be)
 - Fix GetStorage condition for not found [origin commit](https://github.com/playwindgames/nakama/commit/af854e60f04da5e6b9ce1043704111a6e4a20a9d)
 
 ### Added
+- Etcd 2nd level cache
 - Send In-App Notification for friend removal or friend request rejection.
 
 ## [3.29.0] - 2025-07-29
