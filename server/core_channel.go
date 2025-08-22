@@ -330,7 +330,7 @@ func ChannelMessageSend(ctx context.Context, logger *zap.Logger, db *sql.DB, rou
 	if persist {
 		query := `INSERT INTO message (id, code, sender_id, username, stream_mode, stream_subject, stream_descriptor, stream_label, content, create_time, update_time)
 VALUES ($1, $2, $3, $4, $5, $6::UUID, $7::UUID, $8, $9, $10, $10)`
-		_, err := db.ExecContext(ctx, query, message.MessageId, message.Code.Value, message.SenderId, message.Username, channelStream.Mode, channelStream.Subject, channelStream.Subcontext, channelStream.Label, message.Content, time.Unix(message.CreateTime.Seconds, 0).UTC())
+		_, err := db.ExecContext(ctx, query, message.MessageId, message.Code.Value, message.SenderId, message.Username, channelStream.Mode, channelStream.Subject, channelStream.Subcontext, channelStream.Label, message.Content, message.CreateTime.AsTime())
 		if err != nil {
 			logger.Error("Error persisting channel message", zap.Error(err))
 			return nil, errChannelMessagePersist
@@ -498,8 +498,8 @@ func GetChannelMessages(ctx context.Context, logger *zap.Logger, db *sql.DB, use
 			SenderId:   userID.String(),
 			Username:   dbUsername,
 			Content:    dbContent,
-			CreateTime: &timestamppb.Timestamp{Seconds: dbCreateTime.Time.Unix()},
-			UpdateTime: &timestamppb.Timestamp{Seconds: dbUpdateTime.Time.Unix()},
+			CreateTime: timestamppb.New(dbCreateTime.Time),
+			UpdateTime: timestamppb.New(dbUpdateTime.Time),
 			Persistent: &wrapperspb.BoolValue{Value: true},
 		})
 	}
