@@ -10,6 +10,9 @@ The format is based on [keep a changelog](http://keepachangelog.com) and this pr
 - Implemented data synchronization within the leaderboard cluster.
 - Leaderboard Reset and End operations are executed on a single node via hashring.
 
+### Changed
+- Set default value of Weight to 1 in PeerConfig
+
 ## [3.29.0] - 2025-07-29
 ### Added
 - New "MatchmakerProcessor" hook to set custom matching behaviour tapping into the complete ticket pool.
