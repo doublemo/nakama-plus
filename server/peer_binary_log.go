@@ -1,7 +1,6 @@
 package server
 
 import (
-	"fmt"
 	"strings"
 	"time"
 
@@ -193,7 +192,6 @@ func (s *LocalPeer) handleBinaryLog(v *pb.BinaryLog) {
 			s.logger.Debug("processed leaderboard rank DeleteLeaderboard", append(logFields, zap.Any("id", payload.LeaderboardRankDeleteLeaderboard.Data))...)
 		}
 	case *pb.BinaryLog_LeaderboardRemove:
-		fmt.Println("payload.LeaderboardRemove----", payload.LeaderboardRemove)
 		leaderboard := s.leaderboardCache.Get(payload.LeaderboardRemove)
 		if leaderboard != nil {
 			now := time.Now().UTC()
