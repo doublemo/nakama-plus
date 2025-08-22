@@ -7,6 +7,8 @@ The format is based on [keep a changelog](http://keepachangelog.com) and this pr
 
 ### Added
 - Send In-App Notification for friend removal or friend request rejection.
+- Implemented data synchronization within the leaderboard cluster.
+- Leaderboard Reset and End operations are executed on a single node via hashring.
 
 ## [3.29.0] - 2025-07-29
 ### Added
