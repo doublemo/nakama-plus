@@ -139,6 +139,7 @@ func NewPeerConfig() *PeerConfig {
 		Members:            make([]string, 0),
 		Grpc:               kit.NewGrpcConfig(),
 		LeaderElection:     true,
+		Weight:             1,
 		Cache: &PeerCacherConfig{
 			NumCounters: 1e7,     // number of keys to track frequency of (10M).
 			MaxCost:     1 << 30, // maximum cost of cache (1GB).
