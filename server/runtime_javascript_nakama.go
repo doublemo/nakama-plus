@@ -2124,7 +2124,8 @@ func (n *RuntimeJavascriptNakamaModule) accountDeleteId(r *goja.Runtime) func(go
 			recorded = getJsBool(r, f.Argument(1))
 		}
 
-		if err := DeleteAccount(n.ctx, n.logger, n.db, n.config, n.leaderboardCache, n.rankCache, n.sessionRegistry, n.sessionCache, n.tracker, userID, recorded); err != nil {
+		peer, _ := n.router.GetPeer()
+		if err := DeleteAccount(n.ctx, n.logger, n.db, n.config, n.leaderboardCache, n.rankCache, n.sessionRegistry, n.sessionCache, n.tracker, peer, userID, recorded); err != nil {
 			panic(r.NewGoError(fmt.Errorf("error while trying to delete account: %v", err.Error())))
 		}
 
@@ -5567,9 +5568,13 @@ func (n *RuntimeJavascriptNakamaModule) leaderboardCreate(r *goja.Runtime) func(
 			enableRanks = getJsBool(r, f.Argument(6))
 		}
 
-		_, created, err := n.leaderboardCache.Create(n.ctx, leaderboardID, authoritative, sortOrderNumber, operatorNumber, resetSchedule, metadata, enableRanks)
+		leaderboard, created, err := n.leaderboardCache.Create(n.ctx, leaderboardID, authoritative, sortOrderNumber, operatorNumber, resetSchedule, metadata, enableRanks)
 		if err != nil {
 			panic(r.NewGoError(fmt.Errorf("error creating leaderboard: %v", err.Error())))
+		}
+
+		if peer, ok := n.router.GetPeer(); ok {
+			peer.LeaderboardCreate(leaderboard, created)
 		}
 
 		if created {
@@ -5595,6 +5600,10 @@ func (n *RuntimeJavascriptNakamaModule) leaderboardDelete(r *goja.Runtime) func(
 		_, err := n.leaderboardCache.Delete(n.ctx, n.rankCache, n.leaderboardScheduler, id)
 		if err != nil {
 			panic(r.NewGoError(fmt.Errorf("error deleting leaderboard: %v", err.Error())))
+		}
+
+		if peer, ok := n.router.GetPeer(); ok {
+			peer.LeaderboardRemove(id)
 		}
 
 		return goja.Undefined()
@@ -5669,6 +5678,12 @@ func (n *RuntimeJavascriptNakamaModule) leaderboardRanksDisable(r *goja.Runtime)
 
 		if err := disableLeaderboardRanks(n.ctx, n.logger, n.db, n.leaderboardCache, n.rankCache, id); err != nil {
 			panic(r.NewGoError(err))
+		}
+
+		if peer, ok := n.router.GetPeer(); ok {
+			if l := n.leaderboardCache.Get(id); l != nil {
+				peer.LeaderboardInsert(l.Id, l.Authoritative, l.SortOrder, l.Operator, l.ResetScheduleStr, l.Metadata, l.CreateTime, false)
+			}
 		}
 
 		return goja.Undefined()
@@ -5872,7 +5887,8 @@ func (n *RuntimeJavascriptNakamaModule) leaderboardRecordWrite(r *goja.Runtime) 
 			}
 		}
 
-		record, err := LeaderboardRecordWrite(n.ctx, n.logger, n.db, n.leaderboardCache, n.rankCache, uuid.Nil, id, ownerID, username, score, subscore, metadataStr, overrideOperatorValue)
+		peer, _ := n.router.GetPeer()
+		record, err := LeaderboardRecordWrite(n.ctx, n.logger, n.db, n.leaderboardCache, n.rankCache, peer, uuid.Nil, id, ownerID, username, score, subscore, metadataStr, overrideOperatorValue)
 		if err != nil {
 			panic(r.NewGoError(fmt.Errorf("error writing leaderboard record: %v", err.Error())))
 		}
@@ -5898,7 +5914,8 @@ func (n *RuntimeJavascriptNakamaModule) leaderboardRecordDelete(r *goja.Runtime)
 			panic(r.NewTypeError("expects owner ID to be a valid identifier"))
 		}
 
-		if err := LeaderboardRecordDelete(n.ctx, n.logger, n.db, n.leaderboardCache, n.rankCache, uuid.Nil, id, ownerID); err != nil {
+		peer, _ := n.router.GetPeer()
+		if err := LeaderboardRecordDelete(n.ctx, n.logger, n.db, n.leaderboardCache, n.rankCache, peer, uuid.Nil, id, ownerID); err != nil {
 			panic(r.NewGoError(fmt.Errorf("error deleting leaderboard record: %v", err.Error())))
 		}
 
@@ -6616,8 +6633,13 @@ func (n *RuntimeJavascriptNakamaModule) tournamentCreate(r *goja.Runtime) func(g
 			enableRanks = getJsBool(r, f.Argument(15))
 		}
 
-		if err := TournamentCreate(n.ctx, n.logger, n.leaderboardCache, n.leaderboardScheduler, id, authoritative, sortOrderNumber, operatorNumber, resetSchedule, metadataStr, title, description, category, startTime, endTime, duration, maxSize, maxNumScore, joinRequired, enableRanks); err != nil {
+		created, err := TournamentCreate(n.ctx, n.logger, n.leaderboardCache, n.leaderboardScheduler, id, authoritative, sortOrderNumber, operatorNumber, resetSchedule, metadataStr, title, description, category, startTime, endTime, duration, maxSize, maxNumScore, joinRequired, enableRanks)
+		if err != nil {
 			panic(r.NewGoError(fmt.Errorf("error creating tournament: %v", err.Error())))
+		}
+
+		if peer, ok := n.router.GetPeer(); ok {
+			peer.LeaderboardCreateTournament(n.leaderboardCache.Get(id), created)
 		}
 
 		return goja.Undefined()
@@ -6637,6 +6659,10 @@ func (n *RuntimeJavascriptNakamaModule) tournamentDelete(r *goja.Runtime) func(g
 
 		if err := TournamentDelete(n.ctx, n.leaderboardCache, n.rankCache, n.leaderboardScheduler, id); err != nil {
 			panic(r.NewGoError(fmt.Errorf("error deleting tournament: %v", err.Error())))
+		}
+
+		if peer, ok := n.router.GetPeer(); ok {
+			peer.LeaderboardRemove(id)
 		}
 
 		return goja.Undefined()
@@ -6703,7 +6729,8 @@ func (n *RuntimeJavascriptNakamaModule) tournamentJoin(r *goja.Runtime) func(goj
 			panic(r.NewTypeError("expects a username string"))
 		}
 
-		if err := TournamentJoin(n.ctx, n.logger, n.db, n.leaderboardCache, n.rankCache, uid, username, id); err != nil {
+		peer, _ := n.router.GetPeer()
+		if err := TournamentJoin(n.ctx, n.logger, n.db, n.leaderboardCache, n.rankCache, peer, uid, username, id); err != nil {
 			panic(r.NewGoError(fmt.Errorf("error joining tournament: %v", err.Error())))
 		}
 
@@ -6992,6 +7019,11 @@ func (n *RuntimeJavascriptNakamaModule) tournamentRanksDisable(r *goja.Runtime) 
 			panic(r.NewGoError(err))
 		}
 
+		if peer, ok := n.router.GetPeer(); ok {
+			if l := n.leaderboardCache.Get(id); l != nil {
+				peer.LeaderboardInsertTournament(l)
+			}
+		}
 		return goja.Undefined()
 	}
 }
@@ -7059,7 +7091,8 @@ func (n *RuntimeJavascriptNakamaModule) tournamentRecordWrite(r *goja.Runtime) f
 			}
 		}
 
-		record, err := TournamentRecordWrite(n.ctx, n.logger, n.db, n.leaderboardCache, n.rankCache, uuid.Nil, id, userID, username, score, subscore, metadataStr, api.Operator(overrideOperator))
+		peer, _ := n.router.GetPeer()
+		record, err := TournamentRecordWrite(n.ctx, n.logger, n.db, n.leaderboardCache, n.rankCache, peer, uuid.Nil, id, userID, username, score, subscore, metadataStr, api.Operator(overrideOperator))
 		if err != nil {
 			panic(r.NewGoError(fmt.Errorf("error writing tournament record: %v", err.Error())))
 		}
@@ -7085,7 +7118,8 @@ func (n *RuntimeJavascriptNakamaModule) tournamentRecordDelete(r *goja.Runtime) 
 			panic(r.NewTypeError("expects owner ID to be a valid identifier"))
 		}
 
-		if err := TournamentRecordDelete(n.ctx, n.logger, n.db, n.leaderboardCache, n.rankCache, uuid.Nil, id, ownerID); err != nil {
+		peer, _ := n.router.GetPeer()
+		if err := TournamentRecordDelete(n.ctx, n.logger, n.db, n.leaderboardCache, n.rankCache, peer, uuid.Nil, id, ownerID); err != nil {
 			panic(r.NewGoError(fmt.Errorf("error deleting tournament record: %v", err.Error())))
 		}
 

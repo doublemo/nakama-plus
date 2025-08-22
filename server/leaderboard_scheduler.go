@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/doublemo/nakama-common/api"
+	"github.com/doublemo/nakama-kit/kit"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -52,6 +53,7 @@ type LocalLeaderboardScheduler struct {
 	fnLeaderboardReset RuntimeLeaderboardResetFunction
 	fnTournamentReset  RuntimeTournamentResetFunction
 	fnTournamentEnd    RuntimeTournamentEndFunction
+	fnCanRun           func(string) bool
 
 	endActiveTimer *time.Timer
 	expiryTimer    *time.Timer
@@ -113,6 +115,23 @@ func (ls *LocalLeaderboardScheduler) Start(runtime *Runtime) {
 	ls.fnLeaderboardReset = runtime.LeaderboardReset()
 	ls.fnTournamentReset = runtime.TournamentReset()
 	ls.fnTournamentEnd = runtime.TournamentEnd()
+	ls.fnCanRun = func(key string) bool {
+		peer, ok := runtime.GetPeer()
+		if !ok {
+			return true
+		}
+
+		service, ok := peer.GetServiceRegistry().Get(kit.SERVICE_NAME)
+		if !ok {
+			return false
+		}
+
+		node := service.GetNodeByByHashRing(key)
+		if node == "" && peer.Leader() {
+			return true
+		}
+		return node == peer.Local().Name()
+	}
 
 	// Start the required number of callback workers.
 	for i := 0; i < ls.config.GetLeaderboard().CallbackQueueWorkers; i++ {
@@ -202,7 +221,6 @@ func (ls *LocalLeaderboardScheduler) Update() {
 
 	endActiveLeaderboardIds := make([]string, 0, 1)
 	expiryLeaderboardIds := make([]string, 0, 1)
-
 	// Grab the set of known leaderboards in batches, and process them looking for expiry and end active times.
 	var cursor *LeaderboardAllCursor
 	for {
@@ -394,6 +412,10 @@ func (ls *LocalLeaderboardScheduler) invokeCallback() {
 			return
 		case callback := <-ls.queue:
 			if callback.leaderboard != nil {
+				if ok := ls.fnCanRun(callback.leaderboard.Id); !ok {
+					continue
+				}
+
 				if callback.leaderboard.IsTournament() {
 					// Tournament, fetch most up to date info for size etc.
 					// Some processing is needed even if there is no runtime callback registered for tournament reset.
@@ -437,6 +459,10 @@ WHERE id = $1`
 					}
 				}
 			} else {
+				if ok := ls.fnCanRun(callback.id); !ok {
+					continue
+				}
+
 				query := `SELECT
 id, sort_order, operator, reset_schedule, metadata, create_time,
 category, description, duration, end_time, max_size, max_num_score, title, size, start_time

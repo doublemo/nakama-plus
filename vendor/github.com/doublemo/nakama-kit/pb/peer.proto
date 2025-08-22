@@ -283,6 +283,14 @@ message BinaryLog {
         PartyMatchmakerRemove matchmakerRemove = 13;
         Party.IndexEntry partyCreate = 14;
         string partyClose = 15;
+        Leaderboard.Create leaderboardCreate = 16;
+        Leaderboard.Create leaderboardInsert = 17;
+        Leaderboard.CreateTournament leaderboardCreateTournament = 18;
+        Leaderboard.CreateTournament leaderboardInsertTournament = 19;
+        string leaderboardRemove = 20;
+        Leaderboard.Rank.Insert leaderboardRankCreate = 21;
+        Leaderboard.Rank.Delete leaderboardRankDelete = 22;
+        Leaderboard.Rank.DeleteLeaderboard leaderboardRankDeleteLeaderboard = 23;
     }
 
 
@@ -465,5 +473,67 @@ message Match {
         repeated realtime.UserPresence userPresence = 1;
         int64 tick = 2;
         string state = 3;
+    }
+}
+
+message Leaderboard {
+    message Create {
+        string id = 1;
+        bool authoritative = 2;
+        int32 sortOrder = 3;
+        int32 operator = 4;
+        string resetSchedule = 5;
+        string metadata = 6;
+        bool enableRanks = 7;
+        int64 createTime = 8;
+        bool created = 9;
+    }
+
+    message CreateTournament {
+        string id = 1; 
+        bool authoritative = 2; 
+        int32 sortOrder = 3;
+        int32 operator = 4; 
+        string resetSchedule = 5;
+        string metadata = 6;
+        string title = 7;
+        string description = 8;
+        int32 category = 9;
+        int64 startTime = 10;
+        int64 endTime = 11;
+        int32 duration = 12;
+        int32 maxSize = 13;
+        int32 maxNumScore = 14;
+        bool joinRequired = 15;
+        bool enableRanks = 16;
+        int64 createTime = 17;
+        bool created = 18;
+    }
+
+    message Rank {
+       message Insert {
+        string leaderboardId = 1; 
+        int32 sortOrder = 2; 
+        int64 score = 3; 
+        int64 subscore = 4;
+        int32 generation = 5; 
+        int64 expiryUnix = 6; 
+        string ownerID = 7; 
+        bool enable = 8;
+       }
+
+       message Item {
+        string leaderboardId = 1;
+        int64 expiryUnix = 2;
+        string ownerID = 3;
+       }
+
+       message Delete {
+        repeated Item data = 1;
+       }
+       
+       message DeleteLeaderboard {
+        repeated Item data = 1;
+       }
     }
 }

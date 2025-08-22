@@ -1,10 +1,12 @@
 package server
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
 	"github.com/doublemo/nakama-kit/pb"
+	"github.com/gofrs/uuid/v5"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
 )
@@ -116,6 +118,104 @@ func (s *LocalPeer) handleBinaryLog(v *pb.BinaryLog) {
 	case *pb.BinaryLog_PartyClose:
 		s.partyRegistry.(*LocalPartyRegistry).handleFromRemotePartyClose(payload.PartyClose)
 		s.logger.Debug("processed party close", append(logFields, zap.String("id", payload.PartyClose))...)
+
+	case *pb.BinaryLog_LeaderboardCreate:
+		l := payload.LeaderboardCreate
+		s.leaderboardCache.Insert(l.Id, l.Authoritative, int(l.SortOrder), int(l.Operator), l.ResetSchedule, l.Metadata, l.CreateTime, l.EnableRanks)
+		if l.Created {
+			s.wk.Submit(func() {
+				s.leaderboardScheduler.Update()
+			})
+		}
+		s.logger.Debug("processed leaderboard create", append(logFields, zap.String("id", l.Id))...)
+
+	case *pb.BinaryLog_LeaderboardInsert:
+		l := payload.LeaderboardInsert
+		s.leaderboardCache.Insert(l.Id, l.Authoritative, int(l.SortOrder), int(l.Operator), l.ResetSchedule, l.Metadata, l.CreateTime, l.EnableRanks)
+		if !l.EnableRanks {
+			if leaderboard := s.leaderboardCache.Get(l.Id); leaderboard != nil {
+				expiryTime := int64(0)
+				if leaderboard.ResetSchedule != nil {
+					expiryTime = leaderboard.ResetSchedule.Next(time.Now().UTC()).UTC().Unix()
+				}
+				s.leaderboardRankCache.DeleteLeaderboard(leaderboard.Id, expiryTime)
+			}
+		}
+		s.logger.Debug("processed leaderboard insert", append(logFields, zap.String("id", l.Id))...)
+
+	case *pb.BinaryLog_LeaderboardCreateTournament:
+		l := payload.LeaderboardCreateTournament
+		s.leaderboardCache.InsertTournament(l.Id, l.Authoritative, int(l.SortOrder), int(l.Operator), l.ResetSchedule, l.Metadata, l.Title, l.Description, int(l.Category), int(l.Duration), int(l.MaxSize), int(l.MaxNumScore), l.JoinRequired, l.CreateTime, l.StartTime, l.EndTime, l.EnableRanks)
+		if l.Created {
+			s.wk.Submit(func() {
+				s.leaderboardScheduler.Update()
+			})
+		}
+		s.logger.Debug("processed leaderboard CreateTournament", append(logFields, zap.String("id", l.Id))...)
+
+	case *pb.BinaryLog_LeaderboardInsertTournament:
+		l := payload.LeaderboardInsertTournament
+		s.leaderboardCache.InsertTournament(l.Id, l.Authoritative, int(l.SortOrder), int(l.Operator), l.ResetSchedule, l.Metadata, l.Title, l.Description, int(l.Category), int(l.Duration), int(l.MaxSize), int(l.MaxNumScore), l.JoinRequired, l.CreateTime, l.StartTime, l.EndTime, l.EnableRanks)
+		if !l.EnableRanks {
+			if leaderboard := s.leaderboardCache.Get(l.Id); leaderboard != nil {
+				_, _, expiryUnix := calculateTournamentDeadlines(leaderboard.StartTime, leaderboard.EndTime, int64(leaderboard.Duration), leaderboard.ResetSchedule, time.Now())
+				s.leaderboardRankCache.DeleteLeaderboard(leaderboard.Id, expiryUnix)
+			}
+		}
+		s.logger.Debug("processed leaderboard InsertTournament", append(logFields, zap.String("id", l.Id))...)
+
+	case *pb.BinaryLog_LeaderboardRankCreate:
+		l := payload.LeaderboardRankCreate
+		s.leaderboardRankCache.Insert(l.LeaderboardId, int(l.SortOrder), l.Score, l.Subscore, l.Generation, l.ExpiryUnix, uuid.FromBytesOrNil([]byte(l.OwnerID)), l.Enable)
+		s.logger.Debug("processed leaderboard rank", append(logFields, zap.String("id", l.LeaderboardId))...)
+	case *pb.BinaryLog_LeaderboardRankDelete:
+		if payload.LeaderboardRankDelete != nil {
+			for _, l := range payload.LeaderboardRankDelete.Data {
+				if l == nil {
+					continue
+				}
+
+				s.leaderboardRankCache.Delete(l.LeaderboardId, l.ExpiryUnix, uuid.FromStringOrNil(l.OwnerID))
+			}
+
+			s.logger.Debug("processed leaderboard rank delete", append(logFields, zap.Any("id", payload.LeaderboardRankDelete.Data))...)
+		}
+	case *pb.BinaryLog_LeaderboardRankDeleteLeaderboard:
+		if payload.LeaderboardRankDeleteLeaderboard != nil {
+			for _, l := range payload.LeaderboardRankDeleteLeaderboard.Data {
+				if l == nil {
+					continue
+				}
+
+				s.leaderboardRankCache.DeleteLeaderboard(l.LeaderboardId, l.ExpiryUnix)
+			}
+
+			s.logger.Debug("processed leaderboard rank DeleteLeaderboard", append(logFields, zap.Any("id", payload.LeaderboardRankDeleteLeaderboard.Data))...)
+		}
+	case *pb.BinaryLog_LeaderboardRemove:
+		fmt.Println("payload.LeaderboardRemove----", payload.LeaderboardRemove)
+		leaderboard := s.leaderboardCache.Get(payload.LeaderboardRemove)
+		if leaderboard != nil {
+			now := time.Now().UTC()
+			var expiryUnix int64
+			if leaderboard.ResetSchedule != nil {
+				expiryUnix = leaderboard.ResetSchedule.Next(now).UTC().Unix()
+			}
+			if leaderboard.EndTime > 0 && expiryUnix > leaderboard.EndTime {
+				expiryUnix = leaderboard.EndTime
+			}
+
+			s.leaderboardCache.Remove(payload.LeaderboardRemove)
+			if expiryUnix > now.Unix() || expiryUnix == 0 {
+				// Clear any cached ranks that have not yet expired.
+				s.leaderboardRankCache.DeleteLeaderboard(leaderboard.Id, expiryUnix)
+			}
+
+			s.wk.Submit(func() {
+				s.leaderboardScheduler.Update()
+			})
+			s.logger.Debug("processed leaderboard LeaderboardRemove", append(logFields, zap.String("id", leaderboard.Id))...)
+		}
 	}
 	s.binaryLog.SetVersionByNode(v.Node, v.Version)
 }

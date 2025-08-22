@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"sync"
 	"time"
@@ -76,7 +77,9 @@ func (s *PeerLeader) Run(endpoint Endpoint, memberlist *memberlist.Memberlist) {
 			}
 
 			if err := s.election.Campaign(s.ctx, endpoint.Name()); err != nil {
-				s.logger.Warn("Campaign failed", zap.Error(err))
+				if !errors.Is(err, context.Canceled) {
+					s.logger.Warn("Campaign failed", zap.Error(err))
+				}
 				time.Sleep(time.Second)
 				continue
 			}

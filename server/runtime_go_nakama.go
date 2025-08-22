@@ -544,7 +544,8 @@ func (n *RuntimeGoNakamaModule) AccountDeleteId(ctx context.Context, userID stri
 		return errors.New("expects user ID to be a valid identifier")
 	}
 
-	return DeleteAccount(ctx, n.logger, n.db, n.config, n.leaderboardCache, n.leaderboardRankCache, n.sessionRegistry, n.sessionCache, n.tracker, u, recorded)
+	peer, _ := n.router.GetPeer()
+	return DeleteAccount(ctx, n.logger, n.db, n.config, n.leaderboardCache, n.leaderboardRankCache, n.sessionRegistry, n.sessionCache, n.tracker, peer, u, recorded)
 }
 
 // @group accounts
@@ -2499,9 +2500,13 @@ func (n *RuntimeGoNakamaModule) LeaderboardCreate(ctx context.Context, leaderboa
 		metadataStr = string(metadataBytes)
 	}
 
-	_, created, err := n.leaderboardCache.Create(ctx, leaderboardID, authoritative, sort, oper, resetSchedule, metadataStr, enableRanks)
+	leaderboard, created, err := n.leaderboardCache.Create(ctx, leaderboardID, authoritative, sort, oper, resetSchedule, metadataStr, enableRanks)
 	if err != nil {
 		return err
+	}
+
+	if peer, ok := n.router.GetPeer(); ok {
+		peer.LeaderboardCreate(leaderboard, created)
 	}
 
 	if created {
@@ -2525,6 +2530,10 @@ func (n *RuntimeGoNakamaModule) LeaderboardDelete(ctx context.Context, id string
 	_, err := n.leaderboardCache.Delete(ctx, n.leaderboardRankCache, n.leaderboardScheduler, id)
 	if err != nil {
 		return err
+	}
+
+	if peer, ok := n.router.GetPeer(); ok {
+		peer.LeaderboardRemove(id)
 	}
 
 	return nil
@@ -2562,7 +2571,15 @@ func (n *RuntimeGoNakamaModule) LeaderboardList(limit int, cursor string) (*api.
 // @param id(type=string) The leaderboard id.
 // @return error(error) An optional error value if an error occurred.
 func (n *RuntimeGoNakamaModule) LeaderboardRanksDisable(ctx context.Context, id string) error {
-	return DisableTournamentRanks(ctx, n.logger, n.db, n.leaderboardCache, n.leaderboardRankCache, id)
+	err := DisableTournamentRanks(ctx, n.logger, n.db, n.leaderboardCache, n.leaderboardRankCache, id)
+	if err == nil {
+		if peer, ok := n.router.GetPeer(); ok {
+			if l := n.leaderboardCache.Get(id); l != nil {
+				peer.LeaderboardInsertTournament(l)
+			}
+		}
+	}
+	return err
 }
 
 // @group leaderboards
@@ -2713,7 +2730,8 @@ func (n *RuntimeGoNakamaModule) LeaderboardRecordWrite(ctx context.Context, id, 
 		operator = api.Operator(*overrideOperator)
 	}
 
-	return LeaderboardRecordWrite(ctx, n.logger, n.db, n.leaderboardCache, n.leaderboardRankCache, uuid.Nil, id, ownerID, username, score, subscore, metadataStr, operator)
+	peer, _ := n.router.GetPeer()
+	return LeaderboardRecordWrite(ctx, n.logger, n.db, n.leaderboardCache, n.leaderboardRankCache, peer, uuid.Nil, id, ownerID, username, score, subscore, metadataStr, operator)
 }
 
 // @group leaderboards
@@ -2731,7 +2749,8 @@ func (n *RuntimeGoNakamaModule) LeaderboardRecordDelete(ctx context.Context, id,
 		return errors.New("expects owner ID to be a valid identifier")
 	}
 
-	return LeaderboardRecordDelete(ctx, n.logger, n.db, n.leaderboardCache, n.leaderboardRankCache, uuid.Nil, id, ownerID)
+	peer, _ := n.router.GetPeer()
+	return LeaderboardRecordDelete(ctx, n.logger, n.db, n.leaderboardCache, n.leaderboardRankCache, peer, uuid.Nil, id, ownerID)
 }
 
 // @group leaderboards
@@ -2861,7 +2880,16 @@ func (n *RuntimeGoNakamaModule) TournamentCreate(ctx context.Context, id string,
 		return errors.New("maxNumScore must be >= 0")
 	}
 
-	return TournamentCreate(ctx, n.logger, n.leaderboardCache, n.leaderboardScheduler, id, authoritative, sort, oper, resetSchedule, metadataStr, title, description, category, startTime, endTime, duration, maxSize, maxNumScore, joinRequired, enableRanks)
+	created, err := TournamentCreate(ctx, n.logger, n.leaderboardCache, n.leaderboardScheduler, id, authoritative, sort, oper, resetSchedule, metadataStr, title, description, category, startTime, endTime, duration, maxSize, maxNumScore, joinRequired, enableRanks)
+	if err != nil {
+		return err
+	}
+
+	if peer, ok := n.router.GetPeer(); ok {
+		peer.LeaderboardCreateTournament(n.leaderboardCache.Get(id), created)
+	}
+
+	return nil
 }
 
 // @group tournaments
@@ -2874,7 +2902,13 @@ func (n *RuntimeGoNakamaModule) TournamentDelete(ctx context.Context, id string)
 		return errors.New("expects a tournament ID string")
 	}
 
-	return TournamentDelete(ctx, n.leaderboardCache, n.leaderboardRankCache, n.leaderboardScheduler, id)
+	err := TournamentDelete(ctx, n.leaderboardCache, n.leaderboardRankCache, n.leaderboardScheduler, id)
+	if err == nil {
+		if peer, ok := n.router.GetPeer(); ok {
+			peer.LeaderboardRemove(id)
+		}
+	}
+	return err
 }
 
 // @group tournaments
@@ -2926,7 +2960,8 @@ func (n *RuntimeGoNakamaModule) TournamentJoin(ctx context.Context, id, ownerID,
 		return errors.New("expects a username string")
 	}
 
-	return TournamentJoin(ctx, n.logger, n.db, n.leaderboardCache, n.leaderboardRankCache, oid, username, id)
+	peer, _ := n.router.GetPeer()
+	return TournamentJoin(ctx, n.logger, n.db, n.leaderboardCache, n.leaderboardRankCache, peer, oid, username, id)
 }
 
 // @group tournaments
@@ -2996,7 +3031,15 @@ func (n *RuntimeGoNakamaModule) TournamentList(ctx context.Context, categoryStar
 // @param id(type=string) The tournament id.
 // @return error(error) An optional error value if an error occurred.
 func (n *RuntimeGoNakamaModule) TournamentRanksDisable(ctx context.Context, id string) error {
-	return DisableTournamentRanks(ctx, n.logger, n.db, n.leaderboardCache, n.leaderboardRankCache, id)
+	err := DisableTournamentRanks(ctx, n.logger, n.db, n.leaderboardCache, n.leaderboardRankCache, id)
+	if err == nil {
+		if peer, ok := n.router.GetPeer(); ok {
+			if l := n.leaderboardCache.Get(id); l != nil {
+				peer.LeaderboardInsertTournament(l)
+			}
+		}
+	}
+	return err
 }
 
 // @group tournaments
@@ -3081,7 +3124,8 @@ func (n *RuntimeGoNakamaModule) TournamentRecordWrite(ctx context.Context, id, o
 		operator = api.Operator(*overrideOperator)
 	}
 
-	return TournamentRecordWrite(ctx, n.logger, n.db, n.leaderboardCache, n.leaderboardRankCache, uuid.Nil, id, owner, username, score, subscore, metadataStr, operator)
+	peer, _ := n.router.GetPeer()
+	return TournamentRecordWrite(ctx, n.logger, n.db, n.leaderboardCache, n.leaderboardRankCache, peer, uuid.Nil, id, owner, username, score, subscore, metadataStr, operator)
 }
 
 // @group tournaments
@@ -3099,7 +3143,8 @@ func (n *RuntimeGoNakamaModule) TournamentRecordDelete(ctx context.Context, id, 
 		return errors.New("expects owner ID to be a valid identifier")
 	}
 
-	return TournamentRecordDelete(ctx, n.logger, n.db, n.leaderboardCache, n.leaderboardRankCache, uuid.Nil, id, ownerID)
+	peer, _ := n.router.GetPeer()
+	return TournamentRecordDelete(ctx, n.logger, n.db, n.leaderboardCache, n.leaderboardRankCache, peer, uuid.Nil, id, ownerID)
 }
 
 // @group tournaments

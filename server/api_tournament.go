@@ -62,7 +62,8 @@ func (s *ApiServer) DeleteTournamentRecord(ctx context.Context, in *api.DeleteTo
 		return nil, status.Error(codes.InvalidArgument, "Invalid tournament ID.")
 	}
 
-	if err := TournamentRecordDelete(ctx, s.logger, s.db, s.leaderboardCache, s.leaderboardRankCache, userID, in.TournamentId, userID.String()); err != nil {
+	peer, _ := s.router.GetPeer()
+	if err := TournamentRecordDelete(ctx, s.logger, s.db, s.leaderboardCache, s.leaderboardRankCache, peer, userID, in.TournamentId, userID.String()); err != nil {
 		switch err {
 		case ErrLeaderboardNotFound:
 			return nil, status.Error(codes.NotFound, "Tournament not found.")
@@ -114,8 +115,8 @@ func (s *ApiServer) JoinTournament(ctx context.Context, in *api.JoinTournamentRe
 	}
 
 	tournamentID := in.GetTournamentId()
-
-	if err := TournamentJoin(ctx, s.logger, s.db, s.leaderboardCache, s.leaderboardRankCache, userID, username, tournamentID); err != nil {
+	peer, _ := s.router.GetPeer()
+	if err := TournamentJoin(ctx, s.logger, s.db, s.leaderboardCache, s.leaderboardRankCache, peer, userID, username, tournamentID); err != nil {
 		if err == runtime.ErrTournamentNotFound {
 			return nil, status.Error(codes.NotFound, "Tournament not found.")
 		} else if err == runtime.ErrTournamentMaxSizeReached {
@@ -353,7 +354,8 @@ func (s *ApiServer) WriteTournamentRecord(ctx context.Context, in *api.WriteTour
 		return nil, status.Error(codes.NotFound, "Tournament not found or has ended.")
 	}
 
-	record, err := TournamentRecordWrite(ctx, s.logger, s.db, s.leaderboardCache, s.leaderboardRankCache, userID, in.GetTournamentId(), userID, username, in.GetRecord().GetScore(), in.GetRecord().GetSubscore(), in.GetRecord().GetMetadata(), in.GetRecord().GetOperator())
+	peer, _ := s.router.GetPeer()
+	record, err := TournamentRecordWrite(ctx, s.logger, s.db, s.leaderboardCache, s.leaderboardRankCache, peer, userID, in.GetTournamentId(), userID, username, in.GetRecord().GetScore(), in.GetRecord().GetSubscore(), in.GetRecord().GetMetadata(), in.GetRecord().GetOperator())
 	if err != nil {
 		switch err {
 		case runtime.ErrTournamentMaxSizeReached:

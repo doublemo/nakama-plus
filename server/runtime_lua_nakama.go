@@ -7313,9 +7313,13 @@ func (n *RuntimeLuaNakamaModule) leaderboardCreate(l *lua.LState) int {
 
 	enableRanks := l.OptBool(7, false)
 
-	_, created, err := n.leaderboardCache.Create(l.Context(), leaderboardID, authoritative, sortOrderNumber, operatorNumber, resetSchedule, metadataStr, enableRanks)
+	leaderboard, created, err := n.leaderboardCache.Create(l.Context(), leaderboardID, authoritative, sortOrderNumber, operatorNumber, resetSchedule, metadataStr, enableRanks)
 	if err != nil {
 		l.RaiseError("error creating leaderboard: %v", err.Error())
+	}
+
+	if peer, ok := n.router.GetPeer(); ok {
+		peer.LeaderboardCreate(leaderboard, created)
 	}
 
 	if created {
@@ -7340,6 +7344,10 @@ func (n *RuntimeLuaNakamaModule) leaderboardDelete(l *lua.LState) int {
 	_, err := n.leaderboardCache.Delete(l.Context(), n.rankCache, n.leaderboardScheduler, id)
 	if err != nil {
 		l.RaiseError("error deleting leaderboard: %v", err.Error())
+	}
+
+	if peer, ok := n.router.GetPeer(); ok {
+		peer.LeaderboardRemove(id)
 	}
 
 	return 0
@@ -7411,6 +7419,12 @@ func (n *RuntimeLuaNakamaModule) leaderboardRanksDisable(l *lua.LState) int {
 
 	if err := disableLeaderboardRanks(l.Context(), n.logger, n.db, n.leaderboardCache, n.rankCache, id); err != nil {
 		l.RaiseError("error disabling leaderboard ranks: %s", err.Error())
+	}
+
+	if peer, ok := n.router.GetPeer(); ok {
+		if l := n.leaderboardCache.Get(id); l != nil {
+			peer.LeaderboardInsert(l.Id, l.Authoritative, l.SortOrder, l.Operator, l.ResetScheduleStr, l.Metadata, l.CreateTime, false)
+		}
 	}
 
 	return 0
@@ -7626,7 +7640,8 @@ func (n *RuntimeLuaNakamaModule) leaderboardRecordWrite(l *lua.LState) int {
 		}
 	}
 
-	record, err := LeaderboardRecordWrite(l.Context(), n.logger, n.db, n.leaderboardCache, n.rankCache, uuid.Nil, id, ownerID, username, score, subscore, metadataStr, overrideOperator)
+	peer, _ := n.router.GetPeer()
+	record, err := LeaderboardRecordWrite(l.Context(), n.logger, n.db, n.leaderboardCache, n.rankCache, peer, uuid.Nil, id, ownerID, username, score, subscore, metadataStr, overrideOperator)
 	if err != nil {
 		l.RaiseError("error writing leaderboard record: %v", err.Error())
 		return 0
@@ -7707,7 +7722,8 @@ func (n *RuntimeLuaNakamaModule) leaderboardRecordDelete(l *lua.LState) int {
 		return 0
 	}
 
-	if err := LeaderboardRecordDelete(l.Context(), n.logger, n.db, n.leaderboardCache, n.rankCache, uuid.Nil, id, ownerID); err != nil {
+	peer, _ := n.router.GetPeer()
+	if err := LeaderboardRecordDelete(l.Context(), n.logger, n.db, n.leaderboardCache, n.rankCache, peer, uuid.Nil, id, ownerID); err != nil {
 		l.RaiseError("error deleting leaderboard record: %v", err.Error())
 	}
 	return 0
@@ -8349,9 +8365,13 @@ func (n *RuntimeLuaNakamaModule) tournamentCreate(l *lua.LState) int {
 	}
 	joinRequired := l.OptBool(15, false)
 	enableRanks := l.OptBool(16, false)
-
-	if err := TournamentCreate(l.Context(), n.logger, n.leaderboardCache, n.leaderboardScheduler, id, authoritative, sortOrderNumber, operatorNumber, resetSchedule, metadataStr, title, description, category, startTime, endTime, duration, maxSize, maxNumScore, joinRequired, enableRanks); err != nil {
+	created, err := TournamentCreate(l.Context(), n.logger, n.leaderboardCache, n.leaderboardScheduler, id, authoritative, sortOrderNumber, operatorNumber, resetSchedule, metadataStr, title, description, category, startTime, endTime, duration, maxSize, maxNumScore, joinRequired, enableRanks)
+	if err != nil {
 		l.RaiseError("error creating tournament: %v", err.Error())
+	}
+
+	if peer, ok := n.router.GetPeer(); ok {
+		peer.LeaderboardCreateTournament(n.leaderboardCache.Get(id), created)
 	}
 	return 0
 }
@@ -8370,6 +8390,11 @@ func (n *RuntimeLuaNakamaModule) tournamentDelete(l *lua.LState) int {
 	if err := TournamentDelete(l.Context(), n.leaderboardCache, n.rankCache, n.leaderboardScheduler, id); err != nil {
 		l.RaiseError("error deleting tournament: %v", err.Error())
 	}
+
+	if peer, ok := n.router.GetPeer(); ok {
+		peer.LeaderboardRemove(id)
+	}
+
 	return 0
 }
 
@@ -8437,7 +8462,8 @@ func (n *RuntimeLuaNakamaModule) tournamentJoin(l *lua.LState) int {
 		return 0
 	}
 
-	if err := TournamentJoin(l.Context(), n.logger, n.db, n.leaderboardCache, n.rankCache, uid, username, id); err != nil {
+	peer, _ := n.router.GetPeer()
+	if err := TournamentJoin(l.Context(), n.logger, n.db, n.leaderboardCache, n.rankCache, peer, uid, username, id); err != nil {
 		l.RaiseError("error joining tournament: %v", err.Error())
 	}
 	return 0
@@ -8810,6 +8836,12 @@ func (n *RuntimeLuaNakamaModule) tournamentRanksDisable(l *lua.LState) int {
 		l.RaiseError("error disabling tournament ranks: %s", err.Error())
 	}
 
+	if peer, ok := n.router.GetPeer(); ok {
+		if l := n.leaderboardCache.Get(id); l != nil {
+			peer.LeaderboardInsert(l.Id, l.Authoritative, l.SortOrder, l.Operator, l.ResetScheduleStr, l.Metadata, l.CreateTime, false)
+		}
+	}
+
 	return 0
 }
 
@@ -8862,7 +8894,8 @@ func (n *RuntimeLuaNakamaModule) tournamentRecordWrite(l *lua.LState) int {
 		return 0
 	}
 
-	record, err := TournamentRecordWrite(l.Context(), n.logger, n.db, n.leaderboardCache, n.rankCache, uuid.Nil, id, ownerID, username, score, subscore, metadataStr, api.Operator(overrideOperator))
+	peer, _ := n.router.GetPeer()
+	record, err := TournamentRecordWrite(l.Context(), n.logger, n.db, n.leaderboardCache, n.rankCache, peer, uuid.Nil, id, ownerID, username, score, subscore, metadataStr, api.Operator(overrideOperator))
 	if err != nil {
 		l.RaiseError("error writing tournament record: %v", err.Error())
 		return 0
@@ -8896,7 +8929,8 @@ func (n *RuntimeLuaNakamaModule) tournamentRecordDelete(l *lua.LState) int {
 		return 0
 	}
 
-	if err := TournamentRecordDelete(l.Context(), n.logger, n.db, n.leaderboardCache, n.rankCache, uuid.Nil, id, ownerID); err != nil {
+	peer, _ := n.router.GetPeer()
+	if err := TournamentRecordDelete(l.Context(), n.logger, n.db, n.leaderboardCache, n.rankCache, peer, uuid.Nil, id, ownerID); err != nil {
 		l.RaiseError("error deleting tournament record: %v", err.Error())
 	}
 	return 0
@@ -9971,7 +10005,8 @@ func (n *RuntimeLuaNakamaModule) accountDeleteId(l *lua.LState) int {
 
 	recorded := l.OptBool(2, false)
 
-	if err := DeleteAccount(l.Context(), n.logger, n.db, n.config, n.leaderboardCache, n.rankCache, n.sessionRegistry, n.sessionCache, n.tracker, userID, recorded); err != nil {
+	peer, _ := n.router.GetPeer()
+	if err := DeleteAccount(l.Context(), n.logger, n.db, n.config, n.leaderboardCache, n.rankCache, n.sessionRegistry, n.sessionCache, n.tracker, peer, userID, recorded); err != nil {
 		l.RaiseError("error while trying to delete account: %v", err.Error())
 	}
 

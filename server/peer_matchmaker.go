@@ -6,7 +6,7 @@ import (
 )
 
 func (s *LocalPeer) MatchmakerAdd(extract *pb.MatchmakerExtract) {
-	s.BinaryLogBroadcast(pb.BinaryLog{
+	s.BinaryLogBroadcast(&pb.BinaryLog{
 		Node: s.endpoint.Name(),
 		Payload: &pb.BinaryLog_MatchmakerAdd{
 			MatchmakerAdd: extract,
@@ -14,7 +14,7 @@ func (s *LocalPeer) MatchmakerAdd(extract *pb.MatchmakerExtract) {
 	}, true)
 }
 func (s *LocalPeer) MatchmakerRemoveSession(sessionID, ticket string) {
-	s.BinaryLogBroadcast(pb.BinaryLog{
+	s.BinaryLogBroadcast(&pb.BinaryLog{
 		Node: s.endpoint.Name(),
 		Payload: &pb.BinaryLog_MatchmakerRemoveSession{
 			MatchmakerRemoveSession: &pb.MatchmakerExtract{
@@ -26,7 +26,7 @@ func (s *LocalPeer) MatchmakerRemoveSession(sessionID, ticket string) {
 }
 
 func (s *LocalPeer) MatchmakerRemoveSessionAll(sessionID string) {
-	s.BinaryLogBroadcast(pb.BinaryLog{
+	s.BinaryLogBroadcast(&pb.BinaryLog{
 		Node: s.endpoint.Name(),
 		Payload: &pb.BinaryLog_MatchmakerRemoveSessionAll{
 			MatchmakerRemoveSessionAll: &pb.MatchmakerExtract{SessionId: sessionID},
@@ -35,7 +35,7 @@ func (s *LocalPeer) MatchmakerRemoveSessionAll(sessionID string) {
 }
 
 func (s *LocalPeer) MatchmakerRemoveParty(partyID, ticket string) {
-	s.BinaryLogBroadcast(pb.BinaryLog{
+	s.BinaryLogBroadcast(&pb.BinaryLog{
 		Node: s.endpoint.Name(),
 		Payload: &pb.BinaryLog_MatchmakerRemoveParty{
 			MatchmakerRemoveParty: &pb.MatchmakerExtract{
@@ -47,7 +47,7 @@ func (s *LocalPeer) MatchmakerRemoveParty(partyID, ticket string) {
 }
 
 func (s *LocalPeer) MatchmakerRemovePartyAll(partyID string) {
-	s.BinaryLogBroadcast(pb.BinaryLog{
+	s.BinaryLogBroadcast(&pb.BinaryLog{
 		Node: s.endpoint.Name(),
 		Payload: &pb.BinaryLog_MatchmakerRemovePartyAll{
 			MatchmakerRemovePartyAll: &pb.MatchmakerExtract{
@@ -58,7 +58,7 @@ func (s *LocalPeer) MatchmakerRemovePartyAll(partyID string) {
 }
 
 func (s *LocalPeer) MatchmakerRemoveAll(node string) {
-	s.BinaryLogBroadcast(pb.BinaryLog{
+	s.BinaryLogBroadcast(&pb.BinaryLog{
 		Node: s.endpoint.Name(),
 		Payload: &pb.BinaryLog_MatchmakerRemoveAll{
 			MatchmakerRemoveAll: &pb.MatchmakerExtract{
@@ -69,7 +69,7 @@ func (s *LocalPeer) MatchmakerRemoveAll(node string) {
 }
 
 func (s *LocalPeer) MatchmakerRemove(tickets []string) {
-	s.BinaryLogBroadcast(pb.BinaryLog{
+	s.BinaryLogBroadcast(&pb.BinaryLog{
 		Node: s.endpoint.Name(),
 		Payload: &pb.BinaryLog_MatchmakerRemove{
 			MatchmakerRemove: &pb.BinaryLog_PartyMatchmakerRemove{Ticket: tickets},

@@ -58,7 +58,8 @@ func (s *ApiServer) DeleteLeaderboardRecord(ctx context.Context, in *api.DeleteL
 		return nil, status.Error(codes.InvalidArgument, "Invalid leaderboard ID.")
 	}
 
-	if err := LeaderboardRecordDelete(ctx, s.logger, s.db, s.leaderboardCache, s.leaderboardRankCache, userID, in.LeaderboardId, userID.String()); err != nil {
+	peer, _ := s.router.GetPeer()
+	if err := LeaderboardRecordDelete(ctx, s.logger, s.db, s.leaderboardCache, s.leaderboardRankCache, peer, userID, in.LeaderboardId, userID.String()); err != nil {
 		switch err {
 		case ErrLeaderboardNotFound:
 			return nil, status.Error(codes.NotFound, "Leaderboard not found.")
@@ -195,7 +196,8 @@ func (s *ApiServer) WriteLeaderboardRecord(ctx context.Context, in *api.WriteLea
 		}
 	}
 
-	record, err := LeaderboardRecordWrite(ctx, s.logger, s.db, s.leaderboardCache, s.leaderboardRankCache, userID, in.LeaderboardId, userID.String(), username, in.Record.Score, in.Record.Subscore, in.Record.Metadata, in.Record.Operator)
+	peer, _ := s.router.GetPeer()
+	record, err := LeaderboardRecordWrite(ctx, s.logger, s.db, s.leaderboardCache, s.leaderboardRankCache, peer, userID, in.LeaderboardId, userID.String(), username, in.Record.Score, in.Record.Subscore, in.Record.Metadata, in.Record.Operator)
 	if err == ErrLeaderboardNotFound {
 		return nil, status.Error(codes.NotFound, "Leaderboard not found.")
 	} else if err == ErrLeaderboardAuthoritative {

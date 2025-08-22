@@ -10,6 +10,7 @@ import (
 	"math"
 	"sync"
 
+	// 使用新的rand/v2包
 	"github.com/doublemo/nakama-kit/kit/hashring"
 	"github.com/doublemo/nakama-kit/pb"
 	"go.uber.org/atomic"
@@ -30,6 +31,7 @@ type (
 		GetClientByRoundRobin() (Client, bool)
 		GetClientByRandom() (Client, bool)
 		GetClientByName(name string) (Client, bool)
+		GetNodeByByHashRing(key string) string
 		Do(ctx context.Context, msg *pb.Peer_Request) (*pb.Peer_ResponseWriter, error)
 		Send(msg *pb.Peer_Request) error
 		Count() int64
@@ -48,7 +50,6 @@ type (
 		hashring    *hashring.HashRing
 		balancer    *atomic.Int64
 		count       *atomic.Int64
-		weight      *atomic.Int32
 		roundRobin  *atomic.Int32
 		once        sync.Once
 		sync.RWMutex
@@ -65,7 +66,6 @@ func NewLocalService(ctx context.Context, logger *zap.Logger, name, role string)
 		logger:      logger,
 		balancer:    atomic.NewInt64(0),
 		count:       atomic.NewInt64(0),
-		weight:      atomic.NewInt32(0),
 		roundRobin:  atomic.NewInt32(0),
 		clientsMap:  make(map[string]int),
 		clients:     make([]Client, 0),
@@ -112,7 +112,6 @@ func (s *LocalService) Stop() {
 		s.hashring = nil
 		s.Unlock()
 		s.count.Store(0)
-		s.weight.Store(0)
 		s.roundRobin.Store(0)
 		s.ctxCancelFn()
 	})
@@ -132,6 +131,26 @@ func (s *LocalService) GetClientByBalancer(key ...string) (Client, bool) {
 	default:
 	}
 	return s.GetClientByRandom()
+}
+
+func (s *LocalService) GetNodeByByHashRing(key string) string {
+	size := s.Count()
+	if size < 1 {
+		return ""
+	}
+
+	s.RLock()
+	if s.hashring == nil {
+		s.RUnlock()
+		return ""
+	}
+
+	node, ok := s.hashring.GetNode(key)
+	s.RUnlock()
+	if !ok {
+		return ""
+	}
+	return node
 }
 
 func (s *LocalService) GetClientByHashRing(key string) (Client, bool) {
@@ -198,34 +217,23 @@ func (s *LocalService) GetClientByRandom() (Client, bool) {
 		return nil, false
 	}
 
-	weight := s.weight.Load()
-	if weight <= 0 || size == 1 {
-		idx := 0
-		if size > 1 {
-			idx = Rand().Intn(int(size))
-		}
+	if size == 1 {
 		s.RLock()
-		client := s.clients[idx]
+		client := s.clients[0]
 		s.RUnlock()
 		return client, true
 	}
 
-	var (
-		begin        float64
-		currentRatio float64
-	)
-	rnd := Rand().Float64()
 	s.RLock()
+	weights := make([]int32, len(s.clients))
+	weightCount := int32(0)
 	for _, v := range s.clients {
-		currentRatio = float64(v.Weight()) / float64(weight)
-		if rnd > begin && rnd <= begin+currentRatio {
-			s.RUnlock()
-			return v, true
-		}
-		begin += currentRatio
+		weights = append(weights, v.Weight())
+		weightCount += v.Weight()
 	}
+	client := s.clients[RandomInt32(weights, uint64(weightCount))]
 	s.RUnlock()
-	return nil, false
+	return client, true
 }
 
 func (s *LocalService) Do(ctx context.Context, msg *pb.Peer_Request) (*pb.Peer_ResponseWriter, error) {
@@ -281,7 +289,6 @@ func (s *LocalService) RemoveClient(name string) {
 		s.Unlock()
 		s.balancer.Store(0)
 		s.count.Store(0)
-		s.weight.Store(0)
 		s.roundRobin.Store(0)
 		return
 	}
@@ -310,17 +317,18 @@ func (s *LocalService) RemoveClient(name string) {
 func (s *LocalService) ResetBalancer() {
 	balancer := make(map[pb.NodeMeta_Balancer]int)
 	weights := make(map[string]int)
-	var weight int32
 	s.Lock()
 	for _, v := range s.clients {
-		weights[v.Name()] = int(v.Weight())
+		if w := v.Weight(); w >= 0 {
+			weights[v.Name()] = int(max(1, w))
+		} else {
+			weights[v.Name()] = 0
+		}
 		balancer[v.Balancer()]++
-		weight += v.Weight()
 	}
 
 	s.hashring = hashring.NewWithWeights(weights)
 	s.Unlock()
-	s.weight.Store(weight)
 
 	currentNumber := 0
 	currentBalancer := s.Balancer()

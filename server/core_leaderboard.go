@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/doublemo/nakama-common/api"
+	"github.com/doublemo/nakama-kit/pb"
 	"github.com/doublemo/nakama-plus/v3/internal/cronexpr"
 	"github.com/gofrs/uuid/v5"
 
@@ -412,7 +413,7 @@ func unmarshalLeaderboardRecordsListCursor(leaderboardId string, expiryTime int6
 	return incomingCursor, nil
 }
 
-func LeaderboardRecordWrite(ctx context.Context, logger *zap.Logger, db *sql.DB, leaderboardCache LeaderboardCache, rankCache LeaderboardRankCache, caller uuid.UUID, leaderboardId, ownerID, username string, score, subscore int64, metadata string, overrideOperator api.Operator) (*api.LeaderboardRecord, error) {
+func LeaderboardRecordWrite(ctx context.Context, logger *zap.Logger, db *sql.DB, leaderboardCache LeaderboardCache, rankCache LeaderboardRankCache, peer Peer, caller uuid.UUID, leaderboardId, ownerID, username string, score, subscore int64, metadata string, overrideOperator api.Operator) (*api.LeaderboardRecord, error) {
 	leaderboard := leaderboardCache.Get(leaderboardId)
 	if leaderboard == nil {
 		return nil, ErrLeaderboardNotFound
@@ -554,6 +555,9 @@ func LeaderboardRecordWrite(ctx context.Context, logger *zap.Logger, db *sql.DB,
 	} else {
 		// Ensure we have the latest dbscore, dbsubscore if there was an update.
 		rank = rankCache.Insert(leaderboardId, leaderboard.SortOrder, dbScore, dbSubscore, dbNumScore, expiryTime, uuid.Must(uuid.FromString(ownerID)), leaderboard.EnableRanks)
+		if peer != nil {
+			peer.LeaderboardRankCreate(leaderboardId, leaderboard.SortOrder, dbScore, dbSubscore, dbNumScore, expiryTime, uuid.Must(uuid.FromString(ownerID)), leaderboard.EnableRanks)
+		}
 	}
 
 	record := &api.LeaderboardRecord{
@@ -578,7 +582,7 @@ func LeaderboardRecordWrite(ctx context.Context, logger *zap.Logger, db *sql.DB,
 	return record, nil
 }
 
-func LeaderboardRecordDelete(ctx context.Context, logger *zap.Logger, db *sql.DB, leaderboardCache LeaderboardCache, rankCache LeaderboardRankCache, caller uuid.UUID, leaderboardId, ownerID string) error {
+func LeaderboardRecordDelete(ctx context.Context, logger *zap.Logger, db *sql.DB, leaderboardCache LeaderboardCache, rankCache LeaderboardRankCache, peer Peer, caller uuid.UUID, leaderboardId, ownerID string) error {
 	leaderboard := leaderboardCache.Get(leaderboardId)
 	if leaderboard == nil || leaderboard.IsTournament() {
 		return ErrLeaderboardNotFound
@@ -602,7 +606,9 @@ func LeaderboardRecordDelete(ctx context.Context, logger *zap.Logger, db *sql.DB
 	}
 
 	rankCache.Delete(leaderboardId, expiryTime, uuid.Must(uuid.FromString(ownerID)))
-
+	if peer != nil {
+		peer.LeaderboardRankDelete(&pb.Leaderboard_Rank_Item{LeaderboardId: leaderboardId, ExpiryUnix: expiryTime, OwnerID: ownerID})
+	}
 	return nil
 }
 
@@ -618,7 +624,7 @@ func LeaderboardRecordReadAll(ctx context.Context, logger *zap.Logger, db *sql.D
 	return parseLeaderboardRecords(logger, rows)
 }
 
-func LeaderboardRecordsDeleteAll(ctx context.Context, logger *zap.Logger, leaderboardCache LeaderboardCache, leaderboardRankCache LeaderboardRankCache, tx *sql.Tx, userID uuid.UUID, currentTime int64) error {
+func LeaderboardRecordsDeleteAll(ctx context.Context, logger *zap.Logger, leaderboardCache LeaderboardCache, leaderboardRankCache LeaderboardRankCache, peer Peer, tx *sql.Tx, userID uuid.UUID, currentTime int64) error {
 	query := "DELETE FROM leaderboard_record WHERE owner_id = $1 RETURNING leaderboard_id, expiry_time"
 	rows, err := tx.QueryContext(ctx, query, userID.String())
 	if err != nil {
@@ -628,6 +634,7 @@ func LeaderboardRecordsDeleteAll(ctx context.Context, logger *zap.Logger, leader
 
 	var leaderboardId string
 	var expiryTime pgtype.Timestamptz
+	deleted := make([]*pb.Leaderboard_Rank_Item, 0)
 	for rows.Next() {
 		if err := rows.Scan(&leaderboardId, &expiryTime); err != nil {
 			_ = rows.Close()
@@ -642,9 +649,17 @@ func LeaderboardRecordsDeleteAll(ctx context.Context, logger *zap.Logger, leader
 		}
 
 		leaderboardRankCache.Delete(leaderboardId, expiryUnix, userID)
+		deleted = append(deleted, &pb.Leaderboard_Rank_Item{
+			LeaderboardId: leaderboardId,
+			ExpiryUnix:    expiryUnix,
+			OwnerID:       userID.String(),
+		})
 	}
 	_ = rows.Close()
 
+	if peer != nil && len(deleted) > 0 {
+		peer.LeaderboardRankDelete(deleted...)
+	}
 	return nil
 }
 

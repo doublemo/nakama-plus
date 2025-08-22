@@ -52,7 +52,7 @@ type (
 		Member(name string) (Endpoint, bool)
 		Members() []Endpoint
 		Broadcast(msg *pb.Peer_Envelope, reliable bool)
-		BinaryLogBroadcast(b pb.BinaryLog, toQueue bool)
+		BinaryLogBroadcast(b *pb.BinaryLog, toQueue bool)
 		Send(endpoint Endpoint, msg *pb.Peer_Envelope, reliable bool) error
 		Request(ctx context.Context, endpoint Endpoint, msg *pb.Peer_Envelope) (*pb.Peer_Envelope, error)
 		GetServiceRegistry() kit.ServiceRegistry
@@ -65,6 +65,13 @@ type (
 		MatchmakerRemove(tickets []string)
 		PartyCreate(entry *PartyIndexEntry)
 		PartyClose(id string)
+		LeaderboardCreate(leaderboard *Leaderboard, created bool)
+		LeaderboardInsert(id string, authoritative bool, sortOrder, operator int, resetSchedule, metadata string, createTime int64, enableRanks bool)
+		LeaderboardRemove(id string)
+		LeaderboardCreateTournament(leaderboard *Leaderboard, created bool)
+		LeaderboardInsertTournament(leaderboard *Leaderboard)
+		LeaderboardRankCreate(leaderboardId string, sortOrder int, score, subscore int64, generation int32, expiryUnix int64, ownerID uuid.UUID, enable bool)
+		LeaderboardRankDelete(items ...*pb.Leaderboard_Rank_Item)
 		ToClient(envelope *rtapi.Envelope, recipients []*pb.Recipienter)
 		InvokeMS(ctx context.Context, in *api.AnyRequest) (*api.AnyResponseWriter, error)
 		SendMS(ctx context.Context, in *api.AnyRequest) error
@@ -81,7 +88,7 @@ type (
 
 	binaryLogMsg struct {
 		toQueue bool
-		msg     pb.BinaryLog
+		msg     *pb.BinaryLog
 	}
 
 	LocalPeer struct {
@@ -105,6 +112,9 @@ type (
 		matchRegistry          MatchRegistry
 		matchmaker             Matchmaker
 		partyRegistry          PartyRegistry
+		leaderboardCache       LeaderboardCache
+		leaderboardRankCache   LeaderboardRankCache
+		leaderboardScheduler   LeaderboardScheduler
 		binaryLog              BinaryLog
 		inbox                  *PeerInbox
 		cacher                 *PeerCacher
@@ -121,7 +131,7 @@ type (
 	}
 )
 
-func NewLocalPeer(db *sql.DB, logger *zap.Logger, name string, metadata map[string]string, runtime *Runtime, metrics Metrics, sessionRegistry SessionRegistry, tracker Tracker, messageRouter MessageRouter, matchRegistry MatchRegistry, matchmaker Matchmaker, partyRegistry PartyRegistry, protojsonMarshaler *protojson.MarshalOptions, protojsonUnmarshaler *protojson.UnmarshalOptions, config Config) Peer {
+func NewLocalPeer(db *sql.DB, logger *zap.Logger, name string, metadata map[string]string, runtime *Runtime, metrics Metrics, sessionRegistry SessionRegistry, tracker Tracker, messageRouter MessageRouter, matchRegistry MatchRegistry, matchmaker Matchmaker, partyRegistry PartyRegistry, leaderboardCache LeaderboardCache, leaderboardRankCache LeaderboardRankCache, leaderboardScheduler LeaderboardScheduler, protojsonMarshaler *protojson.MarshalOptions, protojsonUnmarshaler *protojson.UnmarshalOptions, config Config) Peer {
 	ctx, ctxCancelFn := context.WithCancel(context.Background())
 	if metadata == nil {
 		metadata = make(map[string]string)
@@ -143,6 +153,9 @@ func NewLocalPeer(db *sql.DB, logger *zap.Logger, name string, metadata map[stri
 		matchmaker:             matchmaker,
 		partyRegistry:          partyRegistry,
 		tracker:                tracker,
+		leaderboardCache:       leaderboardCache,
+		leaderboardRankCache:   leaderboardRankCache,
+		leaderboardScheduler:   leaderboardScheduler,
 		inbox:                  NewPeerInbox(),
 		msgChan:                make(chan *peerMsg, c.BroadcastQueueSize),
 		binaryLogBroadcastChan: make(chan *binaryLogMsg, 16),
@@ -833,7 +846,7 @@ func (s *LocalPeer) Request(ctx context.Context, endpoint Endpoint, msg *pb.Peer
 	}
 }
 
-func (s *LocalPeer) BinaryLogBroadcast(b pb.BinaryLog, toQueue bool) {
+func (s *LocalPeer) BinaryLogBroadcast(b *pb.BinaryLog, toQueue bool) {
 	select {
 	case s.binaryLogBroadcastChan <- &binaryLogMsg{toQueue: toQueue, msg: b}:
 		// Binary log queued successfully
@@ -1071,10 +1084,9 @@ func (s *LocalPeer) processBinaryLogBroadcast() {
 				Inbox:     "",
 				Node:      m.msg.Node,
 				Timestamp: timestamppb.New(time.Now().UTC()),
-				Payload:   &pb.Frame_BinaryLog{BinaryLog: &m.msg},
+				Payload:   &pb.Frame_BinaryLog{BinaryLog: m.msg},
 			}
 			bytes, _ := proto.Marshal(frame)
-
 			// 如果不加入队列
 			// 那么就直接实时发出去
 			if !m.toQueue {
@@ -1082,20 +1094,18 @@ func (s *LocalPeer) processBinaryLogBroadcast() {
 					if value.Name() == s.endpoint.Name() {
 						return true
 					}
-
 					if err := s.memberlist.SendReliable(value.MemberlistNode(), bytes); err != nil {
 						s.logger.Error("Failed to send broadcast", zap.String("name", key))
 					}
 					return true
 				})
-				return
+			} else {
+				s.transmitLimitedQueue.QueueBroadcast(&PeerBroadcast{
+					name:     frame.Id,
+					msg:      bytes,
+					finished: nil,
+				})
 			}
-
-			s.transmitLimitedQueue.QueueBroadcast(&PeerBroadcast{
-				name:     frame.Id,
-				msg:      bytes,
-				finished: nil,
-			})
 		}
 	}
 }
