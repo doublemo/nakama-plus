@@ -28,6 +28,7 @@
     <th style="width: 130px">Reset Schedule</th>
     <th style="width: 100px">Authoritative</th>
     <th style="width: 100px">Tournament</th>
+    <th style="width: 100px">Node</th>
     <th style="width: 90px" *ngIf="deleteAllowed()">Remove</th>
   </tr>
   </thead>
@@ -41,6 +42,7 @@
       <td (click)="viewLeaderboardEntries(l);" *ngIf="!l.authoritative" class="text-center">No</td>
       <td (click)="viewLeaderboardEntries(l);" *ngIf="l.tournament" class="text-center">Yes</td>
       <td (click)="viewLeaderboardEntries(l);" *ngIf="!l.tournament" class="text-center">No</td>
+      <td (click)="viewLeaderboardEntries(l);">{{l.node}}</td>
       <td *ngIf="deleteAllowed()" class="text-center"><button type="button" class="btn btn-sm btn-danger" (click)="deleteLeaderboard($event, i, l);">Delete</button></td>
     </tr>
     <tr *ngIf="leaderboards.length === 0"><td colspan="7" class="text-muted">No leaderboards were found.</td></tr>

@@ -814,6 +814,8 @@ message DeleteNotificationRequest {
    uint32 prev_reset = 21;
    // The UNIX time when the tournament is next playable. A computed value.
    uint32 next_reset = 22;
+   // running on node
+   string node = 23;
  }
  
  // List leaderboards.

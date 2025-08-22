@@ -4641,6 +4641,10 @@
           "type": "integer",
           "format": "int64",
           "description": "The UNIX time when the tournament is next playable. A computed value."
+        },
+        "node": {
+          "type": "string",
+          "title": "running on node"
         }
       },
       "description": "A leaderboard."

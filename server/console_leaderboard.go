@@ -23,6 +23,7 @@ import (
 
 	"github.com/doublemo/nakama-common/api"
 	"github.com/doublemo/nakama-common/runtime"
+	"github.com/doublemo/nakama-kit/kit"
 	"github.com/doublemo/nakama-plus/v3/console"
 	"github.com/gofrs/uuid/v5"
 	"go.uber.org/zap"
@@ -50,16 +51,29 @@ func (s *ConsoleServer) ListLeaderboards(ctx context.Context, in *console.Leader
 
 	leaderboards, total, newCursor := s.leaderboardCache.ListAll(100, true, cursor)
 
+	var serviceRegistry kit.Service
+	if peer, ok := s.router.GetPeer(); ok {
+		if m, ok := peer.GetServiceRegistry().Get(kit.SERVICE_NAME); ok {
+			serviceRegistry = m
+		}
+	}
+
 	resultList := make([]*console.Leaderboard, 0, len(leaderboards))
 	for _, l := range leaderboards {
-		resultList = append(resultList, &console.Leaderboard{
+		item := &console.Leaderboard{
 			Id:            l.Id,
 			SortOrder:     uint32(l.SortOrder),
 			Operator:      uint32(l.Operator),
 			ResetSchedule: l.ResetScheduleStr,
 			Authoritative: l.Authoritative,
 			Tournament:    l.IsTournament(),
-		})
+			Node:          "",
+		}
+
+		if serviceRegistry != nil {
+			item.Node = serviceRegistry.GetNodeByByHashRing(item.Id)
+		}
+		resultList = append(resultList, item)
 	}
 	response := &console.LeaderboardList{
 		Leaderboards: resultList,

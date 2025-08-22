@@ -207,6 +207,8 @@ export interface Leaderboard {
   metadata?:string
   // The UNIX time when the tournament is next playable. A computed value.
   next_reset?:number
+  // running on node
+  node?:string
   // The operator of the leaderboard
   operator?:number
   // The UNIX time when the tournament was last reset. A computed value.
@@ -318,6 +320,22 @@ export interface RuntimeInfoModuleInfo {
   mod_time?:string
   // Module path
   path?:string
+}
+
+/** A single setting. */
+export interface Setting {
+  // Name identifier.
+  name?:string
+  // Update time.
+  update_time_sec?:string
+  // Setting value.
+  value?:string
+}
+
+/** A list of settings. */
+export interface SettingList {
+  // A list of settings.
+  settings?:Array<Setting>
 }
 
 export enum StatusHealth {
@@ -457,6 +475,11 @@ export interface UpdateGroupRequest {
   name?:string
   // Anyone can join open groups, otherwise only admins can accept members.
   open?:boolean
+}
+
+export interface UpdateSettingRequest {
+  // Setting value.
+  value?:string
 }
 
 /** A single group-role pair. */
@@ -1486,6 +1509,32 @@ export class ConsoleService {
     const urlPath = `/v2/console/runtime`;
     let params = new HttpParams({ encoder: new CustomHttpParamEncoder() });
     return this.httpClient.get<RuntimeInfo>(this.config.host + urlPath, { params: params, headers: this.getTokenAuthHeaders(auth_token) })
+  }
+
+  /** List settings */
+  listSettings(auth_token: string, names?: Array<string>): Observable<SettingList> {
+    const urlPath = `/v2/console/setting`;
+    let params = new HttpParams({ encoder: new CustomHttpParamEncoder() });
+    if (names) {
+      names.forEach(e => params = params.append('names', String(e)))
+    }
+    return this.httpClient.get<SettingList>(this.config.host + urlPath, { params: params, headers: this.getTokenAuthHeaders(auth_token) })
+  }
+
+  /** Get console settings. */
+  getSetting(auth_token: string, name: string): Observable<Setting> {
+    name = encodeURIComponent(String(name))
+    const urlPath = `/v2/console/setting/${name}`;
+    let params = new HttpParams({ encoder: new CustomHttpParamEncoder() });
+    return this.httpClient.get<Setting>(this.config.host + urlPath, { params: params, headers: this.getTokenAuthHeaders(auth_token) })
+  }
+
+  /** Update an existing setting. */
+  updateSetting(auth_token: string, name: string, body: UpdateSettingRequest): Observable<Setting> {
+    name = encodeURIComponent(String(name))
+    const urlPath = `/v2/console/setting/${name}`;
+    let params = new HttpParams({ encoder: new CustomHttpParamEncoder() });
+    return this.httpClient.post<Setting>(this.config.host + urlPath, body, { params: params, headers: this.getTokenAuthHeaders(auth_token) })
   }
 
   /** Get current status data for all nodes. */
