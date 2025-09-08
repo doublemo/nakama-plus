@@ -10045,7 +10045,7 @@ func leaderboardToJsObject(leaderboard *api.Leaderboard) (map[string]interface{}
 }
 
 func tournamentToJsObject(tournament *api.Tournament) (map[string]interface{}, error) {
-	tournamentMap := make(map[string]interface{}, 18)
+	tournamentMap := make(map[string]interface{}, 19)
 
 	tournamentMap["id"] = tournament.Id
 	tournamentMap["title"] = tournament.Title
@@ -10080,6 +10080,7 @@ func tournamentToJsObject(tournament *api.Tournament) (map[string]interface{}, e
 		tournamentMap["endTime"] = tournament.EndTime.Seconds
 	}
 	tournamentMap["operator"] = strings.ToLower(tournament.Operator.String())
+	tournamentMap["joinRequired"] = tournament.JoinRequired
 
 	return tournamentMap, nil
 }

@@ -7,6 +7,9 @@ The format is based on [keep a changelog](http://keepachangelog.com) and this pr
 ### Fixed
 - Update Satori client types to match latest API spec
 
+### Added
+- Add join required field to tournament payload.
+
 ## [3.30.0] - 2025-08-26
 ### Fixed
 - Fix an issue with message ts precision in returned structs. [origin commit](https://github.com/playwindgames/nakama/commit/7e02d533248fe04265019e1bfd53161812bf84f3)
