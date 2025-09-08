@@ -1,4 +1,4 @@
-# cloud.google.com/go/compute/metadata v0.7.0
+# cloud.google.com/go/compute/metadata v0.8.0
 ## explicit; go 1.23.0
 cloud.google.com/go/compute/metadata
 # github.com/RoaringBitmap/roaring v1.9.4
@@ -8,13 +8,13 @@ github.com/RoaringBitmap/roaring/internal
 # github.com/armon/go-metrics v0.4.1
 ## explicit; go 1.12
 github.com/armon/go-metrics
-# github.com/axiomhq/hyperloglog v0.0.0-20240507144631-af9851f82b27
-## explicit; go 1.12
+# github.com/axiomhq/hyperloglog v0.2.5
+## explicit; go 1.23
 github.com/axiomhq/hyperloglog
 # github.com/beorn7/perks v1.0.1
 ## explicit; go 1.11
 github.com/beorn7/perks/quantile
-# github.com/bits-and-blooms/bitset v1.13.0
+# github.com/bits-and-blooms/bitset v1.24.0
 ## explicit; go 1.16
 github.com/bits-and-blooms/bitset
 # github.com/blevesearch/go-porterstemmer v1.0.3
@@ -30,8 +30,8 @@ github.com/blevesearch/segment
 ## explicit; go 1.13
 github.com/blevesearch/snowballstem
 github.com/blevesearch/snowballstem/english
-# github.com/blevesearch/vellum v1.0.10
-## explicit; go 1.18
+# github.com/blevesearch/vellum v1.1.0
+## explicit; go 1.21
 github.com/blevesearch/vellum
 github.com/blevesearch/vellum/levenshtein
 github.com/blevesearch/vellum/regexp
@@ -99,14 +99,14 @@ github.com/dgraph-io/ristretto/z/simd
 # github.com/dgryski/dgoogauth v0.0.0-20190221195224-5a805980a5f3
 ## explicit
 github.com/dgryski/dgoogauth
-# github.com/dgryski/go-metro v0.0.0-20211217172704-adc40b04c140
+# github.com/dgryski/go-metro v0.0.0-20250106013310-edb8663e5e33
 ## explicit
 github.com/dgryski/go-metro
-# github.com/dlclark/regexp2 v1.11.4
+# github.com/dlclark/regexp2 v1.11.5
 ## explicit; go 1.13
 github.com/dlclark/regexp2
 github.com/dlclark/regexp2/syntax
-# github.com/dop251/goja v0.0.0-20250309171923-bcd7cc6bf64c
+# github.com/dop251/goja v0.0.0-20250630131328-58d95d85e994
 ## explicit; go 1.20
 github.com/dop251/goja
 github.com/dop251/goja/ast
@@ -116,8 +116,8 @@ github.com/dop251/goja/ftoa/internal/fast
 github.com/dop251/goja/parser
 github.com/dop251/goja/token
 github.com/dop251/goja/unistring
-# github.com/doublemo/nakama-common v1.40.0
-## explicit; go 1.24.3
+# github.com/doublemo/nakama-common v1.41.0
+## explicit; go 1.25.0
 github.com/doublemo/nakama-common/api
 github.com/doublemo/nakama-common/rtapi
 github.com/doublemo/nakama-common/runtime
@@ -155,8 +155,8 @@ github.com/gofrs/uuid/v5
 github.com/gogo/protobuf/gogoproto
 github.com/gogo/protobuf/proto
 github.com/gogo/protobuf/protoc-gen-gogo/descriptor
-# github.com/golang-jwt/jwt/v5 v5.2.3
-## explicit; go 1.18
+# github.com/golang-jwt/jwt/v5 v5.3.0
+## explicit; go 1.21
 github.com/golang-jwt/jwt/v5
 # github.com/golang/mock v1.6.0
 ## explicit; go 1.11
@@ -171,8 +171,8 @@ github.com/golang/snappy
 # github.com/google/btree v0.0.0-20180813153112-4030bb1f1f0c
 ## explicit
 github.com/google/btree
-# github.com/google/pprof v0.0.0-20240528025155-186aa0362fba
-## explicit; go 1.19
+# github.com/google/pprof v0.0.0-20250820193118-f64d9cf942d6
+## explicit; go 1.24.0
 github.com/google/pprof/profile
 # github.com/gorilla/handlers v1.5.2
 ## explicit; go 1.20
@@ -186,7 +186,7 @@ github.com/gorilla/websocket
 # github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
 ## explicit
 github.com/grpc-ecosystem/go-grpc-prometheus
-# github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.1
+# github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.2
 ## explicit; go 1.23.0
 github.com/grpc-ecosystem/grpc-gateway/v2/internal/casing
 github.com/grpc-ecosystem/grpc-gateway/v2/internal/codegenerator
@@ -240,8 +240,8 @@ github.com/jackc/pgpassfile
 # github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761
 ## explicit; go 1.14
 github.com/jackc/pgservicefile
-# github.com/jackc/pgx/v5 v5.7.4
-## explicit; go 1.21
+# github.com/jackc/pgx/v5 v5.7.5
+## explicit; go 1.23.0
 github.com/jackc/pgx/v5
 github.com/jackc/pgx/v5/internal/iobufpool
 github.com/jackc/pgx/v5/internal/pgio
@@ -258,6 +258,9 @@ github.com/jackc/pgx/v5/stdlib
 ## explicit; go 1.19
 github.com/jackc/puddle/v2
 github.com/jackc/puddle/v2/internal/genstack
+# github.com/kamstrup/intmap v0.5.1
+## explicit; go 1.23
+github.com/kamstrup/intmap
 # github.com/klauspost/compress v1.18.0
 ## explicit; go 1.22
 github.com/klauspost/compress
@@ -283,8 +286,8 @@ github.com/pkg/errors
 # github.com/pmezard/go-difflib v1.0.0
 ## explicit
 github.com/pmezard/go-difflib/difflib
-# github.com/prometheus/client_golang v1.22.0
-## explicit; go 1.22
+# github.com/prometheus/client_golang v1.23.0
+## explicit; go 1.23.0
 github.com/prometheus/client_golang/internal/github.com/golang/gddo/httputil
 github.com/prometheus/client_golang/internal/github.com/golang/gddo/httputil/header
 github.com/prometheus/client_golang/prometheus
@@ -298,8 +301,8 @@ github.com/prometheus/client_model/go
 ## explicit; go 1.23.0
 github.com/prometheus/common/expfmt
 github.com/prometheus/common/model
-# github.com/prometheus/procfs v0.15.1
-## explicit; go 1.20
+# github.com/prometheus/procfs v0.17.0
+## explicit; go 1.23.0
 github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
@@ -376,7 +379,10 @@ go.uber.org/zap/internal/stacktrace
 go.uber.org/zap/zapcore
 go.uber.org/zap/zapgrpc
 go.uber.org/zap/zaptest/observer
-# golang.org/x/crypto v0.40.0
+# go.yaml.in/yaml/v3 v3.0.4
+## explicit; go 1.16
+go.yaml.in/yaml/v3
+# golang.org/x/crypto v0.41.0
 ## explicit; go 1.23.0
 golang.org/x/crypto/bcrypt
 golang.org/x/crypto/blowfish
@@ -386,7 +392,7 @@ golang.org/x/crypto/pbkdf2
 ## explicit; go 1.20
 golang.org/x/exp/constraints
 golang.org/x/exp/slices
-# golang.org/x/net v0.41.0
+# golang.org/x/net v0.43.0
 ## explicit; go 1.23.0
 golang.org/x/net/bpf
 golang.org/x/net/context
@@ -417,12 +423,12 @@ golang.org/x/oauth2/jwt
 ## explicit; go 1.23.0
 golang.org/x/sync/semaphore
 golang.org/x/sync/singleflight
-# golang.org/x/sys v0.34.0
+# golang.org/x/sys v0.35.0
 ## explicit; go 1.23.0
 golang.org/x/sys/unix
 golang.org/x/sys/windows
 golang.org/x/sys/windows/registry
-# golang.org/x/text v0.27.0
+# golang.org/x/text v0.28.0
 ## explicit; go 1.23.0
 golang.org/x/text/cases
 golang.org/x/text/collate
@@ -440,16 +446,16 @@ golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
 golang.org/x/text/unicode/rangetable
 golang.org/x/text/width
-# google.golang.org/genproto/googleapis/api v0.0.0-20250603155806-513f23925822
-## explicit; go 1.23.0
+# google.golang.org/genproto/googleapis/api v0.0.0-20250826171959-ef028d996bc1
+## explicit; go 1.24.0
 google.golang.org/genproto/googleapis/api
 google.golang.org/genproto/googleapis/api/annotations
 google.golang.org/genproto/googleapis/api/httpbody
 google.golang.org/genproto/googleapis/api/visibility
-# google.golang.org/genproto/googleapis/rpc v0.0.0-20250603155806-513f23925822
-## explicit; go 1.23.0
+# google.golang.org/genproto/googleapis/rpc v0.0.0-20250826171959-ef028d996bc1
+## explicit; go 1.24.0
 google.golang.org/genproto/googleapis/rpc/status
-# google.golang.org/grpc v1.74.2
+# google.golang.org/grpc v1.75.0
 ## explicit; go 1.23.0
 google.golang.org/grpc
 google.golang.org/grpc/attributes
@@ -521,8 +527,8 @@ google.golang.org/grpc/tap
 # google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.5.1
 ## explicit; go 1.21
 google.golang.org/grpc/cmd/protoc-gen-go-grpc
-# google.golang.org/protobuf v1.36.6
-## explicit; go 1.22
+# google.golang.org/protobuf v1.36.8
+## explicit; go 1.23
 google.golang.org/protobuf/cmd/protoc-gen-go
 google.golang.org/protobuf/cmd/protoc-gen-go/internal_gengo
 google.golang.org/protobuf/compiler/protogen
