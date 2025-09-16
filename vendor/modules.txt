@@ -116,7 +116,7 @@ github.com/dop251/goja/ftoa/internal/fast
 github.com/dop251/goja/parser
 github.com/dop251/goja/token
 github.com/dop251/goja/unistring
-# github.com/doublemo/nakama-common v1.41.0
+# github.com/doublemo/nakama-common v1.41.0 => ../nakama-common
 ## explicit; go 1.25.0
 github.com/doublemo/nakama-common/api
 github.com/doublemo/nakama-common/rtapi

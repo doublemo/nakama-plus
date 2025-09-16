@@ -2,6 +2,8 @@ module github.com/doublemo/nakama-plus/v3
 
 go 1.25.0
 
+replace github.com/doublemo/nakama-common v1.41.0 => ../nakama-common
+
 require (
 	github.com/blugelabs/bluge v0.2.2
 	github.com/blugelabs/bluge_segment_api v0.2.0
