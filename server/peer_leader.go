@@ -9,7 +9,6 @@ import (
 
 	"github.com/doublemo/nakama-kit/kit"
 	"github.com/hashicorp/memberlist"
-	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.etcd.io/etcd/client/v3/concurrency"
 	"go.uber.org/zap"
 )
@@ -19,6 +18,7 @@ const (
 	PEERLEADER_SESSION_TTL = 15
 
 	// Grant creates a new lease.
+	// Note: This constant is no longer used as we rely on session's built-in keepalive.
 	PEERLEADER_GRANT_TTL = 10
 )
 
@@ -31,9 +31,6 @@ type PeerLeader struct {
 	etcdClient  *kit.EtcdClientV3
 	electionKey string
 	once        sync.Once
-
-	resumeKey string
-	resumeRev int64
 }
 
 func NewPeerLeader(ctx context.Context, logger *zap.Logger, etcdClient *kit.EtcdClientV3) (*PeerLeader, error) {
@@ -73,43 +70,35 @@ func (s *PeerLeader) Run(endpoint Endpoint, memberlist *memberlist.Memberlist) {
 			default:
 			}
 
-			if s.resumeKey != "" {
-				s.election = concurrency.ResumeElection(s.session, s.electionKey, s.resumeKey, s.resumeRev)
-				err := s.observeLeadership(endpoint, memberlist)
-				if err != nil {
-					s.logger.Warn("Failed to resume leadership", zap.Error(err))
-					s.resumeKey = ""
-					s.resumeRev = 0
-				}
-				continue
-			}
-
 			if err := s.election.Campaign(s.ctx, endpoint.Name()); err != nil {
 				if !errors.Is(err, context.Canceled) {
 					s.logger.Warn("Campaign failed", zap.Error(err))
 				}
-				time.Sleep(time.Second)
+				select {
+				case <-time.After(time.Second):
+				case <-s.ctx.Done():
+					return
+				}
 				continue
 			}
 
-			s.resumeKey = s.election.Key()
-			s.resumeRev = s.election.Header().Revision
+			s.logger.Info("Became leader", zap.String("node", endpoint.Name()))
 			endpoint.Leader(true)
 			s.update(endpoint, memberlist)
-			s.logger.Info("Became leader", zap.String("node", endpoint.Name()))
 
 			err := s.observeLeadership(endpoint, memberlist)
 			if err != nil {
-				s.logger.Warn("Lost leadership", zap.Error(err))
+				s.logger.Warn("Lost leadership or observe failed", zap.Error(err))
+			} else {
+				s.logger.Info("Leadership observation ended normally.")
+			}
+
+			if endpoint.Leader() {
 				endpoint.Leader(false)
 				s.update(endpoint, memberlist)
-				s.resumeKey = ""
-				s.resumeRev = 0
 			}
 		}
 	}()
-
-	go s.heartbeat()
 }
 
 func (s *PeerLeader) observeLeadership(endpoint Endpoint, memberlist *memberlist.Memberlist) error {
@@ -121,32 +110,44 @@ func (s *PeerLeader) observeLeadership(endpoint Endpoint, memberlist *memberlist
 		select {
 		case resp, ok := <-ch:
 			if !ok {
-				endpoint.Leader(false)
-				s.update(endpoint, memberlist)
 				s.logger.Warn("Observe closed, resetting leader status")
 				return nil
 			}
+
+			if len(resp.Kvs) == 0 {
+				s.logger.Warn("Received empty Kvs in observe response")
+				continue
+			}
+
 			val := string(resp.Kvs[0].Value)
 			isLeader := val == endpoint.Name()
-			endpoint.Leader(isLeader)
-			s.update(endpoint, memberlist)
+			wasLeader := endpoint.Leader()
+			if isLeader != wasLeader {
+				endpoint.Leader(isLeader)
+				s.update(endpoint, memberlist)
+			}
+
 			s.logger.Info("Leadership update", zap.Bool("isLeader", isLeader))
 		case <-s.session.Done():
-			endpoint.Leader(false)
-			s.update(endpoint, memberlist)
 			s.logger.Warn("Session expired during observe")
 			return nil
 		case <-s.ctx.Done():
 			if endpoint.Leader() {
-				_ = s.election.Resign(context.Background())
+				resignCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+
+				if resignErr := s.election.Resign(resignCtx); resignErr != nil {
+					s.logger.Warn("Failed to resign leadership gracefully", zap.Error(resignErr))
+				} else {
+					s.logger.Info("Resigned leadership gracefully")
+				}
 			}
-			return nil
+			return s.ctx.Err()
 		}
 	}
 }
 
 func (s *PeerLeader) reconnect() {
-	s.resumeKey = ""
 	backoff := time.Second
 	for {
 		select {
@@ -158,7 +159,12 @@ func (s *PeerLeader) reconnect() {
 		sess, err := concurrency.NewSession(s.etcdClient.GetClient(), concurrency.WithTTL(PEERLEADER_SESSION_TTL))
 		if err != nil {
 			s.logger.Warn("Failed to recreate session", zap.Error(err))
-			time.Sleep(backoff)
+			select {
+			case <-time.After(backoff):
+			case <-s.ctx.Done():
+				return
+			}
+
 			backoff *= 2
 			if backoff > time.Minute {
 				backoff = time.Minute
@@ -167,33 +173,8 @@ func (s *PeerLeader) reconnect() {
 		}
 		s.session = sess
 		s.election = concurrency.NewElection(sess, s.electionKey)
-		s.logger.Info("Session reconnected")
+		s.logger.Info("Session reconnected successfully")
 		return
-	}
-}
-
-func (s *PeerLeader) heartbeat() {
-	ticker := time.NewTicker(5 * time.Second)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-s.ctx.Done():
-			return
-		case <-ticker.C:
-			resp, err := s.etcdClient.GetClient().Grant(context.Background(), PEERLEADER_GRANT_TTL)
-			if err != nil {
-				s.logger.Warn("Heartbeat grant failed", zap.Error(err))
-				s.reconnect()
-				continue
-			}
-
-			_, err = s.etcdClient.GetClient().KeepAliveOnce(context.Background(), clientv3.LeaseID(resp.ID))
-			if err != nil {
-				s.logger.Warn("Heartbeat keepalive failed", zap.Error(err))
-				s.reconnect()
-			}
-		}
 	}
 }
 
@@ -201,16 +182,18 @@ func (s *PeerLeader) update(endpoint Endpoint, memberlist *memberlist.Memberlist
 	md, err := endpoint.MarshalJSON()
 	if err != nil {
 		s.logger.Warn("Failed to marshal metadata", zap.Error(err))
-	} else {
-		if s.etcdClient == nil {
-			s.logger.Error("etcdClient is nil, cannot Update metadata", zap.String("node", endpoint.Name()))
-			return
-		}
-
-		if err := s.etcdClient.Update(endpoint.Name(), string(md)); err != nil {
-			s.logger.Warn("Failed to update service", zap.Error(err))
-		}
+		return
 	}
+
+	if s.etcdClient == nil {
+		s.logger.Error("etcdClient is nil, cannot Update metadata", zap.String("node", endpoint.Name()))
+		return
+	}
+
+	if err := s.etcdClient.Update(endpoint.Name(), string(md)); err != nil {
+		s.logger.Warn("Failed to update service", zap.Error(err))
+	}
+
 	memberlist.UpdateNode(time.Second)
 }
 
@@ -219,7 +202,7 @@ func (s *PeerLeader) Stop() {
 		if s.cancel == nil {
 			return
 		}
-		s.cancel()
 		_ = s.session.Close()
+		s.cancel()
 	})
 }
