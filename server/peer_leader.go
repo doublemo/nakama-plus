@@ -14,6 +14,14 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	// session's TTL in seconds.
+	PEERLEADER_SESSION_TTL = 15
+
+	// Grant creates a new lease.
+	PEERLEADER_GRANT_TTL = 10
+)
+
 type PeerLeader struct {
 	ctx         context.Context
 	cancel      context.CancelFunc
@@ -29,7 +37,7 @@ type PeerLeader struct {
 }
 
 func NewPeerLeader(ctx context.Context, logger *zap.Logger, etcdClient *kit.EtcdClientV3) (*PeerLeader, error) {
-	session, err := concurrency.NewSession(etcdClient.GetClient(), concurrency.WithTTL(10))
+	session, err := concurrency.NewSession(etcdClient.GetClient(), concurrency.WithTTL(PEERLEADER_SESSION_TTL))
 	if err != nil {
 		return nil, err
 	}
@@ -147,7 +155,7 @@ func (s *PeerLeader) reconnect() {
 		default:
 		}
 
-		sess, err := concurrency.NewSession(s.etcdClient.GetClient(), concurrency.WithTTL(10))
+		sess, err := concurrency.NewSession(s.etcdClient.GetClient(), concurrency.WithTTL(PEERLEADER_SESSION_TTL))
 		if err != nil {
 			s.logger.Warn("Failed to recreate session", zap.Error(err))
 			time.Sleep(backoff)
@@ -173,7 +181,7 @@ func (s *PeerLeader) heartbeat() {
 		case <-s.ctx.Done():
 			return
 		case <-ticker.C:
-			resp, err := s.etcdClient.GetClient().Grant(context.Background(), 10)
+			resp, err := s.etcdClient.GetClient().Grant(context.Background(), PEERLEADER_GRANT_TTL)
 			if err != nil {
 				s.logger.Warn("Heartbeat grant failed", zap.Error(err))
 				s.reconnect()
