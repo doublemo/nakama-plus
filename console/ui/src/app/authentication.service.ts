@@ -126,7 +126,7 @@ export class AuthenticationService {
       localStorage.setItem(SESSION_LOCALSTORAGE_KEY, JSON.stringify(response.body));
       this.currentSessionSubject.next(response.body);
 
-      if (!environment.nt) {
+      if (!environment.nt && response.body.token && response.body.token !== '') {
         this.segmentIdentify(response.body);
       }
     }));
@@ -161,7 +161,9 @@ export class AuthenticationService {
     };
     return this.consoleService.authenticateMFASetup('', payload).pipe(tap(() => {
       // MFA is set so no need to require it anymore.
+      const token = this.session.mfa_code
       this.session.mfa_code = null;
+      this.session.token = token
       localStorage.setItem(SESSION_LOCALSTORAGE_KEY, JSON.stringify(this.session));
       this.currentSessionSubject.next(this.session);
     }));
