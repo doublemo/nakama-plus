@@ -4,6 +4,9 @@ All notable changes to this project are documented below.
 The format is based on [keep a changelog](http://keepachangelog.com) and this project uses [semantic versioning](http://semver.org).
 
 ## [Unreleased]
+### Fixed
+- Shorter processing for matchmaker custom function when inactive.
+- In-App-Purchase Google and Apple notification handling improvements for subscription upgrade/downgrade events.
 
 ## [3.32.0] - 2025-09-16
 ### Changed
