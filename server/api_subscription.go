@@ -16,6 +16,7 @@ package server
 
 import (
 	"context"
+	"time"
 
 	"github.com/doublemo/nakama-common/api"
 	"github.com/gofrs/uuid/v5"
@@ -172,7 +173,7 @@ func (s *ApiServer) ListSubscriptions(ctx context.Context, in *api.ListSubscript
 		limit = int(in.GetLimit().Value)
 	}
 
-	subscriptions, err := ListSubscriptions(ctx, s.logger, s.db, userID.String(), limit, in.Cursor)
+	subscriptions, err := ListSubscriptions(ctx, s.logger, s.db, userID.String(), limit, in.Cursor, time.Time{}, time.Time{})
 	if err != nil {
 		return nil, err
 	}

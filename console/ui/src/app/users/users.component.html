@@ -5,104 +5,107 @@
   <h6 class="mr-2 d-inline font-weight-bold">An error occurred: {{error}}</h6>
 </ngb-alert>
 
-<ngb-alert type="success" class="mb-3" [dismissible]="true" *ngIf="successMessage">
-  <img src="/static/svg/green-tick.svg" alt="" width="16" height="" class="mr-2">
-  <h6 class="mr-2 d-inline font-weight-bold">{{successMessage}}</h6>
-</ngb-alert>
-
-<table class="user-details mb-5 table table-bordered table-sm table-striped">
-  <thead class="thead-light">
-    <tr>
-      <th style="width: 400px">Username</th>
-      <th>Email</th>
-      <th style="width: 300px">Role</th>
-      <th>MFA Required</th>
-      <th>MFA Setup</th>
-      <th style="width: 90px">Action</th>
-    </tr>
-  </thead>
-  <tbody>
-  <tr *ngIf="users.length === 0">
-    <td [colSpan]="5" class="text-muted">No additional users are setup. Create a new user below.</td>
-  </tr>
-  <tr *ngFor="let user of users">
-    <td>{{user.username}}</td>
-    <td>{{user.email}}</td>
-    <td>
-      <span [hidden]="user.role !== adminRole">Administrator</span>
-      <span [hidden]="user.role !== developerRole">Developer</span>
-      <span [hidden]="user.role !== maintainerRole">Maintainer</span>
-      <span [hidden]="user.role !== readonlyRole">View Only</span>
-    </td>
-    <td>{{user.mfa_required}}</td>
-    <td>{{user.mfa_enabled}}</td>
-    <td style="width: 310px;">
-      <div class="btn-group">
-        <button [disabled]="user.mfa_required" type="button" class="btn btn-warning btn-outline-dark" (click)="requireUserMfa(user.username, true)">Enforce MFA</button>
-        <button [disabled]="!user.mfa_enabled" type="button" class="btn btn-warning btn-outline-dark" (click)="resetUserMfa(user.username)">Reset MFA</button>
-        <button type="button" class="btn btn-danger btn-outline-dark" (click)="deleteUser(user.username)">Delete</button>
-      </div>
-    </td>
-  </tr>
-  </tbody>
-</table>
-
-<h5 class="section-divider d-flex mb-4">Add new user</h5>
-
-<ngb-alert [type]="'secondary'" class="mb-4 alert-permissions" [dismissible]="false">
-  <h6 class="alert-title font-weight-bold">User roles</h6>
-  <div class="d-flex flex-wrap flex-row">
-    <div class="col col-md-3 p-4 flex-fill flex-grow-1">
-      <div class="d-flex align-items-center mb-3">
-        <img class="mr-2" src="/static/svg/role-admin.svg" alt="" width="30" height="">
-        <h6 class="m-0 font-weight-bold">Administrator</h6>
-      </div>
-      <small>
-        Owners have complete control over the server, its users and resources.
-      </small>
-    </div>
-
-    <div class="col col-md-3 p-4 flex-fill flex-grow-1">
-      <div class="d-flex align-items-center mb-3">
-        <img class="mr-2" src="/static/svg/role-developer.svg" alt="" width="30" height="">
-        <h6 class="m-0 font-weight-bold">Developer</h6>
-      </div>
-      <small>
-        Like Administrators, Developers have complete control over the server, resources and data. However they cannot add, change or delete console users.
-      </small>
-    </div>
-
-    <div class="col col-md-3 p-4 flex-fill flex-grow-1">
-      <div class="d-flex align-items-center mb-3">
-        <img class="mr-2" src="/static/svg/role-maintainer.svg" alt="" width="30" height="">
-        <h6 class="m-0 font-weight-bold">Maintainer</h6>
-      </div>
-      <small>
-        Maintainers have access to adding, changing and delete client resources such as accounts, storage and leaderboard records. They don't have access to the API Explorer or the console users.
-      </small>
-    </div>
-
-    <div class="col col-md-3 p-4 flex-fill flex-grow-1">
-      <div class="d-flex align-items-center mb-3">
-        <img class="mr-2" src="/static/svg/role-viewonly.svg" alt="" width="30" height="">
-        <h6 class="m-0 font-weight-bold">View Only</h6>
-      </div>
-      <small>
-        View Only users can only view client resources but cannot make any changes to the data whatsoever.
-      </small>
-    </div>
-  </div>
-</ngb-alert>
-
 <ngb-alert *ngIf="userCreateError" type="danger" [dismissible]="false">
   <img src="/static/svg/red-triangle.svg" alt="" width="16" height="" class="mr-2">
   <h6 class="mr-2 d-inline font-weight-bold">An error occurred:</h6>
   <p class="mb-0 pl-4">{{userCreateError}}</p>
 </ngb-alert>
 
-<div class="add-border rounded">
+
+<ngb-alert type="success" class="mb-3" [dismissible]="true" *ngIf="successMessage">
+  <img src="/static/svg/green-tick.svg" alt="" width="16" height="" class="mr-2">
+  <h6 class="mr-2 d-inline font-weight-bold">{{successMessage}}</h6>
+</ngb-alert>
+
+<ng-template #userpermissions let-offcanvas>
+	<div class="offcanvas-header">
+		<h4 class="offcanvas-title" id="offcanvas-basic-title">Edit User - {{editUserPermissions.username}}</h4>
+		<button type="button" class="btn-close" aria-label="Close" (click)="offcanvas.dismiss('Cross click')"></button>
+	</div>
+	<div class="offcanvas-body">
+		<div class="row align-items-start">
+      <div class="col-3">
+        Permissions
+      </div>
+      <div class="col text-right">
+        <div ngbDropdown class="d-inline-block">
+          <button class="btn" type="button" id="dropdownBasic1" ngbDropdownToggle style="font-size: 12px;">
+            Apply Permissions Template
+          </button>
+          <div ngbDropdownMenu aria-labelledby="dropdownBasic1">
+            <button ngbDropdownItem *ngFor="let item of permissionsTemplates" (click)="updatePermissionByTemplate(item)">{{item.name}}</button>
+            <button ngbDropdownItem (click)="updatePermissionByTemplate('CLEAR')">Clear Permissions</button>
+            <button ngbDropdownItem (click)="updatePermissionByTemplate('ALL')">Full Access</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="container border rounded-2 p-0" style="max-height: calc(100dvh - 150px);overflow: auto;">
+      <table style="width: 100%;">
+        <tr 
+        *ngFor="let item of editUserPermissions.acl | keyvalue"
+        >
+          <td>{{formatKey(item.key)}}</td>
+          <td>
+            <div class="form-check form-switch">
+              <input 
+              class="form-check-input" 
+              type="checkbox" 
+              role="switch" 
+              [id]="'switchCheckChecked_' + item.key + '1'" 
+              [checked]="item.value.read === true"
+              (change)="updatePermission($event, item.key, 'read')"
+              />
+              <label class="form-check-label" [for]="'switchCheckChecked_' + item.key + '1'">read</label>
+            </div>
+          </td>
+          <td>
+            <div class="form-check form-switch">
+              <input 
+              class="form-check-input" 
+              type="checkbox" 
+              role="switch" 
+              [id]="'switchCheckChecked_' + item.key + '2'" 
+              [checked]="item.value.write === true"
+              (change)="updatePermission($event, item.key, 'write')"
+              />
+              <label class="form-check-label" [for]="'switchCheckChecked_' + item.key + '2'">write</label>
+            </div>
+          </td>
+          <td>
+            <div class="form-check form-switch">
+              <input 
+              class="form-check-input" 
+              type="checkbox" 
+              role="switch" 
+              [id]="'switchCheckChecked_' + item.key + '3'" 
+              [checked]="item.value.delete === true"
+              (change)="updatePermission($event, item.key, 'delete')"
+              />
+              <label class="form-check-label" [for]="'switchCheckChecked_' + item.key + '3'">delete</label>
+            </div>
+          </td>
+        </tr>
+      </table>
+      
+    </div>
+
+    <div class="offcanvas-footer text-right mt-2 px-2">
+      <button type="button" class="btn btn-light" (click)="closeOffcanvas(userpermissions)">Cancel</button>
+      <button type="button" class="btn btn-primary ms-2" (click)="savePermission()">Save</button>
+    </div>
+	</div>
+</ng-template>
+
+<ng-template #adduser let-offcanvas>
+	<div class="offcanvas-header">
+		<h4 class="offcanvas-title" id="offcanvas-basic-title">Add User</h4>
+		<button type="button" class="btn-close" aria-label="Close" (click)="offcanvas.dismiss('Cross click')"></button>
+	</div>
   <form [formGroup]="createUserForm" (ngSubmit)="addUser()">
-    <div class="row no-gutters">
+	<div class="offcanvas-body">
+    <div class="row no-gutters py-2">
       <div class="col d-flex justify-content-between align-items-center">
         <div class="col-md-3">
           <label class="d-inline" for="email">Email</label>
@@ -114,7 +117,7 @@
       </div>
     </div>
 
-    <div class="row no-gutters">
+    <div class="row no-gutters py-2">
       <div class="col d-flex justify-content-between align-items-center">
         <div class="col-md-3">
           <label class="d-inline" for="username">Username</label>
@@ -126,7 +129,7 @@
       </div>
     </div>
 
-    <div class="row no-gutters">
+    <div class="row no-gutters py-2">
       <div class="col d-flex justify-content-between align-items-center">
         <div class="col-md-3">
           <label class="d-inline" for="password">Password</label>
@@ -138,40 +141,12 @@
       </div>
     </div>
 
-    <div class="row no-gutters">
-      <div class="col d-flex justify-content-between align-items-center">
-        <div class="col-md-3">
-          <label class="d-inline">Role</label>
-        </div>
-        <div class="col-md-9 ml-0 p-0">
-          <div class="btn-group">
-            <button disabled class="btn btn-outline-dark disabled">
-              <span [hidden]="f.role.value !== +adminRole">Administrator</span>
-              <span [hidden]="f.role.value !== +developerRole">Developer</span>
-              <span [hidden]="f.role.value !== +maintainerRole">Maintainer</span>
-              <span [hidden]="f.role.value !== +readonlyRole">View Only</span>
-            </button>
-            <div class="btn-group" ngbDropdown role="group">
-              <button type="button" class="btn btn-primary dropdown-toggle-split" ngbDropdownToggle></button>
-              <div class="dropdown-menu" ngbDropdownMenu>
-                <button type="button" ngbDropdownItem (click)="f.role.setValue(+adminRole)">Administrator</button>
-                <button type="button" ngbDropdownItem (click)="f.role.setValue(+developerRole)">Developer</button>
-                <button type="button" ngbDropdownItem (click)="f.role.setValue(+maintainerRole)">Maintainer</button>
-                <button type="button" ngbDropdownItem (click)="f.role.setValue(+readonlyRole)">View Only</button>
-              </div>
-            </div>
-          </div>
-          <div class="invalid-tooltip" [hidden]="f.role.disabled || f.role.valid || f.role.pristine">Role is required</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="row no-gutters">
+    <div class="row no-gutters py-2">
       <div class="col d-flex align-items-center">
-        <div class="col-md-3">
+        <div class="col-md-5">
           <label class="d-inline">Require Multi-factor Authentication</label>
         </div>
-        <div class="col-md-9 ml-0 p-0">
+        <div class="col-md-7 ml-0 p-0">
           <div class="custom-control custom-checkbox">
             <input type="checkbox" id="mfa" class="custom-control-input mr-2 my-2" formControlName="mfa"/>
             <label class="form-check-label custom-control-label" for="mfa"></label>
@@ -192,8 +167,266 @@
       </div>
     </div>
 
-    <div class="">
-      <button type="submit" [disabled]="createUserForm.invalid" class="btn btn-primary">Save</button>
+		<div class="row align-items-start">
+      <div class="col-3">
+        Permissions
+      </div>
+      <div class="col text-right">
+        <div ngbDropdown class="d-inline-block">
+          <button class="btn" type="button" id="dropdownBasic1" ngbDropdownToggle style="font-size: 12px;">
+            Apply Permissions Template
+          </button>
+          <div ngbDropdownMenu aria-labelledby="dropdownBasic1">
+            <button type="button" ngbDropdownItem *ngFor="let item of permissionsTemplates" (click)="updatePermissionByTemplate(item)">{{item.name}}</button>
+            <button type="button" ngbDropdownItem (click)="updatePermissionByTemplate('CLEAR')">Clear Permissions</button>
+            <button type="button" ngbDropdownItem (click)="updatePermissionByTemplate('ALL')">Full Access</button>
+          </div>
+        </div>
+      </div>
     </div>
-  </form>
+
+    <div class="container border rounded-2 p-0" style="max-height: calc(100dvh - 450px);overflow: auto;">
+      <table style="width: 100%;">
+        <tr 
+        *ngFor="let item of editUserPermissions.acl | keyvalue"
+        >
+          <td>{{formatKey(item.key)}}</td>
+          <td>
+            <div class="form-check form-switch">
+              <input 
+              class="form-check-input" 
+              type="checkbox" 
+              role="switch" 
+              [id]="'switchCheckChecked_' + item.key + '1'" 
+              [checked]="item.value.read === true"
+              (change)="updatePermission($event, item.key, 'read')"
+              />
+              <label class="form-check-label" [for]="'switchCheckChecked_' + item.key + '1'">read</label>
+            </div>
+          </td>
+          <td>
+            <div class="form-check form-switch">
+              <input 
+              class="form-check-input" 
+              type="checkbox" 
+              role="switch" 
+              [id]="'switchCheckChecked_' + item.key + '2'" 
+              [checked]="item.value.write === true"
+              (change)="updatePermission($event, item.key, 'write')"
+              />
+              <label class="form-check-label" [for]="'switchCheckChecked_' + item.key + '2'">write</label>
+            </div>
+          </td>
+          <td>
+            <div class="form-check form-switch">
+              <input 
+              class="form-check-input" 
+              type="checkbox" 
+              role="switch" 
+              [id]="'switchCheckChecked_' + item.key + '3'" 
+              [checked]="item.value.delete === true"
+              (change)="updatePermission($event, item.key, 'delete')"
+              />
+              <label class="form-check-label" [for]="'switchCheckChecked_' + item.key + '3'">delete</label>
+            </div>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="offcanvas-footer text-right mt-2 px-2">
+      <button type="button" class="btn btn-light" (click)="closeOffcanvas(adduser)">Cancel</button>
+      <button type="submit" [disabled]="createUserForm.invalid" class="btn btn-primary ms-2">Save</button>
+    </div>
+	</div>
+</form>
+</ng-template>
+
+<ng-template #addTemplates let-offcanvas>
+	<div class="offcanvas-header">
+		<h4 class="offcanvas-title" id="offcanvas-basic-title">Create Permissions Template</h4>
+		<button type="button" class="btn-close" aria-label="Close" (click)="offcanvas.dismiss('Cross click')"></button>
+	</div>
+  <form [formGroup]="createPermissionsTemplateForm" (ngSubmit)="addPermissionsTemplate()">
+	<div class="offcanvas-body">
+    <div class="row no-gutters py-2">
+      <div class="col d-flex justify-content-between align-items-center">
+        <div class="col-md-4">
+          <label class="d-inline" for="templateName">Template Name</label>
+        </div>
+        <div class="col-md-8 ml-0 p-0">
+          <input type="text" id="templateName" class="form-control" required formControlName="templateName" placeholder="Enter Template Name" [ngClass]="{'is-invalid': fp.templateName.dirty && fp.templateName.errors}">
+          <div class="invalid-tooltip" [hidden]="fp.templateName.disabled || fp.templateName.valid || fp.templateName.pristine">Template Name is required</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row no-gutters py-2">
+      <div class="col d-flex justify-content-between align-items-center">
+        <div class="col-md-4">
+          <label class="d-inline" for="description">Description</label>
+        </div>
+        <div class="col-md-8 ml-0 p-0">
+          <input type="text" id="description" class="form-control" placeholder="Enter " formControlName="description" placeholder="Enter template description" [ngClass]="{'is-invalid': fp.description.dirty && fp.description.errors}">
+          <div class="invalid-tooltip" [hidden]="fp.description.disabled || fp.description.valid || fp.description.pristine">Description is required</div>
+        </div>
+      </div>
+    </div>
+
+		<div class="row align-items-start">
+      <div class="col-3">
+        Permissions
+      </div>
+      <div class="col text-right">
+        <div ngbDropdown class="d-inline-block">
+          <button class="btn" type="button" id="dropdownBasic1" ngbDropdownToggle style="font-size: 12px;">
+            Apply Permissions Template
+          </button>
+          <div ngbDropdownMenu aria-labelledby="dropdownBasic1">
+            <button type="button" ngbDropdownItem *ngFor="let item of permissionsTemplates" (click)="updatePermissionByTemplate(item)">{{item.name}}</button>
+            <button type="button" ngbDropdownItem (click)="updatePermissionByTemplate('CLEAR')">Clear Permissions</button>
+            <button type="button" ngbDropdownItem (click)="updatePermissionByTemplate('ALL')">Full Access</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="container border rounded-2 p-0" style="max-height: calc(100dvh - 250px);overflow: auto;">
+      <table style="width: 100%;">
+        <tr 
+        *ngFor="let item of editUserPermissions.acl | keyvalue"
+        >
+          <td>{{formatKey(item.key)}}</td>
+          <td>
+            <div class="form-check form-switch">
+              <input 
+              class="form-check-input" 
+              type="checkbox" 
+              role="switch" 
+              [id]="'switchCheckChecked_' + item.key + '1'" 
+              [checked]="item.value.read === true"
+              (change)="updatePermission($event, item.key, 'read')"
+              />
+              <label class="form-check-label" [for]="'switchCheckChecked_' + item.key + '1'">read</label>
+            </div>
+          </td>
+          <td>
+            <div class="form-check form-switch">
+              <input 
+              class="form-check-input" 
+              type="checkbox" 
+              role="switch" 
+              [id]="'switchCheckChecked_' + item.key + '2'" 
+              [checked]="item.value.write === true"
+              (change)="updatePermission($event, item.key, 'write')"
+              />
+              <label class="form-check-label" [for]="'switchCheckChecked_' + item.key + '2'">write</label>
+            </div>
+          </td>
+          <td>
+            <div class="form-check form-switch">
+              <input 
+              class="form-check-input" 
+              type="checkbox" 
+              role="switch" 
+              [id]="'switchCheckChecked_' + item.key + '3'" 
+              [checked]="item.value.delete === true"
+              (change)="updatePermission($event, item.key, 'delete')"
+              />
+              <label class="form-check-label" [for]="'switchCheckChecked_' + item.key + '3'">delete</label>
+            </div>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="offcanvas-footer text-right mt-2 px-2">
+      <button type="button" class="btn btn-light" (click)="closeOffcanvas(null)">Cancel</button>
+      <button type="submit" [disabled]="createPermissionsTemplateForm.invalid" class="btn btn-primary ms-2">Save</button>
+    </div>
+	</div>
+</form>
+</ng-template>
+
+<div class="row">
+  <div class="col-9">
+   
+  </div>
+  <div class="col-3 text-right">
+     <button type="button" class="btn btn-primary" (click)="openOffcanvas(adduser, preTemplate())">+ Create User</button>
+  </div>
 </div>
+<table class="user-details mb-5 table table-bordered table-sm table-striped mt-3">
+  <thead class="thead-light">
+    <tr>
+      <th style="width: 400px">Username</th>
+      <th>Email</th>
+      <th style="width: 300px">Permissions Match</th>
+      <th>MFA Required</th>
+      <th>MFA Setup</th>
+      <th style="width: 90px">Action</th>
+    </tr>
+  </thead>
+  <tbody>
+  <tr *ngIf="users.length === 0">
+    <td [colSpan]="5" class="text-muted">No additional users are setup. Create a new user below.</td>
+  </tr>
+  <tr *ngFor="let user of users">
+    <td>{{user.username}}</td>
+    <td>{{user.email}}</td>
+    <td class="text-center">
+      <button class="btn btn-permissions-math" (click)="openOffcanvas(userpermissions, user)">{{user.aclName}}</button>
+    </td>
+    <td>{{user.mfa_required}}</td>
+    <td>{{user.mfa_enabled}}</td>
+    <td style="width: 310px;">
+      <div class="btn-group">
+        <button [disabled]="user.mfa_required" type="button" class="btn btn-warning btn-outline-dark" (click)="requireUserMfa(user.username, true)">Enforce MFA</button>
+        <button [disabled]="!user.mfa_enabled" type="button" class="btn btn-warning btn-outline-dark" (click)="resetUserMfa(user.username)">Reset MFA</button>
+        <button type="button" class="btn btn-danger btn-outline-dark" (click)="deleteUser(user.username)">Delete</button>
+      </div>
+    </td>
+  </tr>
+  </tbody>
+</table>
+
+<ngb-alert *ngIf="createPermissionsTemplateError" type="danger" [dismissible]="false">
+  <img src="/static/svg/red-triangle.svg" alt="" width="16" height="" class="mr-2">
+  <h6 class="mr-2 d-inline font-weight-bold">An error occurred:</h6>
+  <p class="mb-0 pl-4">{{createPermissionsTemplateError}}</p>
+</ngb-alert>
+
+<h5 class="section-divider d-flex mb-4">Permissions Templates</h5>
+<div class="row">
+   <div class="col-9">
+     A list of all the user permissions templates configured in the Nakama Console. These can be applied to users when creating or editing them.
+   </div>
+   <div class="col-3 text-right">
+      <button type="button" class="btn btn-primary" (click) = "openOffcanvas(addTemplates, preTemplate())">+ Create Template</button>
+   </div>
+</div>
+<table class="user-details mb-5 table table-bordered table-sm table-striped mt-2">
+<thead class="thead-light">
+  <tr>
+    <th style="width: 200px">Template Name</th>
+    <th>Description</th>
+    <th style="width: 90px">Action</th>
+  </tr>
+</thead>
+<tbody>
+<tr *ngIf="permissionsTemplates.length === 0">
+  <td [colSpan]="5" class="text-muted text-center">No permissions templates were found.</td>
+</tr>
+<tr *ngFor="let template of permissionsTemplates">
+  <td>{{template.name}}</td>
+  <td>{{template.description}}</td>
+  <td >
+    <div class="btn-group">
+      <button type="button" class="btn btn-outline-dark" (click) ="updatePermissionsTemplate(addTemplates, template)">Edit</button>
+      <button type="button" class="btn btn-danger btn-outline-dark" (click) = "deletePermissionsTemplate(template)">Delete</button>
+    </div>
+  </td>
+</tr>
+</tbody>
+</table>
+

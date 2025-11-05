@@ -60,9 +60,15 @@ export interface AddUserRequest {
   // The password of the user.
   password?:string
   // Role of this user;
-  role?:UserRole
+  acl?:Record<string, UserAcl>
   // The username of the user.
   username?:string
+}
+
+export interface AddPermissionsTemplateRequest {
+  name?: string
+  description?: string
+  acl?:Record<string, UserAcl>
 }
 
 export interface ApiEndpointDescriptor {
@@ -146,6 +152,8 @@ export interface ConsoleSession {
   mfa_code?:string
   // A session token (JWT) for the console user.
   token?:string
+
+  acl?: Record<string, UserAcl>
 }
 
 export interface DeleteChannelMessagesResponse {
@@ -497,6 +505,7 @@ export interface UserList {
 }
 
 export interface UserListUser {
+  id?: string
   // Email of the user
   email?:string
   // Whether the user has MFA enabled.
@@ -504,9 +513,32 @@ export interface UserListUser {
   // Whether the user is required to setup MFA.
   mfa_required?:boolean
   // Role of the user;
-  role?:UserRole
+  acl?:Record<string, UserAcl>
+  aclName?: string
   // Username of the user
   username?:string
+  create_time?: string
+  update_time?: string
+}
+
+export interface UserAcl {
+  read?: boolean
+  write?: boolean
+  delete?: boolean
+}
+
+export interface PermissionTemplateList {
+  // A list of users.
+  templates?:Array<PermissionTemplate>
+}
+
+export interface PermissionTemplate {
+  id?: string
+  name?: string
+  description?: string
+  acl?:Record<string, UserAcl>
+  create_time?: string
+  update_time?: string
 }
 
 /** - USER_ROLE_ADMIN: All access
@@ -946,6 +978,28 @@ export interface RealtimeUserPresence {
   user_id?:string
   // The username for display purposes.
   username?:string
+}
+
+export interface ApiAuditLog {
+  id?: string
+  user_id?: string
+  action?: number
+  email?: string
+  username?: string
+  message?: string
+  metadata?: string
+  resource?: number
+  timestamp?: string
+}
+
+export interface AuditLogList {
+  entries?: Array<ApiAuditLog>
+  next_cursor?: string
+  prev_cursor?: string
+}
+
+export interface ApiUsernames {
+  usernames?: string[]
 }
 
 const DEFAULT_HOST = 'http://127.0.0.1:7120';
@@ -1661,6 +1715,36 @@ export class ConsoleService {
     return this.httpClient.post(this.config.host + urlPath, body, { params: params, headers: this.getTokenAuthHeaders(auth_token) })
   }
 
+  updateUser(auth_token: string, username:string, body: AddUserRequest): Observable<any> {
+    const urlPath = `/v2/console/user/${username}`;
+    let params = new HttpParams({ encoder: new CustomHttpParamEncoder() });
+    return this.httpClient.put(this.config.host + urlPath, body, { params: params, headers: this.getTokenAuthHeaders(auth_token) })
+  }
+
+  getUser(auth_token: string, username:string):Observable<UserListUser> {
+    const urlPath = `/v2/console/user/${username}`;
+    let params = new HttpParams({ encoder: new CustomHttpParamEncoder() });
+    return this.httpClient.get<UserListUser>(this.config.host + urlPath, { params: params, headers: this.getTokenAuthHeaders(auth_token) })
+  }
+
+  addPermissionsTemplate(auth_token: string, body: AddPermissionsTemplateRequest): Observable<any> {
+    const urlPath = `/v2/console/acl/template`;
+    let params = new HttpParams({ encoder: new CustomHttpParamEncoder() });
+    return this.httpClient.post(this.config.host + urlPath, body, { params: params, headers: this.getTokenAuthHeaders(auth_token) })
+  }
+
+  updatePermissionsTemplate(auth_token: string,id: string, body: AddPermissionsTemplateRequest): Observable<any> {
+    const urlPath = `/v2/console/acl/template/${id}`;
+    let params = new HttpParams({ encoder: new CustomHttpParamEncoder() });
+    return this.httpClient.put(this.config.host + urlPath, body, { params: params, headers: this.getTokenAuthHeaders(auth_token) })
+  }
+
+  deletePermissionsTemplate(auth_token: string, id: string): Observable<any> {
+    const urlPath = `/v2/console/acl/template/${id}`;
+    let params = new HttpParams({ encoder: new CustomHttpParamEncoder() });
+    return this.httpClient.delete(this.config.host + urlPath, { params: params, headers: this.getTokenAuthHeaders(auth_token) })
+  }
+
   /** Sets the user's MFA as required or not required. */
   requireUserMfa(auth_token: string, username: string, body: RequireUserMfaRequest): Observable<any> {
     username = encodeURIComponent(String(username))
@@ -1675,6 +1759,35 @@ export class ConsoleService {
     const urlPath = `/v2/console/user/${username}/mfa/reset`;
     let params = new HttpParams({ encoder: new CustomHttpParamEncoder() });
     return this.httpClient.post(this.config.host + urlPath, { params: params, headers: this.getTokenAuthHeaders(auth_token) })
+  }
+
+  getPermissionsTemplates(auth_token: string):Observable<any> {
+    const urlPath = `/v2/console/acl/template`;
+    let params = new HttpParams({ encoder: new CustomHttpParamEncoder() });
+    return this.httpClient.get<PermissionTemplateList>(this.config.host + urlPath, { params: params, headers: this.getTokenAuthHeaders(auth_token) })
+  }
+
+  // auditlogList()
+  listAuditLog(auth_token: string, limit:number = 20, filter?: Record<string, string>, cursor?: string): Observable<AuditLogList> {
+    const urlPath = `/v2/console/audit/log`;
+    let params = new HttpParams({ encoder: new CustomHttpParamEncoder() });
+    params = params.set('limit', limit)
+    if (filter) {
+      Object.keys(filter).forEach((key) => {
+        params = params.set(key, filter[key])
+      })
+    }
+
+    if (cursor) {
+      params = params.set('cursor', cursor);
+    }
+    return this.httpClient.get<AuditLogList>(this.config.host + urlPath, { params: params, headers: this.getTokenAuthHeaders(auth_token) })
+  }
+
+  getUsernames(auth_token: string):Observable<ApiUsernames> {
+    const urlPath = `/v2/console/audit/log/users`;
+    let params = new HttpParams({ encoder: new CustomHttpParamEncoder() });
+    return this.httpClient.get<ApiUsernames>(this.config.host + urlPath, { params: params, headers: this.getTokenAuthHeaders(auth_token) })
   }
 
   private getTokenAuthHeaders(token: string): HttpHeaders {

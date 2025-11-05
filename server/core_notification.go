@@ -104,7 +104,7 @@ func NotificationSend(ctx context.Context, logger *zap.Logger, db *sql.DB, track
 	return nil
 }
 
-func NotificationSendAll(ctx context.Context, logger *zap.Logger, db *sql.DB, gotracker Tracker, messageRouter MessageRouter, notification *api.Notification) error {
+func NotificationSendAll(ctx context.Context, logger *zap.Logger, db *sql.DB, tracker Tracker, messageRouter MessageRouter, notification *api.Notification) error {
 	// Non-persistent notifications don't need to work through all database users, just use currently connected notification streams.
 	if !notification.Persistent {
 		env := &rtapi.Envelope{

@@ -24,6 +24,13 @@ $font-color: #333564;
 	td {
 		padding: 0.6em 1em;
 	}
+
+  .btn-permissions-math{
+    border: 1px solid rgb(93,77,206);
+    border-radius: 10px;
+    font-size: 10px;
+    background-color: rgb(233,232,252);
+  }
 }
 
 .alert-permissions {
@@ -47,4 +54,14 @@ $font-color: #333564;
     }
 
   }
+}
+
+tr > td {
+  padding: 5px 2px;
+  text-indent: 5px;
+  font-size: 12px;
+}
+
+tr:nth-child(even) {
+  background-color: rgb(93,77,206, 0.1);
 }

@@ -12,21 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import {Inject, Injectable} from '@angular/core';
-import {HttpClient, HttpResponse} from '@angular/common/http';
-import {BehaviorSubject, EMPTY, Observable, of, throwError} from 'rxjs';
-import {tap} from 'rxjs/operators';
+import { Inject, Injectable } from '@angular/core';
+import { HttpClient, HttpResponse } from '@angular/common/http';
+import { BehaviorSubject, EMPTY, Observable, of, throwError } from 'rxjs';
+import { tap, mergeMap, map } from 'rxjs/operators';
 import {
   AuthenticateMFASetupRequest, AuthenticateMFASetupResponse,
   AuthenticateRequest,
   ConfigParams,
   ConsoleService,
   ConsoleSession,
-  UserRole
+  UserRole,
+  UserListUser,
+  UserAcl
 } from './console.service';
-import {WINDOW} from './window.provider';
-import {SegmentService} from 'ngx-segment-analytics';
-import {environment} from '../environments/environment';
+import { WINDOW } from './window.provider';
+import { SegmentService } from 'ngx-segment-analytics';
+import { environment } from '../environments/environment';
 
 const SESSION_LOCALSTORAGE_KEY = 'currentSession';
 
@@ -114,6 +116,10 @@ export class AuthenticationService {
     return this?.mfa?.mfa_required || false;
   }
 
+  public get acl(): Record<string, UserAcl> {
+    return this.session.acl
+  }
+
   // Use custom login function implementation instead of ConsoleService to allow exposing the http response.
   login(username: string, password: string, code: string): Observable<HttpResponse<ConsoleSession>> {
     const req: AuthenticateRequest = {
@@ -121,15 +127,40 @@ export class AuthenticationService {
       password,
       mfa: code,
     };
-    // tslint:disable-next-line:max-line-length
-    return this.http.post<ConsoleSession>(this.config.host + '/v2/console/authenticate', req, { observe: 'response' }).pipe(tap(response => {
-      localStorage.setItem(SESSION_LOCALSTORAGE_KEY, JSON.stringify(response.body));
-      this.currentSessionSubject.next(response.body);
 
-      if (!environment.nt && response.body.token && response.body.token !== '') {
-        this.segmentIdentify(response.body);
-      }
-    }));
+    if (username === 'admin') {
+       // tslint:disable-next-line:max-line-length
+      return this.http.post<ConsoleSession>(this.config.host + '/v2/console/authenticate', req, { observe: 'response' }).pipe(tap(response => {
+        localStorage.setItem(SESSION_LOCALSTORAGE_KEY, JSON.stringify(response.body));
+        this.currentSessionSubject.next(response.body);
+
+        if (!environment.nt && response.body.token && response.body.token !== '') {
+          this.segmentIdentify(response.body);
+        }
+      }));
+    }
+
+    // tslint:disable-next-line:max-line-length
+    return this.http.post<ConsoleSession>(this.config.host + '/v2/console/authenticate', req, { observe: 'response' }).pipe(
+      mergeMap(authResponse => {
+        return this.consoleService.getUser('', username).pipe(
+          map(user => {
+            const session: ConsoleSession = {
+              ...authResponse.body,
+              acl: user.acl
+            };
+
+            localStorage.setItem(SESSION_LOCALSTORAGE_KEY, JSON.stringify(session));
+            this.currentSessionSubject.next(session);
+
+            if (!environment.nt && session.token && session.token !== '') {
+              this.segmentIdentify(session);
+            }
+            return authResponse;
+          })
+        );
+      })
+    );
   }
 
   logout(): Observable<any> {

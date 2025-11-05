@@ -67,6 +67,7 @@ import {NotificationsComponent} from './account/notifications/notifications.comp
 import {NotificationsListComponent} from './notifications/notifications-list.component';
 import {MfaSetupComponent} from './mfa-setup/mfa-setup.component';
 import {QRCodeModule} from 'angularx-qrcode';
+import {AuditLogComponent} from './audit-log/audit-log.component'
 
 @NgModule({
   declarations: [
@@ -105,7 +106,8 @@ import {QRCodeModule} from 'angularx-qrcode';
     SubscriptionsListComponent,
     MfaSetupComponent,
     NotificationsComponent,
-    NotificationsListComponent
+    NotificationsListComponent,
+    AuditLogComponent
   ],
   imports: [
     NgxFileDropModule,

@@ -227,6 +227,12 @@ github.com/hashicorp/golang-lru/simplelru
 # github.com/hashicorp/memberlist v0.5.3
 ## explicit; go 1.20
 github.com/hashicorp/memberlist
+# github.com/heroiclabs/hiro v1.28.1-0.20251031192923-efef805f339e
+## explicit; go 1.25.0
+# github.com/heroiclabs/nakama-common v1.42.2
+## explicit; go 1.25.0
+# github.com/heroiclabs/nakama/v3 v3.33.0
+## explicit; go 1.25.0
 # github.com/heroiclabs/sql-migrate v0.0.0-20241125131053-95a7949783b0
 ## explicit; go 1.23.3
 github.com/heroiclabs/sql-migrate

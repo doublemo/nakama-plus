@@ -4,6 +4,8 @@ All notable changes to this project are documented below.
 The format is based on [keep a changelog](http://keepachangelog.com) and this project uses [semantic versioning](http://semver.org).
 
 ## [Unreleased]
+### Fixed
+- Add missing return value in Google In-App Purchase subscription validation.
 
 ## [3.32.1] - 2025-10-21
 ### Fixed

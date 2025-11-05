@@ -1,0 +1,65 @@
+<h2 class="pb-4">Audit Log</h2>
+<div class="row no-gutters mb-4">
+    <div class="col d-flex justify-content-between no-gutters align-items-center">
+      <div class="col-md-10 d-flex justify-content-between">
+        <select class="form-select" style="width: 150px;" (change) = "onSelect($event, 'username')">
+            <option value="" selected>All Users</option>
+            <option *ngFor="let item of usernames" [value]="item" [selected]="filter['username'] === item">{{item}}</option>
+        </select>
+
+        <select name="resource" class="form-select" style="width: 200px;" (change) = "onSelect($event, 'resource')">
+            <option value="" selected>All Resources</option>
+            <option *ngFor="let item of getResources()" [value]="item.id" [selected]="filter['resource'] === item.id.toString()">{{item.value}}</option>
+        </select>
+
+        <select class="form-select" style="width: 150px;" (change) = "onSelect($event, 'action')">
+            <option value="" selected>All Actions</option>
+            <option *ngFor="let item of getActions()" [value]="item.id" [selected]="filter['action'] === item.id.toString()">{{item.value}}</option>
+        </select>
+
+        <!-- <input type="text" ngbDatepicker (dateSelect)="onSelect($event, 'after')"/> -->
+        <div class="input-group" style="width: 200px;">
+			<input
+				class="form-control"
+				placeholder="Filter by date"
+				name="dp"
+				[(ngModel)]="modelDatepicker"
+				ngbDatepicker
+				#d="ngbDatepicker"
+                (change) = "onSelect($event, 'after')"
+                (dateSelect) = "onSelect($event, 'after')"
+			/>
+			<button class="btn btn-outline-secondary bi bi-calendar3" (click)="d.toggle()" type="button"></button>
+		</div>
+      </div>
+      <div class="col-md-2 justify-content-end text-right">
+        <div class="btn-group page-btns" role="group">
+          <button type="button" class="btn btn-outline-secondary" (click)="loadData('')" [disabled]="auditLogList.length === 0"><img src="/static/svg/page-first.svg" alt="" width="20" height=""></button>
+          <button type="button" class="btn btn-outline-secondary" (click)="loadData(prevCursor)" [disabled]="prevCursor === ''"><img src="/static/svg/page-prev.svg" alt="" width="20" height=""></button>
+          <button type="button" class="btn btn-outline-secondary" (click)="loadData(nextCursor)" [disabled]="nextCursor === ''"><img src="/static/svg/page-next.svg" alt="" width="20" height=""></button>
+        </div>
+      </div>
+    </div>
+  </div>
+<div class="row no-gutters">
+    <table class="table table-sm table-hover table-bordered">
+      <thead class="thead-light">
+        <tr>
+          <th style="width: 240px">Timestamp</th>
+          <th style="width: 150px">Username</th>
+          <th style="width: 180px">Resource / Action</th>
+          <th>Message</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngIf="auditLogList.length === 0">
+          <td colSpan="4" class="text-muted">No audit log found</td>
+        </tr>
+        <tr *ngFor="let item of auditLogList">
+          <td>{{item.timestamp}}</td>
+          <td>{{item.username}}</td>
+          <td>{{toResourceString(item.resource)}} <p style="font-size: 12px; color:#888888;">{{toActionString(item.action)}}</p></td>
+          <td>{{item.message}}</td>
+        </tr>
+      </tbody>
+    </table>

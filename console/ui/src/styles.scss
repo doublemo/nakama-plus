@@ -1,4 +1,6 @@
 /* You can add global styles to this file, and also import other style files */
+/* Importing Bootstrap SCSS file. */
+@import 'bootstrap/scss/bootstrap';
 
 @import "@ng-select/ng-select/themes/default.theme.css";
 @import "vanilla-jsoneditor/themes/jse-theme-default.css";
@@ -560,4 +562,53 @@ a {
   --jes-theme-light-color: #A69BFF;
   --jse-button-primary-background: #7668ED;
   --jse-message-success-background: #A69BFF;
+}
+
+.u-modal{
+  z-index: 2000 !important;
+} 
+
+.btn-close{
+  padding: 0px 10px;
+  background-color: #A69BFF;
+}
+
+.modal-header{
+  padding: 5px;
+  .modal-title{
+    font-size: 18px;
+  }
+
+  .modal-body{
+    font-size: 14px;
+  }
+}
+
+.offcanvas-header {
+  padding: 5px;
+  background-color: #6a57ee;
+
+  .offcanvas-title{
+    font-size: 18px;
+    padding: 5px 10px;
+  }
+
+  .btn-close {
+    margin-right: 5px;
+  }
+}
+
+.offcanvas-body{
+  overflow: hidden;
+  .btn {
+    font-family: inherit;
+    text-transform: none;
+    letter-spacing: 0.1em;
+    font-size: 12px;
+    color: rgb(102,84,226);
+  }
+}
+
+.wide-offcanvas {
+  --bs-offcanvas-width: 600px;
 }

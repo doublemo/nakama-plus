@@ -48,6 +48,7 @@ import {SubscriptionsListComponent} from './subscriptions/subscriptions-list.com
 import {MfaSetupComponent} from './mfa-setup/mfa-setup.component';
 import {NotificationsListComponent} from './notifications/notifications-list.component';
 import {NotificationsComponent, NotificationsResolver} from './account/notifications/notifications.component';
+import {AuditLogComponent, AuditLogResolver} from './audit-log/audit-log.component'
 
 const routes: Routes = [
   {
@@ -101,7 +102,8 @@ const routes: Routes = [
       {path: 'notifications', component: NotificationsListComponent, resolve: [NotificationsResolver]},
       {path: 'purchases', component: PurchasesListComponent, resolve: [PurchasesResolver]},
       {path: 'subscriptions', component: SubscriptionsListComponent, resolve: [SubscriptionsResolver]},
-      {path: 'settings/mfa', component: MfaSetupComponent, resolve: []}
+      {path: 'settings/mfa', component: MfaSetupComponent, resolve: []},
+      {path: 'audit/log', component: AuditLogComponent, resolve: [AuditLogResolver]}
     ]},
   {
     path: 'login', component: LoginComponent, canActivate: [LoginGuard],

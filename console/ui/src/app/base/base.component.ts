@@ -45,20 +45,21 @@ export class BaseComponent implements OnInit, OnDestroy {
   public error = '';
 
   public routes = [
-    {navItem: 'status', routerLink: ['/status'], label: 'Status', minRole: UserRole.USER_ROLE_READONLY, icon: 'status'},
-    {navItem: 'users', routerLink: ['/users'], label: 'User Management', minRole: UserRole.USER_ROLE_ADMIN, icon: 'user-management'},
-    {navItem: 'config', routerLink: ['/config'], label: 'Configuration', minRole: UserRole.USER_ROLE_DEVELOPER, icon: 'configuration'},
-    {navItem: 'modules', routerLink: ['/modules'], label: 'Runtime Modules', minRole: UserRole.USER_ROLE_DEVELOPER, separator: true, icon: 'runtime-modules'},
-    {navItem: 'accounts', routerLink: ['/accounts'], label: 'Accounts', minRole: UserRole.USER_ROLE_READONLY, icon: 'accounts'},
-    {navItem: 'groups', routerLink: ['/groups'], label: 'Groups', minRole: UserRole.USER_ROLE_READONLY, icon: 'groups'},
-    {navItem: 'storage', routerLink: ['/storage'], label: 'Storage', minRole: UserRole.USER_ROLE_READONLY, icon: 'storage'},
-    {navItem: 'leaderboards', routerLink: ['/leaderboards'], label: 'Leaderboards', minRole: UserRole.USER_ROLE_READONLY, icon: 'leaderboard'},
-    {navItem: 'chat', routerLink: ['/chat'], label: 'Chat Messages', minRole: UserRole.USER_ROLE_READONLY, icon: 'chat'},
-    {navItem: 'notifications', routerLink: ['/notifications'], label: 'Notifications', minRole: UserRole.USER_ROLE_READONLY, icon: 'notification'},
-    {navItem: 'purchases', routerLink: ['/purchases'], label: 'Purchases', minRole: UserRole.USER_ROLE_READONLY, icon: 'purchases'},
-    {navItem: 'subscriptions', routerLink: ['/subscriptions'], label: 'Subscriptions', minRole: UserRole.USER_ROLE_READONLY, icon: 'subscriptions'},
-    {navItem: 'matches', routerLink: ['/matches'], label: 'Matches', minRole: UserRole.USER_ROLE_READONLY, icon: 'running-matches'},
-    {navItem: 'apiexplorer', routerLink: ['/apiexplorer'], label: 'API Explorer', minRole: UserRole.USER_ROLE_DEVELOPER, icon: 'api-explorer'},
+    {navItem: 'status', routerLink: ['/status'], label: 'Status', minRole: '', icon: 'status'},
+    {navItem: 'users', routerLink: ['/users'], label: 'User Management', minRole: 'USER', icon: 'user-management'},
+    {navItem: 'config', routerLink: ['/config'], label: 'Configuration', minRole: 'CONFIGURATION', icon: 'configuration'},
+    {navItem: 'modules', routerLink: ['/modules'], label: 'Runtime Modules', minRole: 'SETTINGS', separator: true, icon: 'runtime-modules'},
+    {navItem: 'accounts', routerLink: ['/accounts'], label: 'Accounts', minRole: 'ALL_ACCOUNTS', icon: 'accounts'},
+    {navItem: 'groups', routerLink: ['/groups'], label: 'Groups', minRole: 'GROUP', icon: 'groups'},
+    {navItem: 'storage', routerLink: ['/storage'], label: 'Storage', minRole: 'ALL_STORAGE', icon: 'storage'},
+    {navItem: 'leaderboards', routerLink: ['/leaderboards'], label: 'Leaderboards', minRole: 'LEADERBOARD', icon: 'leaderboard'},
+    {navItem: 'chat', routerLink: ['/chat'], label: 'Chat Messages', minRole: 'CHANNEL_MESSAGE', icon: 'chat'},
+    {navItem: 'notifications', routerLink: ['/notifications'], label: 'Notifications', minRole: 'NOTIFICATION', icon: 'notification'},
+    {navItem: 'purchases', routerLink: ['/purchases'], label: 'Purchases', minRole: 'IN_APP_PURCHASE', icon: 'purchases'},
+    {navItem: 'subscriptions', routerLink: ['/subscriptions'], label: 'Subscriptions', minRole:'IN_APP_PURCHASE', icon: 'subscriptions'},
+    {navItem: 'matches', routerLink: ['/matches'], label: 'Matches', minRole: 'MATCH', icon: 'running-matches'},
+    {navItem: 'apiexplorer', routerLink: ['/apiexplorer'], label: 'API Explorer', minRole: 'API_EXPLORER', icon: 'api-explorer'},
+    {navItem: 'auditlog', routerLink: ['/audit/log'], label: 'Audit Log', minRole: 'AUDIT_LOG', icon: 'status'},
   ];
 
   constructor(
@@ -107,6 +108,12 @@ export class BaseComponent implements OnInit, OnDestroy {
     this.route.data.subscribe(data => {
       this.error = data.error ? data.error : '';
     });
+  }
+
+  isAllow(acl:string):boolean {
+    if(this.authService.username === 'admin' || acl === '') return true
+    const userAcl = this.authService.acl[acl]
+    return userAcl && userAcl.read === true
   }
 
   getSessionRole(): UserRole {
