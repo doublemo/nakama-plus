@@ -4,6 +4,10 @@ All notable changes to this project are documented below.
 The format is based on [keep a changelog](http://keepachangelog.com) and this project uses [semantic versioning](http://semver.org).
 
 ## [Unreleased]
+### Added
+- Support for access control templates in Console UI.
+- Remove usage of database random generator function in migrations for compatibility with older PostgreSQL versions
+
 ### Fixed
 - Add missing return value in Google In-App Purchase subscription validation.
 

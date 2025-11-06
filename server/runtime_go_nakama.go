@@ -2571,11 +2571,11 @@ func (n *RuntimeGoNakamaModule) LeaderboardList(limit int, cursor string) (*api.
 // @param id(type=string) The leaderboard id.
 // @return error(error) An optional error value if an error occurred.
 func (n *RuntimeGoNakamaModule) LeaderboardRanksDisable(ctx context.Context, id string) error {
-	err := DisableTournamentRanks(ctx, n.logger, n.db, n.leaderboardCache, n.leaderboardRankCache, id)
+	err := disableLeaderboardRanks(ctx, n.logger, n.db, n.leaderboardCache, n.leaderboardRankCache, id)
 	if err == nil {
 		if peer, ok := n.router.GetPeer(); ok {
 			if l := n.leaderboardCache.Get(id); l != nil {
-				peer.LeaderboardInsertTournament(l)
+				peer.LeaderboardInsert(l.Id, l.Authoritative, l.SortOrder, l.Operator, l.ResetScheduleStr, l.Metadata, l.CreateTime, l.EnableRanks)
 			}
 		}
 	}
