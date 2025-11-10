@@ -97,8 +97,8 @@ github.com/dlclark/regexp2 v1.11.5 h1:Q/sSnsKerHeCkc/jSTNq1oCm7KiVgUMZRDUoRu0JQZ
 github.com/dlclark/regexp2 v1.11.5/go.mod h1:DHkYz0B9wPfa6wondMfaivmHpzrQ3v9q8cnmRbL6yW8=
 github.com/dop251/goja v0.0.0-20250630131328-58d95d85e994 h1:aQYWswi+hRL2zJqGacdCZx32XjKYV8ApXFGntw79XAM=
 github.com/dop251/goja v0.0.0-20250630131328-58d95d85e994/go.mod h1:MxLav0peU43GgvwVgNbLAj1s/bSGboKkhuULvq/7hx4=
-github.com/doublemo/nakama-common v1.42.1 h1:26LaVn8/vgdIVqkWH5Wf4sdU10lCChIUOimen4mxrd4=
-github.com/doublemo/nakama-common v1.42.1/go.mod h1:zf1RcnwpodGEoS1AaqysIXOA5ZbwArLlridnIFgc0NQ=
+github.com/doublemo/nakama-common v1.43.0 h1:aOTebdaacAg8BUP0pO3keXPvaCawHqDixurybXp5Op8=
+github.com/doublemo/nakama-common v1.43.0/go.mod h1:zf1RcnwpodGEoS1AaqysIXOA5ZbwArLlridnIFgc0NQ=
 github.com/doublemo/nakama-kit v1.4.0 h1:9QFdWwIx8ac3LATXTYm9nm1QarzYMimy91YVZcQ2CYc=
 github.com/doublemo/nakama-kit v1.4.0/go.mod h1:k8fVH0Uu5oFId7+pTZvwoWOzhGIzJXMCEGcTmucHJ/A=
 github.com/dustin/go-humanize v1.0.1 h1:GzkhY7T5VNhEkwH0PVJgjz+fX1rhBrR7pRT3mDkpeCY=
@@ -195,12 +195,6 @@ github.com/hashicorp/golang-lru v0.5.0/go.mod h1:/m3WP610KZHVQ1SGc6re/UDhFvYD7pJ
 github.com/hashicorp/hcl v1.0.0/go.mod h1:E5yfLk+7swimpb2L/Alb/PJmXilQ/rhwaUYs4T20WEQ=
 github.com/hashicorp/memberlist v0.5.3 h1:tQ1jOCypD0WvMemw/ZhhtH+PWpzcftQvgCorLu0hndk=
 github.com/hashicorp/memberlist v0.5.3/go.mod h1:h60o12SZn/ua/j0B6iKAZezA4eDaGsIuPO70eOaJ6WE=
-github.com/heroiclabs/hiro v1.28.1-0.20251031192923-efef805f339e h1:62YiBG9hm67mM5FtwaB2SYMxj0GSilhrrL44q9dCOUM=
-github.com/heroiclabs/hiro v1.28.1-0.20251031192923-efef805f339e/go.mod h1:giDDMxUbOYzeblbmwj4U8jXOvuYhQTj0OQlUzC+PLuA=
-github.com/heroiclabs/nakama-common v1.42.2 h1:Y24aguXQ0SL/X/C1qeXDJBVcZL9Q1G8e58jO2NWR3eQ=
-github.com/heroiclabs/nakama-common v1.42.2/go.mod h1:E4yiMQmn8KHQ77WqBLVUfazdiPnwFYWqUrfGOrqOXk8=
-github.com/heroiclabs/nakama/v3 v3.33.0 h1:lzpOoDFNecVy4mbui3uQop2RozsQfXvl85UH0Q8WgGY=
-github.com/heroiclabs/nakama/v3 v3.33.0/go.mod h1:T6aEghcdUAeGL2qZnOkLvRXYiP4Wn14PLFkQTAHJmRs=
 github.com/heroiclabs/sql-migrate v0.0.0-20241125131053-95a7949783b0 h1:hHJcYOP6L2/wZIEnYjjkJM+rOk/bK0uaYkDAejYpLhI=
 github.com/heroiclabs/sql-migrate v0.0.0-20241125131053-95a7949783b0/go.mod h1:uwcmopkVQIfb/JQqul5zmGI9ounclRC08j9S9lLcpRQ=
 github.com/inconshreveable/mousetrap v1.0.0/go.mod h1:PxqpIevigyE2G7u3NXJIT2ANytuPF1OarO4DADm73n8=

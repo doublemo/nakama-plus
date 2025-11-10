@@ -9,7 +9,7 @@ require (
 	github.com/dgraph-io/ristretto v0.2.0
 	github.com/dgryski/dgoogauth v0.0.0-20190221195224-5a805980a5f3
 	github.com/dop251/goja v0.0.0-20250630131328-58d95d85e994
-	github.com/doublemo/nakama-common v1.42.1
+	github.com/doublemo/nakama-common v1.43.0
 	github.com/doublemo/nakama-kit v1.4.0
 	github.com/eko/gocache/lib/v4 v4.2.0
 	github.com/eko/gocache/store/ristretto/v4 v4.2.2
@@ -22,7 +22,6 @@ require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.2
 	github.com/hashicorp/memberlist v0.5.3
-	github.com/heroiclabs/nakama/v3 v3.33.0
 	github.com/heroiclabs/sql-migrate v0.0.0-20241125131053-95a7949783b0
 	github.com/jackc/pgerrcode v0.0.0-20240316143900-6e2875d9b438
 	github.com/jackc/pgx/v5 v5.7.5
@@ -85,8 +84,6 @@ require (
 	github.com/hashicorp/go-multierror v1.0.0 // indirect
 	github.com/hashicorp/go-sockaddr v1.0.0 // indirect
 	github.com/hashicorp/golang-lru v0.5.0 // indirect
-	github.com/heroiclabs/hiro v1.28.1-0.20251031192923-efef805f339e // indirect
-	github.com/heroiclabs/nakama-common v1.42.2 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect

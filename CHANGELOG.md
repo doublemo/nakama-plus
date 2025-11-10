@@ -7,9 +7,14 @@ The format is based on [keep a changelog](http://keepachangelog.com) and this pr
 ### Added
 - Support for access control templates in Console UI.
 - Remove usage of database random generator function in migrations for compatibility with older PostgreSQL versions
+- New Go runtime initializer function to register raw console HTTP handlers.
 
 ### Fixed
 - Add missing return value in Google In-App Purchase subscription validation.
+- Use correct leaderboard ranks disable hook in the Go runtime.
+- Release database connections faster in notification deletion operations.
+- Release database connections faster when listing console users.
+- Release database connections faster when disabling ranks for leaderboards or tournaments.
 
 ## [3.32.1] - 2025-10-21
 ### Fixed
