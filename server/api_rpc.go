@@ -52,6 +52,7 @@ func (s *ApiServer) RpcFuncHttp(w http.ResponseWriter, r *http.Request) {
 	var vars map[string]string
 	var expiry int64
 	requestCtx := r.Context()
+	logger := LoggerWithTraceId(requestCtx, s.logger)
 	if httpKey := queryParams.Get("http_key"); httpKey != "" {
 		if httpKey != s.config.GetRuntime().HTTPKey {
 			// HTTP key did not match.
@@ -59,7 +60,7 @@ func (s *ApiServer) RpcFuncHttp(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusUnauthorized)
 			_, err := w.Write(httpKeyInvalidBytes)
 			if err != nil {
-				s.logger.Debug("Error writing response to client", zap.Error(err))
+				logger.Debug("Error writing response to client", zap.Error(err))
 			}
 			return
 		}
@@ -71,7 +72,7 @@ func (s *ApiServer) RpcFuncHttp(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusUnauthorized)
 				_, err := w.Write(httpKeyInvalidBytes)
 				if err != nil {
-					s.logger.Debug("Error writing response to client", zap.Error(err))
+					logger.Debug("Error writing response to client", zap.Error(err))
 				}
 				return
 			}
@@ -90,7 +91,7 @@ func (s *ApiServer) RpcFuncHttp(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusUnauthorized)
 				_, err := w.Write(authTokenInvalidBytes)
 				if err != nil {
-					s.logger.Debug("Error writing response to client", zap.Error(err))
+					logger.Debug("Error writing response to client", zap.Error(err))
 				}
 				return
 			}
@@ -101,7 +102,7 @@ func (s *ApiServer) RpcFuncHttp(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		_, err := w.Write(noAuthBytes)
 		if err != nil {
-			s.logger.Debug("Error writing response to client", zap.Error(err))
+			logger.Debug("Error writing response to client", zap.Error(err))
 		}
 		return
 	}
@@ -117,7 +118,7 @@ func (s *ApiServer) RpcFuncHttp(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		sentBytes, err = w.Write(rpcIDMustBeSetBytes)
 		if err != nil {
-			s.logger.Debug("Error writing response to client", zap.Error(err))
+			logger.Debug("Error writing response to client", zap.Error(err))
 		}
 		return
 	}
@@ -132,7 +133,7 @@ func (s *ApiServer) RpcFuncHttp(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 		sentBytes, err = w.Write(rpcFunctionNotFoundBytes)
 		if err != nil {
-			s.logger.Debug("Error writing response to client", zap.Error(err))
+			logger.Debug("Error writing response to client", zap.Error(err))
 		}
 		return
 	}
@@ -159,7 +160,7 @@ func (s *ApiServer) RpcFuncHttp(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusBadRequest)
 				sentBytes, err = w.Write(requestBodyTooLargeBytes)
 				if err != nil {
-					s.logger.Debug("Error writing response to client", zap.Error(err))
+					logger.Debug("Error writing response to client", zap.Error(err))
 				}
 				return
 			}
@@ -169,7 +170,7 @@ func (s *ApiServer) RpcFuncHttp(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusInternalServerError)
 			sentBytes, err = w.Write(internalServerErrorBytes)
 			if err != nil {
-				s.logger.Debug("Error writing response to client", zap.Error(err))
+				logger.Debug("Error writing response to client", zap.Error(err))
 			}
 			return
 		}
@@ -183,7 +184,7 @@ func (s *ApiServer) RpcFuncHttp(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusBadRequest)
 				sentBytes, err = w.Write(badJSONBytes)
 				if err != nil {
-					s.logger.Debug("Error writing response to client", zap.Error(err))
+					logger.Debug("Error writing response to client", zap.Error(err))
 				}
 				return
 			}
@@ -199,7 +200,7 @@ func (s *ApiServer) RpcFuncHttp(w http.ResponseWriter, r *http.Request) {
 		uid = userID.String()
 	}
 
-	clientIP, clientPort := extractClientAddressFromRequest(s.logger, r)
+	clientIP, clientPort := extractClientAddressFromRequest(logger, r)
 
 	// Extract http headers
 	headers := make(map[string][]string)
@@ -219,7 +220,7 @@ func (s *ApiServer) RpcFuncHttp(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(grpcgw.HTTPStatusFromCode(code))
 		sentBytes, err = w.Write(response)
 		if err != nil {
-			s.logger.Debug("Error writing response to client", zap.Error(err))
+			logger.Debug("Error writing response to client", zap.Error(err))
 		}
 		return
 	}
@@ -232,12 +233,12 @@ func (s *ApiServer) RpcFuncHttp(w http.ResponseWriter, r *http.Request) {
 		response, err = json.Marshal(map[string]interface{}{"payload": result})
 		if err != nil {
 			// Failed to encode the wrapped response.
-			s.logger.Error("Error marshaling wrapped response to client", zap.Error(err))
+			logger.Error("Error marshaling wrapped response to client", zap.Error(err))
 			w.Header().Set("content-type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
 			sentBytes, err = w.Write(internalServerErrorBytes)
 			if err != nil {
-				s.logger.Debug("Error writing response to client", zap.Error(err))
+				logger.Debug("Error writing response to client", zap.Error(err))
 			}
 			return
 		}
@@ -260,7 +261,7 @@ func (s *ApiServer) RpcFuncHttp(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	sentBytes, err = w.Write(response)
 	if err != nil {
-		s.logger.Debug("Error writing response to client", zap.Error(err))
+		logger.Debug("Error writing response to client", zap.Error(err))
 		return
 	}
 	success = true

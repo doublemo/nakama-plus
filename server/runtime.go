@@ -3669,3 +3669,14 @@ func (r *Runtime) BeforeAny() RuntimeBeforeAnyFunction {
 func (r *Runtime) AfterAny() RuntimeAfterAnyFunction {
 	return r.afterReqFunctions.afterAnyFunction
 }
+
+func RuntimeLoggerWithTraceId(ctx context.Context, logger runtime.Logger) runtime.Logger {
+	traceId := ctx.Value(ctxTraceId{})
+	if traceId != nil {
+		if traceIdStr, ok := traceId.(string); ok && traceIdStr != "" {
+			return logger.WithField("trace_id", traceIdStr)
+		}
+	}
+
+	return logger
+}

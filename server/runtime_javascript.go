@@ -190,17 +190,19 @@ func (rp *RuntimeProviderJS) Rpc(ctx context.Context, id string, headers, queryP
 		return "", ErrRuntimeRPCNotFound, codes.NotFound
 	}
 
+	logger := LoggerWithTraceId(ctx, rp.logger)
+
 	fn, ok := goja.AssertFunction(r.vm.Get(jsFn))
 	if !ok {
 		rp.Put(r)
-		rp.logger.Error("JavaScript runtime function invalid.", zap.String("key", jsFn), zap.Error(err))
+		logger.Error("JavaScript runtime function invalid.", zap.String("key", jsFn), zap.Error(err))
 		return "", errors.New("Could not run Rpc function."), codes.Internal
 	}
 
-	jsLogger, err := NewJsLogger(r.vm, r.logger, zap.String("rpc_id", id))
+	jsLogger, err := NewJsLogger(ctx, r.vm, r.logger, zap.String("rpc_id", id))
 	if err != nil {
 		rp.Put(r)
-		rp.logger.Error("Could not instantiate js logger.", zap.Error(err))
+		logger.Error("Could not instantiate js logger.", zap.Error(err))
 		return "", errors.New("Could not run Rpc function."), codes.Internal
 	}
 
@@ -258,7 +260,7 @@ func (rp *RuntimeProviderJS) BeforeRt(ctx context.Context, id string, logger *za
 		return nil, errors.New("Could not run runtime Before function.")
 	}
 
-	jsLogger, err := NewJsLogger(r.vm, logger, zap.String("api_id", strings.TrimPrefix(id, RTAPI_PREFIX_LOWERCASE)), zap.String("mode", RuntimeExecutionModeBefore.String()))
+	jsLogger, err := NewJsLogger(ctx, r.vm, logger, zap.String("api_id", strings.TrimPrefix(id, RTAPI_PREFIX_LOWERCASE)), zap.String("mode", RuntimeExecutionModeBefore.String()))
 	if err != nil {
 		rp.Put(r)
 		logger.Error("Could not instantiate js logger.", zap.Error(err))
@@ -344,7 +346,7 @@ func (rp *RuntimeProviderJS) AfterRt(ctx context.Context, id string, logger *zap
 		return errors.New("Could not run runtime After function.")
 	}
 
-	jsLogger, err := NewJsLogger(r.vm, logger, zap.String("api_id", strings.TrimPrefix(id, RTAPI_PREFIX_LOWERCASE)), zap.String("mode", RuntimeExecutionModeAfter.String()))
+	jsLogger, err := NewJsLogger(ctx, r.vm, logger, zap.String("api_id", strings.TrimPrefix(id, RTAPI_PREFIX_LOWERCASE)), zap.String("mode", RuntimeExecutionModeAfter.String()))
 	if err != nil {
 		rp.Put(r)
 		logger.Error("Could not instantiate js logger.", zap.Error(err))
@@ -411,7 +413,7 @@ func (rp *RuntimeProviderJS) BeforeReq(ctx context.Context, id string, logger *z
 		return nil, errors.New("Could not run runtime Before function."), codes.Internal
 	}
 
-	jsLogger, err := NewJsLogger(r.vm, logger, zap.String("api_id", strings.TrimPrefix(id, API_PREFIX_LOWERCASE)), zap.String("mode", RuntimeExecutionModeBefore.String()))
+	jsLogger, err := NewJsLogger(ctx, r.vm, logger, zap.String("api_id", strings.TrimPrefix(id, API_PREFIX_LOWERCASE)), zap.String("mode", RuntimeExecutionModeBefore.String()))
 	if err != nil {
 		rp.Put(r)
 		logger.Error("Could not instantiate js logger.", zap.Error(err))
@@ -516,7 +518,7 @@ func (rp *RuntimeProviderJS) AfterReq(ctx context.Context, id string, logger *za
 		return errors.New("Could not run runtime After function.")
 	}
 
-	jsLogger, err := NewJsLogger(r.vm, r.logger, zap.String("api_id", strings.TrimPrefix(id, API_PREFIX_LOWERCASE)), zap.String("mode", RuntimeExecutionModeAfter.String()))
+	jsLogger, err := NewJsLogger(ctx, r.vm, r.logger, zap.String("api_id", strings.TrimPrefix(id, API_PREFIX_LOWERCASE)), zap.String("mode", RuntimeExecutionModeAfter.String()))
 	if err != nil {
 		rp.Put(r)
 		logger.Error("Could not instantiate js logger.", zap.Error(err))
@@ -567,6 +569,7 @@ func (r *RuntimeJS) invokeFunction(execMode RuntimeExecutionMode, id string, fn 
 	// First argument is null because the js fn is not executed in the context of an object.
 	retVal, err := fn(goja.Null(), args...)
 	if err != nil {
+		logger := LoggerWithTraceId(r.nakamaModule.ctx, r.logger)
 		if exErr, ok := err.(*goja.Exception); ok {
 			errMsg := exErr.Error()
 			errCode := codes.Internal
@@ -588,11 +591,11 @@ func (r *RuntimeJS) invokeFunction(execMode RuntimeExecutionMode, id string, fn 
 			}
 
 			if !custom {
-				r.logger.Error("JavaScript runtime function raised an uncaught exception", zap.String("mode", execMode.String()), zap.String("id", id), zap.Error(err))
+				logger.Error("JavaScript runtime function raised an uncaught exception", zap.String("mode", execMode.String()), zap.String("id", id), zap.Error(err))
 			}
 			return nil, newJsError(errors.New(errMsg), exErr.String(), custom), errCode
 		}
-		r.logger.Error("JavaScript runtime error", zap.String("mode", execMode.String()), zap.String("id", id), zap.Error(err))
+		logger.Error("JavaScript runtime error", zap.String("mode", execMode.String()), zap.String("id", id), zap.Error(err))
 		return nil, err, codes.Internal
 	}
 	if retVal == nil || retVal == goja.Undefined() || retVal == goja.Null() {
@@ -1762,7 +1765,7 @@ func NewRuntimeProviderJS(ctx context.Context, logger, startupLogger *zap.Logger
 		}
 		freezeGlobalObject(config, runtime)
 
-		jsLoggerInst, err := NewJsLogger(runtime, logger)
+		jsLoggerInst, err := NewJsLogger(ctx, runtime, logger)
 		if err != nil {
 			logger.Fatal("Failed to initialize JavaScript runtime", zap.Error(err))
 		}
@@ -1917,7 +1920,7 @@ func (rp *RuntimeProviderJS) MatchmakerMatched(ctx context.Context, entries []*M
 		return "", false, errors.New("Could not run matchmaker matched hook.")
 	}
 
-	jsLogger, err := NewJsLogger(r.vm, r.logger, zap.String("mode", RuntimeExecutionModeMatchmaker.String()))
+	jsLogger, err := NewJsLogger(ctx, r.vm, r.logger, zap.String("mode", RuntimeExecutionModeMatchmaker.String()))
 	if err != nil {
 		rp.Put(r)
 		rp.logger.Error("Could not instantiate js logger.", zap.Error(err))
@@ -2009,7 +2012,7 @@ func (rp *RuntimeProviderJS) TournamentEnd(ctx context.Context, tournament *api.
 		return errors.New("Could not run tournament end hook.")
 	}
 
-	jsLogger, err := NewJsLogger(r.vm, r.logger, zap.String("mode", RuntimeExecutionModeTournamentEnd.String()))
+	jsLogger, err := NewJsLogger(ctx, r.vm, r.logger, zap.String("mode", RuntimeExecutionModeTournamentEnd.String()))
 	if err != nil {
 		rp.Put(r)
 		rp.logger.Error("Could not instantiate js logger.", zap.Error(err))
@@ -2086,7 +2089,7 @@ func (rp *RuntimeProviderJS) TournamentReset(ctx context.Context, tournament *ap
 		return errors.New("Could not run tournament reset hook")
 	}
 
-	jsLogger, err := NewJsLogger(r.vm, r.logger, zap.String("mode", RuntimeExecutionModeTournamentReset.String()))
+	jsLogger, err := NewJsLogger(ctx, r.vm, r.logger, zap.String("mode", RuntimeExecutionModeTournamentReset.String()))
 	if err != nil {
 		rp.Put(r)
 		rp.logger.Error("Could not instantiate js logger.", zap.Error(err))
@@ -2148,7 +2151,7 @@ func (rp *RuntimeProviderJS) LeaderboardReset(ctx context.Context, leaderboard *
 		return errors.New("Could not run leaderboard reset hook.")
 	}
 
-	jsLogger, err := NewJsLogger(r.vm, r.logger, zap.String("mode", RuntimeExecutionModeLeaderboardReset.String()))
+	jsLogger, err := NewJsLogger(ctx, r.vm, r.logger, zap.String("mode", RuntimeExecutionModeLeaderboardReset.String()))
 	if err != nil {
 		rp.Put(r)
 		rp.logger.Error("Could not instantiate js logger.", zap.Error(err))
@@ -2190,7 +2193,7 @@ func (rp *RuntimeProviderJS) Shutdown(ctx context.Context) {
 		return
 	}
 
-	jsLogger, err := NewJsLogger(r.vm, r.logger, zap.String("mode", RuntimeExecutionModeShutdown.String()))
+	jsLogger, err := NewJsLogger(ctx, r.vm, r.logger, zap.String("mode", RuntimeExecutionModeShutdown.String()))
 	if err != nil {
 		rp.Put(r)
 		rp.logger.Error("Could not instantiate js logger.", zap.Error(err))
@@ -2228,7 +2231,7 @@ func (rp *RuntimeProviderJS) PurchaseNotificationApple(ctx context.Context, purc
 		return errors.New("Could not run Purchase Notification Apple hook.")
 	}
 
-	jsLogger, err := NewJsLogger(r.vm, r.logger, zap.String("mode", RuntimeExecutionModePurchaseNotificationApple.String()))
+	jsLogger, err := NewJsLogger(ctx, r.vm, r.logger, zap.String("mode", RuntimeExecutionModePurchaseNotificationApple.String()))
 	if err != nil {
 		rp.Put(r)
 		rp.logger.Error("Could not instantiate js logger.", zap.Error(err))
@@ -2271,7 +2274,7 @@ func (rp *RuntimeProviderJS) SubscriptionNotificationApple(ctx context.Context, 
 		return errors.New("Could not run Subscription Notification Apple hook.")
 	}
 
-	jsLogger, err := NewJsLogger(r.vm, r.logger, zap.String("mode", RuntimeExecutionModeSubscriptionNotificationApple.String()))
+	jsLogger, err := NewJsLogger(ctx, r.vm, r.logger, zap.String("mode", RuntimeExecutionModeSubscriptionNotificationApple.String()))
 	if err != nil {
 		rp.Put(r)
 		rp.logger.Error("Could not instantiate js logger.", zap.Error(err))
@@ -2314,7 +2317,7 @@ func (rp *RuntimeProviderJS) PurchaseNotificationGoogle(ctx context.Context, pur
 		return errors.New("Could not run Purchase Notification Google hook.")
 	}
 
-	jsLogger, err := NewJsLogger(r.vm, r.logger, zap.String("mode", RuntimeExecutionModePurchaseNotificationGoogle.String()))
+	jsLogger, err := NewJsLogger(ctx, r.vm, r.logger, zap.String("mode", RuntimeExecutionModePurchaseNotificationGoogle.String()))
 	if err != nil {
 		rp.Put(r)
 		rp.logger.Error("Could not instantiate js logger.", zap.Error(err))
@@ -2357,7 +2360,7 @@ func (rp *RuntimeProviderJS) SubscriptionNotificationGoogle(ctx context.Context,
 		return errors.New("Could not run Subscription Notification Google hook.")
 	}
 
-	jsLogger, err := NewJsLogger(r.vm, r.logger, zap.String("mode", RuntimeExecutionModeSubscriptionNotificationGoogle.String()))
+	jsLogger, err := NewJsLogger(ctx, r.vm, r.logger, zap.String("mode", RuntimeExecutionModeSubscriptionNotificationGoogle.String()))
 	if err != nil {
 		rp.Put(r)
 		rp.logger.Error("Could not instantiate js logger.", zap.Error(err))
@@ -2399,7 +2402,7 @@ func (rp *RuntimeProviderJS) StorageIndexFilter(ctx context.Context, indexName s
 		return false, errors.New("Could not run Storage Index Filter hook.")
 	}
 
-	jsLogger, err := NewJsLogger(r.vm, r.logger, zap.String("mode", RuntimeExecutionModeStorageIndexFilter.String()))
+	jsLogger, err := NewJsLogger(ctx, r.vm, r.logger, zap.String("mode", RuntimeExecutionModeStorageIndexFilter.String()))
 	if err != nil {
 		rp.Put(r)
 		rp.logger.Error("Could not instantiate js logger.", zap.Error(err))
@@ -2466,7 +2469,7 @@ func (rp *RuntimeProviderJS) EventPeer(ctx context.Context, logger runtime.Logge
 		return errors.New("Could not run peer event hook.")
 	}
 
-	jsLogger, err := NewJsLogger(r.vm, r.logger, zap.String("mode", RuntimeExecutionModePeerEvent.String()))
+	jsLogger, err := NewJsLogger(ctx, r.vm, r.logger, zap.String("mode", RuntimeExecutionModeStorageIndexFilter.String()))
 	if err != nil {
 		rp.Put(r)
 		rp.logger.Error("Could not instantiate js logger.", zap.Error(err))
@@ -2513,7 +2516,7 @@ func evalRuntimeModules(rp *RuntimeProviderJS, modCache *RuntimeJSModuleCache, m
 		return nil, err
 	}
 
-	jsLoggerInst, err := NewJsLogger(r, logger)
+	jsLoggerInst, err := NewJsLogger(context.Background(), r, logger)
 	if err != nil {
 		return nil, err
 	}

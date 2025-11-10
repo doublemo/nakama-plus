@@ -67,7 +67,7 @@ func (s *statusCheckResponseWriter) WriteHeader(statusCode int) {
 	s.w.WriteHeader(statusCode)
 }
 
-type ctxConsoleIdKey struct{}
+type ctxConsoleUserIdKey struct{}
 type ctxConsoleUsernameKey struct{}
 type ctxConsoleEmailKey struct{}
 type ctxConsoleUserAclKey struct{}
@@ -119,6 +119,10 @@ func StartConsoleServer(logger *zap.Logger, startupLogger *zap.Logger, db *sql.D
 		//grpc.StatsHandler(&ocgrpc.ServerHandler{IsPublicEndpoint: true}),
 		grpc.MaxRecvMsgSize(int(config.GetConsole().MaxMessageSizeBytes)),
 		grpc.ChainUnaryInterceptor(
+			func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
+				ctx = context.WithValue(ctx, ctxTraceId{}, uuid.Must(uuid.NewV4()).String())
+				return handler(ctx, req)
+			},
 			consoleAuthInterceptor(logger, config, consoleSessionCache, loginAttemptCache),
 			consoleAuditLogInterceptor(logger, db),
 		),
@@ -353,7 +357,7 @@ func StartConsoleServer(logger *zap.Logger, startupLogger *zap.Logger, db *sql.D
 		r.Header.Set("Grpc-Timeout", gatewayContextTimeoutMs)
 
 		// Allow GRPC Gateway to handle the request.
-		handlerWithMaxBody.ServeHTTP(w, r)
+		handlerWithMaxBody.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), ctxTraceId{}, uuid.Must(uuid.NewV4()).String())))
 	})
 	if err := registerDashboardHandlers(logger, grpcGatewayRouter); err != nil {
 		startupLogger.Fatal("Console dashboard registration failed", zap.Error(err))
@@ -632,7 +636,7 @@ func checkAuth(ctx context.Context, logger *zap.Logger, config Config, auth, pat
 			return ctx, status.Error(codes.Unauthenticated, "Token invalid.")
 		}
 
-		ctx = context.WithValue(ctx, ctxConsoleIdKey{}, userId)
+		ctx = context.WithValue(ctx, ctxConsoleUserIdKey{}, userId)
 		ctx = context.WithValue(ctx, ctxConsoleUsernameKey{}, uname)
 		ctx = context.WithValue(ctx, ctxConsoleEmailKey{}, email)
 		ctx = context.WithValue(ctx, ctxConsoleUserAclKey{}, userAcl)
@@ -721,7 +725,7 @@ func checkAuthCustom(r *http.Request, logger *zap.Logger, config Config, auth, m
 			return r, false, http.StatusUnauthorized, `{"error":"Token invalid.","message":"Token invalid.","code":16}`
 		}
 
-		ctx := context.WithValue(r.Context(), ctxConsoleIdKey{}, userId)
+		ctx := context.WithValue(r.Context(), ctxConsoleUserIdKey{}, userId)
 		ctx = context.WithValue(ctx, ctxConsoleUsernameKey{}, uname)
 		ctx = context.WithValue(ctx, ctxConsoleEmailKey{}, email)
 		ctx = context.WithValue(ctx, ctxConsoleUserAclKey{}, userAcl)

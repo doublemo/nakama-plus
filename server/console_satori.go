@@ -24,13 +24,14 @@ import (
 )
 
 func (s *ConsoleServer) SatoriListTemplates(ctx context.Context, in *console.Template_ListRequest) (*console.Template_ListResponse, error) {
+	logger := LoggerWithTraceId(ctx, s.logger)
 	if s.satori == nil {
 		return nil, status.Error(codes.FailedPrecondition, "Satori server key not configured.")
 	}
 
 	res, err := s.satori.ConsoleMessageTemplatesList(ctx, in)
 	if err != nil {
-		s.logger.Error("Failed to list message templates from satori", zap.Error(err))
+		logger.Error("Failed to list message templates from satori", zap.Error(err))
 		return nil, err
 	}
 
@@ -38,13 +39,14 @@ func (s *ConsoleServer) SatoriListTemplates(ctx context.Context, in *console.Tem
 }
 
 func (s *ConsoleServer) SatoriSendDirectMessage(ctx context.Context, in *console.SendDirectMessageRequest) (*console.SendDirectMessageResponse, error) {
+	logger := LoggerWithTraceId(ctx, s.logger)
 	if s.satori == nil {
 		return nil, status.Error(codes.FailedPrecondition, "Satori server key not configured.")
 	}
 
 	res, err := s.satori.ConsoleDirectMessageSend(ctx, in)
 	if err != nil {
-		s.logger.Error("Failed to send satori direct message", zap.Error(err))
+		logger.Error("Failed to send satori direct message", zap.Error(err))
 		return nil, err
 	}
 

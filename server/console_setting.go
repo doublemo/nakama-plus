@@ -94,6 +94,7 @@ func (s *ConsoleServer) UpdateSetting(ctx context.Context, in *console.UpdateSet
 }
 
 func (s *ConsoleServer) ListSettings(ctx context.Context, in *console.ListSettingsRequest) (*console.SettingList, error) {
+	logger := LoggerWithTraceId(ctx, s.logger)
 	query := `SELECT name, value, update_time FROM setting`
 	params := []any{}
 
@@ -108,7 +109,7 @@ func (s *ConsoleServer) ListSettings(ctx context.Context, in *console.ListSettin
 		if errors.Is(err, context.Canceled) {
 			return nil, status.Error(codes.Canceled, "Request was canceled.")
 		}
-		s.logger.Error("Error listing settings.", zap.Error(err))
+		logger.Error("Error listing settings.", zap.Error(err))
 		return nil, status.Error(codes.Internal, "An error occurred while trying to list settings.")
 	}
 	defer rows.Close()
