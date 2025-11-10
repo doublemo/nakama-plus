@@ -4,6 +4,7 @@ All notable changes to this project are documented below.
 The format is based on [keep a changelog](http://keepachangelog.com) and this project uses [semantic versioning](http://semver.org).
 
 ## [Unreleased]
+## [3.34.0] - 2025-11-09
 ### Added
 - Support for access control templates in Console UI.
 - Remove usage of database random generator function in migrations for compatibility with older PostgreSQL versions
