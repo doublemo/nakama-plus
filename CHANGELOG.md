@@ -4,6 +4,16 @@ All notable changes to this project are documented below.
 The format is based on [keep a changelog](http://keepachangelog.com) and this project uses [semantic versioning](http://semver.org).
 
 ## [Unreleased]
+### Fixed
+- Fix migration script to correctly revert console fine-grained access control changes
+
+### Added
+- Add trace identifier to RPC function contexts.
+- Add runtime Satori client feature to send direct messages.
+- Add runtime Satori client option to fetch messages by a set of identifiers.
+- New TypeScript/JavaScript runtime function to generate secure random bytes.
+- New Lua runtime function to generate secure random bytes.
+
 ## [3.34.0] - 2025-11-09
 ### Added
 - Support for access control templates in Console UI.
