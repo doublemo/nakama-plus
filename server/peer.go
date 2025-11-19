@@ -1226,7 +1226,7 @@ func (s *LocalPeer) onNotifyMsg(msg []byte) {
 
 	case *pb.Frame_Event:
 		if fn := s.runtime.EventPeer(); fn != nil {
-			evtCtx := NewRuntimeGoContext(s.ctx, s.Local().Name(), "", s.runtimeConfig.Environment, RuntimeExecutionModePeerEvent, nil, nil, 0, "", "", nil, "", "", "", "")
+			evtCtx := NewRuntimeGoContext(s.ctx, s.Local().Name(), "", s.runtimeConfig.Environment, RuntimeExecutionModePeerEvent, nil, nil, "", 0, "", "", nil, "", "", "", "")
 			fn(evtCtx, NewRuntimeGoLogger(s.logger), v.Event)
 		}
 	}

@@ -77,11 +77,11 @@ func (s *ApiServer) Any(ctx context.Context, in *api.AnyRequest) (*api.AnyRespon
 	in.Header["client_ip"] = clientIP
 	in.Header["client_port"] = clientPort
 
-	logger := LoggerWithTraceId(ctx, s.logger)
+	logger, traceID := LoggerWithTraceId(ctx, s.logger)
 	// Before hook.
 	if fn := s.runtime.BeforeAny(); fn != nil {
 		beforeFn := func(clientIP, clientPort string) error {
-			result, err, code := fn(ctx, logger, userId, username, vars, expiry, clientIP, clientPort, in)
+			result, err, code := fn(ctx, logger, traceID, userId, username, vars, expiry, clientIP, clientPort, in)
 			if err != nil {
 				return status.Error(code, err.Error())
 			}
@@ -121,7 +121,7 @@ func (s *ApiServer) Any(ctx context.Context, in *api.AnyRequest) (*api.AnyRespon
 	// After hook.
 	if fn := s.runtime.AfterAny(); fn != nil {
 		afterFn := func(clientIP, clientPort string) error {
-			return fn(ctx, logger, userId, username, vars, expiry, clientIP, clientPort, w, in)
+			return fn(ctx, logger, traceID, userId, username, vars, expiry, clientIP, clientPort, w, in)
 		}
 		// Execute the after function lambda wrapped in a trace for stats measurement.
 		traceApiAfter(ctx, logger, s.metrics, fullMethod, afterFn)

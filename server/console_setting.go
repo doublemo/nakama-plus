@@ -94,7 +94,7 @@ func (s *ConsoleServer) UpdateSetting(ctx context.Context, in *console.UpdateSet
 }
 
 func (s *ConsoleServer) ListSettings(ctx context.Context, in *console.ListSettingsRequest) (*console.SettingList, error) {
-	logger := LoggerWithTraceId(ctx, s.logger)
+	logger, _ := LoggerWithTraceId(ctx, s.logger)
 	query := `SELECT name, value, update_time FROM setting`
 	params := []any{}
 
