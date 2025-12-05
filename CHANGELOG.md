@@ -4,13 +4,15 @@ All notable changes to this project are documented below.
 The format is based on [keep a changelog](http://keepachangelog.com) and this project uses [semantic versioning](http://semver.org).
 
 ## [Unreleased]
+
+## [3.35.1] - 2025-12-05
 ### Fixed
 - Fix migration script to correctly revert console fine-grained access control changes
 - Fix an issue that would prevent the console data reset operation from completing successfully.
 - Avoid unnecessary cache check in runtime Satori client Properties lookup.
 - Fix an issue with Apple In-App Purchase notification handling that would prevent the notification from being processed.
 - Fix an issue with Google In-App Purchase notification handling that would prevent refund/voided types from being processed.
-- Correctly wire ctx propagation in Session Start/End event hooks.
+- Correctly wire context propagation in Session Start/End runtime event hooks.
 
 ### Added
 - Add trace identifier to RPC function contexts.
