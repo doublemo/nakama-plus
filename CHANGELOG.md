@@ -7,6 +7,7 @@ The format is based on [keep a changelog](http://keepachangelog.com) and this pr
 ### Fixed
 - Fix migration script to correctly revert console fine-grained access control changes
 - Fix an issue that would prevent the console data reset operation from completing successfully.
+- Avoid unnecessary cache check in runtime Satori client Properties lookup.
 
 ### Added
 - Add trace identifier to RPC function contexts.
@@ -14,6 +15,10 @@ The format is based on [keep a changelog](http://keepachangelog.com) and this pr
 - Add runtime Satori client option to fetch messages by a set of identifiers.
 - New TypeScript/JavaScript runtime function to generate secure random bytes.
 - New Lua runtime function to generate secure random bytes.
+- New runtime Satori client options for time-based caching.
+
+### Changed
+- Adjust unit of measure for Satori client timeout.
 
 ## [3.34.0] - 2025-11-09
 ### Added
