@@ -9,6 +9,7 @@ The format is based on [keep a changelog](http://keepachangelog.com) and this pr
 - Fix an issue that would prevent the console data reset operation from completing successfully.
 - Avoid unnecessary cache check in runtime Satori client Properties lookup.
 - Fix an issue with Apple In-App Purchase notification handling that would prevent the notification from being processed.
+- Fix an issue with Google In-App Purchase notification handling that would prevent refund/voided types from being processed.
 
 ### Added
 - Add trace identifier to RPC function contexts.
