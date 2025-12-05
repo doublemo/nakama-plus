@@ -18,18 +18,25 @@ import (
 	"context"
 	"testing"
 
+	"github.com/doublemo/nakama-common/rtapi"
 	"github.com/gofrs/uuid/v5"
 	"go.uber.org/zap"
 )
 
 // should add and remove from PartyMatchmaker
+// should add and remove from PartyMatchmaker
 func TestPartyMatchmakerAddAndRemove(t *testing.T) {
 	consoleLogger := loggerForTest(t)
-	partyHandler, cleanup := createTestPartyHandler(t, consoleLogger)
+	presence := &rtapi.UserPresence{
+		UserId:    uuid.Must(uuid.NewV4()).String(),
+		SessionId: uuid.Must(uuid.NewV4()).String(),
+		Username:  "username1",
+	}
+	partyHandler, cleanup := createTestPartyHandler(t, consoleLogger, presence)
 	defer cleanup()
 
-	sessionID, _ := uuid.NewV4()
-	userID, _ := uuid.NewV4()
+	sessionID := uuid.FromStringOrNil(presence.SessionId)
+	userID := uuid.FromStringOrNil(presence.UserId)
 	node := "node1"
 
 	partyHandler.Join([]*Presence{&Presence{
@@ -40,7 +47,7 @@ func TestPartyMatchmakerAddAndRemove(t *testing.T) {
 		// Presence stream not needed.
 		UserID: userID,
 		Meta: PresenceMeta{
-			Username: "username",
+			Username: presence.Username,
 			// Other meta fields not needed.
 		},
 	}})
@@ -56,7 +63,7 @@ func TestPartyMatchmakerAddAndRemove(t *testing.T) {
 	}
 }
 
-func createTestPartyHandler(t *testing.T, logger *zap.Logger) (*PartyHandler, func() error) {
+func createTestPartyHandler(t *testing.T, logger *zap.Logger, presence *rtapi.UserPresence) (*PartyHandler, func() error) {
 	node := "node1"
 
 	mm, cleanup, _ := createTestMatchmaker(t, logger, true, nil)
@@ -65,8 +72,8 @@ func createTestPartyHandler(t *testing.T, logger *zap.Logger) (*PartyHandler, fu
 
 	dmr := DummyMessageRouter{}
 
-	pr := NewLocalPartyRegistry(context.Background(), logger, logger, cfg, node)
+	pr := NewLocalPartyRegistry(context.Background(), logger, logger, cfg, node, &testMetrics{})
 	pr.Init(mm, &tt, &tsm, &dmr, nil)
-	ph := NewPartyHandler(logger, pr, mm, &tt, &tsm, &dmr, uuid.UUID{}, node, true, 10, nil, nil)
+	ph := NewPartyHandler(logger, pr, mm, &tt, &tsm, &dmr, uuid.UUID{}, node, true, 10, presence, nil)
 	return ph, cleanup
 }

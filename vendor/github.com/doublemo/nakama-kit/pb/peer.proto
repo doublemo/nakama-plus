@@ -163,6 +163,7 @@ message Status {
     double avgRateSec = 8;
     double avgInputKbs = 9;
     double avgOutputKbs = 10;
+    int32 partyCount = 11;
 }
 
 message PresenceID {

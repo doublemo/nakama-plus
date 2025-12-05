@@ -51,6 +51,7 @@ type PartyRegistry interface {
 
 	Create(open, hidden bool, maxSize int, leader *rtapi.UserPresence, label string) (*PartyHandler, error)
 	Delete(id uuid.UUID)
+	Count() int
 
 	Join(id uuid.UUID, presences []*Presence)
 	Leave(id uuid.UUID, presences []*Presence)
@@ -80,14 +81,16 @@ type LocalPartyRegistry struct {
 	streamManager StreamManager
 	router        MessageRouter
 	node          string
+	metrics       Metrics
 	initialized   *atomic.Bool
 
 	indexWriter         *bluge.Writer
 	pendingUpdatesMutex *sync.Mutex
 	pendingUpdates      map[string]*PartyIndexEntry
 
-	parties *MapOf[uuid.UUID, *PartyHandler]
-	peer    *atomic.Pointer[Peer]
+	parties    *MapOf[uuid.UUID, *PartyHandler]
+	partyCount *atomic.Int64
+	peer       *atomic.Pointer[Peer]
 
 	stopped   *atomic.Bool
 	stoppedCh chan struct{}
@@ -104,7 +107,7 @@ type PartyIndexEntry struct {
 	CreateTime  time.Time
 }
 
-func NewLocalPartyRegistry(ctx context.Context, logger, startupLogger *zap.Logger, config Config, node string) PartyRegistry {
+func NewLocalPartyRegistry(ctx context.Context, logger, startupLogger *zap.Logger, config Config, node string, metrics Metrics) PartyRegistry {
 	indexWriter, err := bluge.OpenWriter(BlugeInMemoryConfig())
 	if err != nil {
 		startupLogger.Fatal("Failed to create party registry index", zap.Error(err))
@@ -115,6 +118,7 @@ func NewLocalPartyRegistry(ctx context.Context, logger, startupLogger *zap.Logge
 		logger:      logger,
 		config:      config,
 		node:        node,
+		metrics:     metrics,
 
 		indexWriter:         indexWriter,
 		pendingUpdatesMutex: &sync.Mutex{},
@@ -123,8 +127,9 @@ func NewLocalPartyRegistry(ctx context.Context, logger, startupLogger *zap.Logge
 		stopped:   atomic.NewBool(false),
 		stoppedCh: make(chan struct{}, 2),
 
-		parties: &MapOf[uuid.UUID, *PartyHandler]{},
-		peer:    &atomic.Pointer[Peer]{},
+		parties:    &MapOf[uuid.UUID, *PartyHandler]{},
+		partyCount: atomic.NewInt64(0),
+		peer:       &atomic.Pointer[Peer]{},
 	}
 
 	go func() {
@@ -200,6 +205,8 @@ func (p *LocalPartyRegistry) Create(open, hidden bool, maxSize int, presence *rt
 	partyHandler := NewPartyHandler(p.logger, p, p.matchmaker, p.tracker, p.streamManager, p.router, id, p.node, open, maxSize, presence, peer)
 
 	p.parties.Store(id, partyHandler)
+	count := p.partyCount.Inc()
+	p.metrics.GaugeParties(float64(count))
 
 	idStr := fmt.Sprintf("%v.%v", id.String(), p.node)
 	entry := &PartyIndexEntry{
@@ -228,10 +235,19 @@ func (p *LocalPartyRegistry) Delete(id uuid.UUID) {
 	p.pendingUpdates[idStr] = nil
 	p.pendingUpdatesMutex.Unlock()
 
-	p.parties.Delete(id)
+	_, existed := p.parties.LoadAndDelete(id)
+	if existed {
+		count := p.partyCount.Dec()
+		p.metrics.GaugeParties(float64(count))
+	}
+
 	if peer, ok := p.getPeer(); ok {
 		peer.PartyClose(idStr)
 	}
+}
+
+func (p *LocalPartyRegistry) Count() int {
+	return int(p.partyCount.Load())
 }
 
 func (p *LocalPartyRegistry) Join(id uuid.UUID, presences []*Presence) {

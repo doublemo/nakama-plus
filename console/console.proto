@@ -1455,6 +1455,8 @@ message User {
      double avg_output_kbs = 10;
      // Leader
      bool leader = 11;
+     // Current number of active parties.
+    int32 party_count = 12;
    }
 
   message ServiceStatus {

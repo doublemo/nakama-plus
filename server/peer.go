@@ -392,6 +392,7 @@ func (s *LocalPeer) AckPayload() []byte {
 		AvgRateSec:     math.Floor(s.metrics.SnapshotRateSec()*100) / 100,
 		AvgInputKbs:    math.Floor(s.metrics.SnapshotRecvKbSec()*100) / 100,
 		AvgOutputKbs:   math.Floor(s.metrics.SnapshotSentKbSec()*100) / 100,
+		PartyCount:     int32(s.partyRegistry.Count()),
 	}
 	bytes, _ := proto.Marshal(status)
 	return bytes

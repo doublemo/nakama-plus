@@ -56,7 +56,7 @@ type PartyHandler struct {
 	stopped               bool
 	ctx                   context.Context
 	ctxCancelFn           context.CancelFunc
-	expectedInitialLeader *rtapi.UserPresence
+	expectedInitialLeader *Presence
 	leader                *PartyLeader
 	joinRequests          []*PartyJoinRequest
 
@@ -67,7 +67,20 @@ type PartyHandler struct {
 func NewPartyHandler(logger *zap.Logger, partyRegistry PartyRegistry, matchmaker Matchmaker, tracker Tracker, streamManager StreamManager, router MessageRouter, id uuid.UUID, node string, open bool, maxSize int, presence *rtapi.UserPresence, peer Peer) *PartyHandler {
 	idStr := fmt.Sprintf("%v.%v", id.String(), node)
 	ctx, ctxCancelFn := context.WithCancel(context.Background())
-	return &PartyHandler{
+
+	stream := PresenceStream{Mode: StreamModeParty, Subject: id, Label: node}
+
+	leaderPresence := &Presence{
+		ID: PresenceID{
+			Node:      node,
+			SessionID: uuid.FromStringOrNil(presence.SessionId),
+		},
+		Stream: stream,
+		UserID: uuid.FromStringOrNil(presence.UserId),
+		Meta:   PresenceMeta{},
+	}
+
+	p := &PartyHandler{
 		logger:        logger.With(zap.String("party_id", idStr)),
 		partyRegistry: partyRegistry,
 		matchmaker:    matchmaker,
@@ -81,18 +94,26 @@ func NewPartyHandler(logger *zap.Logger, partyRegistry PartyRegistry, matchmaker
 		Open:       open,
 		CreateTime: time.Now(),
 		MaxSize:    maxSize,
-		Stream:     PresenceStream{Mode: StreamModeParty, Subject: id, Label: node},
+		Stream:     stream,
 
 		stopped:               false,
 		ctx:                   ctx,
 		ctxCancelFn:           ctxCancelFn,
-		expectedInitialLeader: presence,
-		leader:                nil,
-		joinRequests:          make([]*PartyJoinRequest, 0, maxSize),
+		expectedInitialLeader: leaderPresence,
+		leader: &PartyLeader{
+			PresenceID:   &leaderPresence.ID,
+			UserPresence: presence,
+		},
+		joinRequests: make([]*PartyJoinRequest, 0, maxSize),
 
 		members: NewPartyPresenceList(maxSize),
 		peer:    peer,
 	}
+
+	// No errors expected here.
+	_, _ = p.members.Join([]*Presence{leaderPresence})
+
+	return p
 }
 
 func (p *PartyHandler) stop() {
@@ -190,27 +211,21 @@ func (p *PartyHandler) Join(presences []*Presence) {
 
 	// Assign the party leader if this is the first join.
 	var initialLeader *Presence
+	if p.expectedInitialLeader != nil {
+		initialLeader = p.expectedInitialLeader
+		p.expectedInitialLeader = nil
+	}
 	if p.leader == nil {
-		if p.expectedInitialLeader != nil {
-			expectedInitialLeader := p.expectedInitialLeader
-			p.expectedInitialLeader = nil
-			for _, presence := range presences {
-				if presence.GetUserId() == expectedInitialLeader.UserId && presence.GetSessionId() == expectedInitialLeader.SessionId {
-					// The initial leader is joining the party at creation time.
-					initialLeader = presence
-					p.leader = &PartyLeader{
-						PresenceID: &presence.ID,
-						UserPresence: &rtapi.UserPresence{
-							UserId:    presence.GetUserId(),
-							SessionId: presence.GetSessionId(),
-							Username:  presence.GetUsername(),
-						},
-					}
-					break
-				}
+		if initialLeader != nil {
+			p.leader = &PartyLeader{
+				PresenceID: &initialLeader.ID,
+				UserPresence: &rtapi.UserPresence{
+					UserId:    initialLeader.GetUserId(),
+					SessionId: initialLeader.GetSessionId(),
+					Username:  initialLeader.GetUsername(),
+				},
 			}
-		}
-		if initialLeader == nil {
+		} else {
 			// If the expected initial leader was not assigned, select the first joiner. Also
 			// covers the party leader leaving at some point during the lifecycle of the party.
 			p.leader = &PartyLeader{
@@ -345,7 +360,7 @@ func (p *PartyHandler) Promote(sessionID, node string, presence *rtapi.UserPrese
 	}
 
 	// Only the party leader may promote.
-	if p.leader == nil || p.leader.PresenceID.SessionID.String() != sessionID || p.leader.PresenceID.Node != node {
+	if p.leader == nil || p.leader.UserPresence.SessionId != sessionID || p.leader.PresenceID.Node != node {
 		p.Unlock()
 		return runtime.ErrPartyNotLeader
 	}
@@ -394,7 +409,7 @@ func (p *PartyHandler) Accept(sessionID, node string, presence *rtapi.UserPresen
 	}
 
 	// Only the party leader may promote.
-	if p.leader == nil || p.leader.PresenceID.SessionID.String() != sessionID || p.leader.PresenceID.Node != node {
+	if p.leader == nil || p.leader.UserPresence.SessionId != sessionID || p.leader.PresenceID.Node != node {
 		p.Unlock()
 		return runtime.ErrPartyNotLeader
 	}
@@ -462,7 +477,7 @@ func (p *PartyHandler) Remove(sessionID, node string, presence *rtapi.UserPresen
 	}
 
 	// Only the party leader may remove.
-	if p.leader == nil || p.leader.PresenceID.SessionID.String() != sessionID || p.leader.PresenceID.Node != node {
+	if p.leader == nil || p.leader.UserPresence.SessionId != sessionID || p.leader.PresenceID.Node != node {
 		p.Unlock()
 		return runtime.ErrPartyNotLeader
 	}
@@ -714,7 +729,7 @@ func (p *PartyHandler) Update(sessionID, node, label string, open, hidden bool) 
 	}
 
 	// Only the party leader may update the label.
-	if p.leader == nil || p.leader.PresenceID.SessionID.String() != sessionID || p.leader.PresenceID.Node != node {
+	if p.leader == nil || p.leader.UserPresence.SessionId != sessionID || p.leader.PresenceID.Node != node {
 		p.Unlock()
 		return runtime.ErrPartyNotLeader
 	}

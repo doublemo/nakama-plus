@@ -103,6 +103,8 @@ github.com/doublemo/nakama-common v1.43.1 h1:cA/QZMK/cJaB1sGXLuazunxv/oOuTyst8Rk
 github.com/doublemo/nakama-common v1.43.1/go.mod h1:zf1RcnwpodGEoS1AaqysIXOA5ZbwArLlridnIFgc0NQ=
 github.com/doublemo/nakama-kit v1.4.0 h1:9QFdWwIx8ac3LATXTYm9nm1QarzYMimy91YVZcQ2CYc=
 github.com/doublemo/nakama-kit v1.4.0/go.mod h1:k8fVH0Uu5oFId7+pTZvwoWOzhGIzJXMCEGcTmucHJ/A=
+github.com/doublemo/nakama-kit v1.4.1 h1:qCfabwEHxMyP9guGSeBgo83332vqtTSvlCzc3Euf4cU=
+github.com/doublemo/nakama-kit v1.4.1/go.mod h1:BRiVucuCFNOoGPDqKP3qUSR1IkVIIp4sDDJxCnVaCYg=
 github.com/dustin/go-humanize v1.0.1 h1:GzkhY7T5VNhEkwH0PVJgjz+fX1rhBrR7pRT3mDkpeCY=
 github.com/dustin/go-humanize v1.0.1/go.mod h1:Mu1zIs6XwVuF/gI1OepvI0qD18qycQx+mFykh5fBlto=
 github.com/eko/gocache/lib/v4 v4.2.0 h1:MNykyi5Xw+5Wu3+PUrvtOCaKSZM1nUSVftbzmeC7Yuw=

@@ -7872,7 +7872,9 @@ type StatusList_Status struct {
 	// Average output bandwidth usage.
 	AvgOutputKbs float64 `protobuf:"fixed64,10,opt,name=avg_output_kbs,json=avgOutputKbs,proto3" json:"avg_output_kbs,omitempty"`
 	// Leader
-	Leader        bool `protobuf:"varint,11,opt,name=leader,proto3" json:"leader,omitempty"`
+	Leader bool `protobuf:"varint,11,opt,name=leader,proto3" json:"leader,omitempty"`
+	// Current number of active parties.
+	PartyCount    int32 `protobuf:"varint,12,opt,name=party_count,json=partyCount,proto3" json:"party_count,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -7982,6 +7984,13 @@ func (x *StatusList_Status) GetLeader() bool {
 		return x.Leader
 	}
 	return false
+}
+
+func (x *StatusList_Status) GetPartyCount() int32 {
+	if x != nil {
+		return x.PartyCount
+	}
+	return 0
 }
 
 type StatusList_ServiceStatus struct {
@@ -9941,12 +9950,12 @@ const file_console_proto_rawDesc = "" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x121\n" +
 	"\x05value\x18\x02 \x01(\v2\x1b.nakama.console.PermissionsR\x05value:\x028\x01\"6\n" +
 	"\bUserList\x12*\n" +
-	"\x05users\x18\x01 \x03(\v2\x14.nakama.console.UserR\x05users\"\xa8\a\n" +
+	"\x05users\x18\x01 \x03(\v2\x14.nakama.console.UserR\x05users\"\xc9\a\n" +
 	"\n" +
 	"StatusList\x127\n" +
 	"\x05nodes\x18\x01 \x03(\v2!.nakama.console.StatusList.StatusR\x05nodes\x128\n" +
 	"\ttimestamp\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\x12D\n" +
-	"\bservices\x18\x03 \x03(\v2(.nakama.console.StatusList.ServiceStatusR\bservices\x1a\x92\x03\n" +
+	"\bservices\x18\x03 \x03(\v2(.nakama.console.StatusList.ServiceStatusR\bservices\x1a\xb3\x03\n" +
 	"\x06Status\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x124\n" +
 	"\x06health\x18\x02 \x01(\x0e2\x1c.nakama.console.StatusHealthR\x06health\x12#\n" +
@@ -9961,7 +9970,9 @@ const file_console_proto_rawDesc = "" +
 	"\ravg_input_kbs\x18\t \x01(\x01R\vavgInputKbs\x12$\n" +
 	"\x0eavg_output_kbs\x18\n" +
 	" \x01(\x01R\favgOutputKbs\x12\x16\n" +
-	"\x06leader\x18\v \x01(\bR\x06leader\x1a\xcb\x02\n" +
+	"\x06leader\x18\v \x01(\bR\x06leader\x12\x1f\n" +
+	"\vparty_count\x18\f \x01(\x05R\n" +
+	"partyCount\x1a\xcb\x02\n" +
 	"\rServiceStatus\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12F\n" +
 	"\x04vars\x18\x02 \x03(\v22.nakama.console.StatusList.ServiceStatus.VarsEntryR\x04vars\x12\x0e\n" +

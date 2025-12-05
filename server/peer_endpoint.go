@@ -40,6 +40,7 @@ type (
 		MarshalJSON() ([]byte, error)
 		MarshalProtoBuffer() ([]byte, error)
 		Leader(v ...bool) bool
+		PartyCount() int32
 	}
 
 	PeerEndpoint struct {
@@ -60,6 +61,7 @@ type (
 		memberlistNode atomic.Pointer[memberlist.Node]
 		status         *atomic.Int32
 		leader         *atomic.Bool
+		partyCount     *atomic.Int32
 
 		protojsonMarshaler *protojson.MarshalOptions
 		sync.Mutex
@@ -83,6 +85,7 @@ func NewPeerEndpont(name string, md map[string]string, status, weight, balancer 
 		balancer:       atomic.NewInt32(balancer),
 		status:         atomic.NewInt32(status),
 		leader:         atomic.NewBool(leader),
+		partyCount:     &atomic.Int32{},
 
 		protojsonMarshaler: protojsonMarshaler,
 	}
@@ -242,6 +245,10 @@ func (endpoint *PeerEndpoint) Leader(v ...bool) bool {
 	return endpoint.leader.Load()
 }
 
+func (endpoint *PeerEndpoint) PartyCount() int32 {
+	return endpoint.partyCount.Load()
+}
+
 func (endpoint *PeerEndpoint) UpdateState(status *pb.Status) {
 	endpoint.sessionCount.Store(status.SessionCount)
 	endpoint.presenceCount.Store(status.PresenceCount)
@@ -251,6 +258,7 @@ func (endpoint *PeerEndpoint) UpdateState(status *pb.Status) {
 	endpoint.avgRateSec.Store(status.AvgRateSec)
 	endpoint.avgInputKbs.Store(status.AvgInputKbs)
 	endpoint.avgOutputKbs.Store(status.AvgOutputKbs)
+	endpoint.partyCount.Store(status.PartyCount)
 }
 
 func (endpoint *PeerEndpoint) MarshalJSON() ([]byte, error) {
