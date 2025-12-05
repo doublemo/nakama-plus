@@ -1457,6 +1457,8 @@ message User {
      bool leader = 11;
      // Current number of active parties.
     int32 party_count = 12;
+    // Time when the node was created and started up.
+    google.protobuf.Timestamp create_time = 13;
    }
 
   message ServiceStatus {

@@ -63,6 +63,7 @@ var (
 	jsonpbUnmarshaler = &protojson.UnmarshalOptions{
 		DiscardUnknown: false,
 	}
+	createTime = time.Now().UTC()
 )
 
 func main() {
@@ -214,9 +215,9 @@ func main() {
 	leaderboardScheduler.Start(runtime)
 
 	pipeline := server.NewPipeline(logger, config, db, jsonpbMarshaler, jsonpbUnmarshaler, sessionRegistry, statusRegistry, matchRegistry, partyRegistry, matchmaker, tracker, router, runtime)
-	statusHandler := server.NewLocalStatusHandler(logger, sessionRegistry, matchRegistry, partyRegistry, tracker, metrics, config.GetName())
+	statusHandler := server.NewLocalStatusHandler(logger, sessionRegistry, matchRegistry, partyRegistry, tracker, metrics, config.GetName(), createTime)
 
-	peer := server.NewLocalPeer(db, logger, config.GetName(), make(map[string]string), runtime, metrics, sessionRegistry, tracker, router, matchRegistry, matchmaker, partyRegistry, leaderboardCache, leaderboardRankCache, leaderboardScheduler, jsonpbMarshaler, jsonpbUnmarshaler, config)
+	peer := server.NewLocalPeer(db, logger, config.GetName(), make(map[string]string), runtime, metrics, sessionRegistry, tracker, router, matchRegistry, matchmaker, partyRegistry, leaderboardCache, leaderboardRankCache, leaderboardScheduler, jsonpbMarshaler, jsonpbUnmarshaler, config, createTime)
 	sessionRegistry.SetPeer(peer)
 	statusHandler.SetPeer(peer)
 	matchRegistry.SetPeer(peer)

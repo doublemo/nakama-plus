@@ -10,6 +10,7 @@ import (
 	"go.uber.org/atomic"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type (
@@ -41,6 +42,7 @@ type (
 		MarshalProtoBuffer() ([]byte, error)
 		Leader(v ...bool) bool
 		PartyCount() int32
+		ServerCreateTime() *timestamppb.Timestamp
 	}
 
 	PeerEndpoint struct {
@@ -62,6 +64,7 @@ type (
 		status         *atomic.Int32
 		leader         *atomic.Bool
 		partyCount     *atomic.Int32
+		createTime     atomic.Pointer[timestamppb.Timestamp]
 
 		protojsonMarshaler *protojson.MarshalOptions
 		sync.Mutex
@@ -249,6 +252,10 @@ func (endpoint *PeerEndpoint) PartyCount() int32 {
 	return endpoint.partyCount.Load()
 }
 
+func (endpoint *PeerEndpoint) ServerCreateTime() *timestamppb.Timestamp {
+	return endpoint.createTime.Load()
+}
+
 func (endpoint *PeerEndpoint) UpdateState(status *pb.Status) {
 	endpoint.sessionCount.Store(status.SessionCount)
 	endpoint.presenceCount.Store(status.PresenceCount)
@@ -259,6 +266,7 @@ func (endpoint *PeerEndpoint) UpdateState(status *pb.Status) {
 	endpoint.avgInputKbs.Store(status.AvgInputKbs)
 	endpoint.avgOutputKbs.Store(status.AvgOutputKbs)
 	endpoint.partyCount.Store(status.PartyCount)
+	endpoint.createTime.Store(status.CreateTime)
 }
 
 func (endpoint *PeerEndpoint) MarshalJSON() ([]byte, error) {

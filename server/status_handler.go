@@ -21,10 +21,12 @@ import (
 	"runtime"
 	"sort"
 	"strconv"
+	"time"
 
 	"github.com/doublemo/nakama-kit/kit"
 	"github.com/doublemo/nakama-plus/v3/console"
 	"go.uber.org/zap"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type StatusHandler interface {
@@ -41,10 +43,11 @@ type LocalStatusHandler struct {
 	tracker         Tracker
 	metrics         Metrics
 	node            string
+	createTime      time.Time
 	peer            Peer
 }
 
-func NewLocalStatusHandler(logger *zap.Logger, sessionRegistry SessionRegistry, matchRegistry MatchRegistry, partyRegistry PartyRegistry, tracker Tracker, metrics Metrics, node string) StatusHandler {
+func NewLocalStatusHandler(logger *zap.Logger, sessionRegistry SessionRegistry, matchRegistry MatchRegistry, partyRegistry PartyRegistry, tracker Tracker, metrics Metrics, node string, createTime time.Time) StatusHandler {
 	return &LocalStatusHandler{
 		logger:          logger,
 		sessionRegistry: sessionRegistry,
@@ -53,6 +56,7 @@ func NewLocalStatusHandler(logger *zap.Logger, sessionRegistry SessionRegistry, 
 		tracker:         tracker,
 		metrics:         metrics,
 		node:            node,
+		createTime:      createTime,
 		peer:            nil,
 	}
 }
@@ -72,6 +76,7 @@ func (s *LocalStatusHandler) GetStatus(ctx context.Context) ([]*console.StatusLi
 		AvgOutputKbs:   math.Floor(s.metrics.SnapshotSentKbSec()*100) / 100,
 		Leader:         s.peer.Local().Leader(),
 		PartyCount:     int32(s.partyRegistry.Count()),
+		CreateTime:     timestamppb.New(s.createTime),
 	})
 
 	if s.peer == nil {
@@ -96,6 +101,7 @@ func (s *LocalStatusHandler) GetStatus(ctx context.Context) ([]*console.StatusLi
 			AvgOutputKbs:   member.AvgOutputKbs(),
 			Leader:         member.Leader(),
 			PartyCount:     member.PartyCount(),
+			CreateTime:     member.ServerCreateTime(),
 		})
 	}
 

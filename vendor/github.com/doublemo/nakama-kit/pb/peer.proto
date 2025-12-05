@@ -164,6 +164,9 @@ message Status {
     double avgInputKbs = 9;
     double avgOutputKbs = 10;
     int32 partyCount = 11;
+    // Time when the node was created and started up.
+    google.protobuf.Timestamp create_time = 12;
+
 }
 
 message PresenceID {

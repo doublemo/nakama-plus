@@ -125,13 +125,14 @@ type (
 		protojsonUnmarshaler   *protojson.UnmarshalOptions
 		db                     *sql.DB
 		partyIndexOffset       *uberatomic.Int64
+		createTime             time.Time
 
 		once sync.Once
 		sync.Mutex
 	}
 )
 
-func NewLocalPeer(db *sql.DB, logger *zap.Logger, name string, metadata map[string]string, runtime *Runtime, metrics Metrics, sessionRegistry SessionRegistry, tracker Tracker, messageRouter MessageRouter, matchRegistry MatchRegistry, matchmaker Matchmaker, partyRegistry PartyRegistry, leaderboardCache LeaderboardCache, leaderboardRankCache LeaderboardRankCache, leaderboardScheduler LeaderboardScheduler, protojsonMarshaler *protojson.MarshalOptions, protojsonUnmarshaler *protojson.UnmarshalOptions, config Config) Peer {
+func NewLocalPeer(db *sql.DB, logger *zap.Logger, name string, metadata map[string]string, runtime *Runtime, metrics Metrics, sessionRegistry SessionRegistry, tracker Tracker, messageRouter MessageRouter, matchRegistry MatchRegistry, matchmaker Matchmaker, partyRegistry PartyRegistry, leaderboardCache LeaderboardCache, leaderboardRankCache LeaderboardRankCache, leaderboardScheduler LeaderboardScheduler, protojsonMarshaler *protojson.MarshalOptions, protojsonUnmarshaler *protojson.UnmarshalOptions, config Config, createTime time.Time) Peer {
 	ctx, ctxCancelFn := context.WithCancel(context.Background())
 	if metadata == nil {
 		metadata = make(map[string]string)
@@ -166,6 +167,7 @@ func NewLocalPeer(db *sql.DB, logger *zap.Logger, name string, metadata map[stri
 		db:                     db,
 		runtime:                runtime,
 		partyIndexOffset:       uberatomic.NewInt64(0),
+		createTime:             createTime,
 	}
 
 	cfg := toMemberlistConfig(s, name, c)
@@ -393,6 +395,7 @@ func (s *LocalPeer) AckPayload() []byte {
 		AvgInputKbs:    math.Floor(s.metrics.SnapshotRecvKbSec()*100) / 100,
 		AvgOutputKbs:   math.Floor(s.metrics.SnapshotSentKbSec()*100) / 100,
 		PartyCount:     int32(s.partyRegistry.Count()),
+		CreateTime:     timestamppb.New(s.createTime),
 	}
 	bytes, _ := proto.Marshal(status)
 	return bytes
