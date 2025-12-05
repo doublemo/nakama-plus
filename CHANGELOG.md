@@ -8,6 +8,7 @@ The format is based on [keep a changelog](http://keepachangelog.com) and this pr
 - Fix migration script to correctly revert console fine-grained access control changes
 - Fix an issue that would prevent the console data reset operation from completing successfully.
 - Avoid unnecessary cache check in runtime Satori client Properties lookup.
+- Fix an issue with Apple In-App Purchase notification handling that would prevent the notification from being processed.
 
 ### Added
 - Add trace identifier to RPC function contexts.
@@ -19,6 +20,9 @@ The format is based on [keep a changelog](http://keepachangelog.com) and this pr
 
 ### Changed
 - Adjust unit of measure for Satori client timeout.
+- Add runtime Satori client additional filters for live-events listing.
+- Add runtime Satori client live-event join function.
+- Configurable timeout for server initiated socket disconnects graceful close wait period.
 
 ## [3.34.0] - 2025-11-09
 ### Added

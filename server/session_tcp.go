@@ -62,6 +62,7 @@ type sessionTcp struct {
 	pingPeriodDuration   time.Duration
 	pongWaitDuration     time.Duration
 	writeWaitDuration    time.Duration
+	closeAckWaitDuration time.Duration
 	encoder              *atomic.Pointer[rc4.Cipher]
 	decoder              *atomic.Pointer[rc4.Cipher]
 
@@ -111,6 +112,7 @@ func NewSessionTcp(logger *zap.Logger, config Config, sessionID uuid.UUID, proto
 		pingPeriodDuration:   time.Duration(config.GetSocket().PingPeriodMs) * time.Millisecond,
 		pongWaitDuration:     time.Duration(config.GetSocket().PongWaitMs) * time.Millisecond,
 		writeWaitDuration:    time.Duration(config.GetSocket().WriteWaitMs) * time.Millisecond,
+		closeAckWaitDuration: time.Duration(config.GetSocket().CloseAckWaitMs) * time.Millisecond,
 		encoder:              atomic.NewPointer[rc4.Cipher](nil),
 		decoder:              atomic.NewPointer[rc4.Cipher](nil),
 
@@ -581,8 +583,11 @@ func (s *sessionTcp) Close(msg string, reason runtime.PresenceReason, envelopes 
 		logger.Debug("Could not close", zap.Error(err))
 	}
 
-	logger.Info("Closed client connection")
-
+	if msg != "" {
+		logger.Debug("Closed client connection", zap.String("reason", msg))
+	} else {
+		logger.Debug("Closed client connection")
+	}
 	// Fire an event for session end.
 	if fn := s.runtime.EventSessionEnd(); fn != nil {
 		fn(s.userID.Load(), s.username.Load(), s.Vars(), s.expiry.Load(), s.id.String(), s.clientIP.Load(), s.clientPort.Load(), s.lang.Load(), time.Now().UTC().Unix(), msg)

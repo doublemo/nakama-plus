@@ -190,6 +190,9 @@ func ValidateConfig(logger *zap.Logger, c Config) map[string]string {
 	if c.GetConsole().SigningKey == "" {
 		logger.Fatal("Console signing key must be set", zap.String("param", "console.signing_key"))
 	}
+	if c.GetSocket().CloseAckWaitMs < 1 {
+		logger.Fatal("Socket close ack timeout milliseconds must be >= 1", zap.Int("socket.close_ack_wait", c.GetSocket().CloseAckWaitMs))
+	}
 	if p := c.GetSocket().Protocol; p != "tcp" && p != "tcp4" && p != "tcp6" {
 		logger.Fatal("Socket protocol must be one of: tcp, tcp4, tcp6", zap.String("socket.protocol", c.GetSocket().Protocol))
 	}
@@ -678,7 +681,7 @@ func (c *config) GetCluster() *PeerConfig {
 	return c.Cluster
 }
 
-var _ runtime.LoggerConfig = &LoggerConfig{}
+var _ runtime.LoggerConfig = (*LoggerConfig)(nil)
 
 // LoggerConfig is configuration relevant to logging levels and output.
 type LoggerConfig struct {
@@ -751,7 +754,7 @@ func NewMetricsConfig() *MetricsConfig {
 	}
 }
 
-var _ runtime.SessionConfig = &SessionConfig{}
+var _ runtime.SessionConfig = (*SessionConfig)(nil)
 
 // SessionConfig is configuration relevant to the session.
 type SessionConfig struct {
@@ -815,7 +818,7 @@ func NewSessionConfig() *SessionConfig {
 	}
 }
 
-var _ runtime.SocketConfig = &SocketConfig{}
+var _ runtime.SocketConfig = (*SocketConfig)(nil)
 
 // SocketConfig is configuration relevant to the transport socket and protocol.
 type SocketConfig struct {
@@ -834,6 +837,7 @@ type SocketConfig struct {
 	PongWaitMs           int               `yaml:"pong_wait_ms" json:"pong_wait_ms" usage:"Time in milliseconds to wait between pong messages received from the client. Used for real-time connections."`
 	PingPeriodMs         int               `yaml:"ping_period_ms" json:"ping_period_ms" usage:"Time in milliseconds to wait between sending ping messages to the client. This value must be less than the pong_wait_ms. Used for real-time connections."`
 	PingBackoffThreshold int               `yaml:"ping_backoff_threshold" json:"ping_backoff_threshold" usage:"Minimum number of messages received from the client during a single ping period that will delay the sending of a ping until the next ping period, to avoid sending unnecessary pings on regularly active connections. Default 20."`
+	CloseAckWaitMs       int               `yaml:"close_ack_wait_ms" json:"close_ack_wait_ms" usage:"Time in milliseconds to wait for a close ack from the client when closing the connection. Used for real-time connections."`
 	OutgoingQueueSize    int               `yaml:"outgoing_queue_size" json:"outgoing_queue_size" usage:"The maximum number of messages waiting to be sent to the client. If this is exceeded the client is considered too slow and will disconnect. Used when processing real-time connections."`
 	SSLCertificate       string            `yaml:"ssl_certificate" json:"ssl_certificate" usage:"Path to certificate file if you want the server to use SSL directly. Must also supply ssl_private_key. NOT recommended for production use."`
 	SSLPrivateKey        string            `yaml:"ssl_private_key" json:"ssl_private_key" usage:"Path to private key file if you want the server to use SSL directly. Must also supply ssl_certificate. NOT recommended for production use."`
@@ -910,6 +914,7 @@ func NewSocketConfig() *SocketConfig {
 		WriteTimeoutMs:       10 * 1000,
 		IdleTimeoutMs:        60 * 1000,
 		WriteWaitMs:          5000,
+		CloseAckWaitMs:       2000,
 		PongWaitMs:           25000,
 		PingPeriodMs:         15000,
 		PingBackoffThreshold: 20,
@@ -953,7 +958,7 @@ func NewDatabaseConfig() *DatabaseConfig {
 	}
 }
 
-var _ runtime.SocialConfig = &SocialConfig{}
+var _ runtime.SocialConfig = (*SocialConfig)(nil)
 
 // SocialConfig is configuration relevant to the social authentication providers.
 type SocialConfig struct {
@@ -1006,7 +1011,7 @@ func (cfg *SocialConfig) Clone() *SocialConfig {
 	return &cfgCopy
 }
 
-var _ runtime.SocialConfigSteam = &SocialConfigSteam{}
+var _ runtime.SocialConfigSteam = (*SocialConfigSteam)(nil)
 
 // SocialConfigSteam is configuration relevant to Steam.
 type SocialConfigSteam struct {
@@ -1022,7 +1027,7 @@ func (s SocialConfigSteam) GetAppID() int {
 	return s.AppID
 }
 
-var _ runtime.SocialConfigFacebookInstantGame = &SocialConfigFacebookInstantGame{}
+var _ runtime.SocialConfigFacebookInstantGame = (*SocialConfigFacebookInstantGame)(nil)
 
 // SocialConfigFacebookInstantGame is configuration relevant to Facebook Instant Games.
 type SocialConfigFacebookInstantGame struct {
@@ -1033,7 +1038,7 @@ func (s SocialConfigFacebookInstantGame) GetAppSecret() string {
 	return s.AppSecret
 }
 
-var _ runtime.SocialConfigFacebookLimitedLogin = &SocialConfigFacebookLimitedLogin{}
+var _ runtime.SocialConfigFacebookLimitedLogin = (*SocialConfigFacebookLimitedLogin)(nil)
 
 // SocialConfigFacebookLimitedLogin is configuration relevant to Facebook Limited Login.
 type SocialConfigFacebookLimitedLogin struct {
@@ -1044,7 +1049,7 @@ func (s SocialConfigFacebookLimitedLogin) GetAppId() string {
 	return s.AppId
 }
 
-var _ runtime.SocialConfigApple = &SocialConfigApple{}
+var _ runtime.SocialConfigApple = (*SocialConfigApple)(nil)
 
 // SocialConfigApple is configuration relevant to Apple Sign In.
 type SocialConfigApple struct {
@@ -1073,7 +1078,7 @@ func NewSocialConfig() *SocialConfig {
 	}
 }
 
-var _ runtime.RuntimeConfig = &RuntimeConfig{}
+var _ runtime.RuntimeConfig = (*RuntimeConfig)(nil)
 
 // RuntimeConfig is configuration relevant to the Runtimes.
 type RuntimeConfig struct {
@@ -1348,7 +1353,7 @@ func NewMatchmakerConfig() *MatchmakerConfig {
 	}
 }
 
-var _ runtime.IAPConfig = &IAPConfig{}
+var _ runtime.IAPConfig = (*IAPConfig)(nil)
 
 type IAPConfig struct {
 	Apple           *IAPAppleConfig           `yaml:"apple" json:"apple" usage:"Apple App Store purchase validation configuration."`
@@ -1409,7 +1414,7 @@ func NewIAPConfig() *IAPConfig {
 	}
 }
 
-var _ runtime.IAPAppleConfig = &IAPAppleConfig{}
+var _ runtime.IAPAppleConfig = (*IAPAppleConfig)(nil)
 
 type IAPAppleConfig struct {
 	SharedPassword          string `yaml:"shared_password" json:"shared_password" usage:"Your Apple Store App IAP shared password. Only necessary for validation of auto-renewable subscriptions."`
@@ -1424,7 +1429,7 @@ func (iap IAPAppleConfig) GetNotificationsEndpointId() string {
 	return iap.NotificationsEndpointId
 }
 
-var _ runtime.IAPGoogleConfig = &IAPGoogleConfig{}
+var _ runtime.IAPGoogleConfig = (*IAPGoogleConfig)(nil)
 
 type IAPGoogleConfig struct {
 	ClientEmail             string `yaml:"client_email" json:"client_email" usage:"Google Service Account client email."`
@@ -1446,7 +1451,7 @@ func (iapg *IAPGoogleConfig) GetNotificationsEndpointId() string {
 	return iapg.NotificationsEndpointId
 }
 
-var _ runtime.SatoriConfig = &SatoriConfig{}
+var _ runtime.SatoriConfig = (*SatoriConfig)(nil)
 
 type SatoriConfig struct {
 	Url        string `yaml:"url" json:"url" usage:"Satori URL."`
@@ -1526,7 +1531,7 @@ func (sc *SatoriConfig) Validate(logger *zap.Logger) {
 	}
 }
 
-var _ runtime.IAPHuaweiConfig = &IAPHuaweiConfig{}
+var _ runtime.IAPHuaweiConfig = (*IAPHuaweiConfig)(nil)
 
 type IAPHuaweiConfig struct {
 	PublicKey    string `yaml:"public_key" json:"public_key" usage:"Huawei IAP store Base64 encoded Public Key."`
@@ -1546,7 +1551,7 @@ func (i IAPHuaweiConfig) GetClientSecret() string {
 	return i.ClientSecret
 }
 
-var _ runtime.IAPFacebookInstantConfig = &IAPFacebookInstantConfig{}
+var _ runtime.IAPFacebookInstantConfig = (*IAPFacebookInstantConfig)(nil)
 
 type IAPFacebookInstantConfig struct {
 	AppSecret string `yaml:"app_secret" json:"app_secret" usage:"Facebook Instant OAuth app client secret."`
@@ -1556,7 +1561,7 @@ func (i IAPFacebookInstantConfig) GetAppSecret() string {
 	return i.AppSecret
 }
 
-var _ runtime.GoogleAuthConfig = &GoogleAuthConfig{}
+var _ runtime.GoogleAuthConfig = (*GoogleAuthConfig)(nil)
 
 type GoogleAuthConfig struct {
 	CredentialsJSON string         `yaml:"credentials_json" json:"credentials_json" usage:"Google's Access Credentials."`
