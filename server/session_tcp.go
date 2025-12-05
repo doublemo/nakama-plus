@@ -192,7 +192,7 @@ func (s *sessionTcp) Expiry() int64 {
 func (s *sessionTcp) Consume() {
 	// Fire an event for session start.
 	if fn := s.runtime.EventSessionStart(); fn != nil {
-		fn(s.userID.String(), s.username.Load(), s.Vars(), s.expiry.Load(), s.id.String(), s.clientIP.Load(), s.clientPort.Load(), s.lang.Load(), time.Now().UTC().Unix())
+		fn(s.ctx, s.userID.String(), s.username.Load(), s.Vars(), s.expiry.Load(), s.id.String(), s.clientIP.Load(), s.clientPort.Load(), s.lang.Load(), time.Now().UTC().Unix())
 	}
 
 	logger := s.logger.Load()
@@ -590,7 +590,7 @@ func (s *sessionTcp) Close(msg string, reason runtime.PresenceReason, envelopes 
 	}
 	// Fire an event for session end.
 	if fn := s.runtime.EventSessionEnd(); fn != nil {
-		fn(s.userID.Load(), s.username.Load(), s.Vars(), s.expiry.Load(), s.id.String(), s.clientIP.Load(), s.clientPort.Load(), s.lang.Load(), time.Now().UTC().Unix(), msg)
+		fn(s.ctx, s.userID.Load(), s.username.Load(), s.Vars(), s.expiry.Load(), s.id.String(), s.clientIP.Load(), s.clientPort.Load(), s.lang.Load(), time.Now().UTC().Unix(), msg)
 	}
 }
 
