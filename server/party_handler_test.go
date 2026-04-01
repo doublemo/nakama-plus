@@ -72,7 +72,7 @@ func createTestPartyHandler(t *testing.T, logger *zap.Logger, presence *rtapi.Us
 
 	dmr := DummyMessageRouter{}
 
-	pr := NewLocalPartyRegistry(context.Background(), logger, logger, cfg, node, &testMetrics{})
+	pr := NewLocalPartyRegistry(context.Background(), logger, logger, cfg, node, metrics)
 	pr.Init(mm, &tt, &tsm, &dmr, nil)
 	ph := NewPartyHandler(logger, pr, mm, &tt, &tsm, &dmr, uuid.UUID{}, node, true, 10, presence, nil)
 	return ph, cleanup
