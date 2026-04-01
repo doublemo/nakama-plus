@@ -28,6 +28,7 @@ The format is based on [keep a changelog](http://keepachangelog.com) and this pr
 - Improvements to Console user setup and management.
 - Ensure ended matches are removed from the Console UI list more quickly.
 - Better logic for determining client IP addresses from incoming requests.
+- Limit the number of custom metric scopes to prevent adding user identifiers as tags.
 
 ## [3.35.1] - 2025-12-05
 ### Fixed
