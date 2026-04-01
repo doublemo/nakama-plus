@@ -4,10 +4,13 @@ All notable changes to this project are documented below.
 The format is based on [keep a changelog](http://keepachangelog.com) and this project uses [semantic versioning](http://semver.org).
 
 ## [Unreleased]
+### Added
+- Support Apple JWS receipts in In-App Purchase validation APIs.
 
 ### Fixed
 - Ensure party leader username is recorded on party creation.
 - Option for faster cleanup of parties that are idle and empty.
+- Add In-App Purchase notification type to JS/Lua callback functions.
 
 ### Changed
 - Improvements to Console user setup and management.
