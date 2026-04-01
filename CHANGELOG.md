@@ -6,6 +6,7 @@ The format is based on [keep a changelog](http://keepachangelog.com) and this pr
 ## [Unreleased]
 ### Added
 - Support Apple JWS receipts in In-App Purchase validation APIs.
+- Expose new Prometheus RPC metrics with label per gRPC status.
 
 ### Fixed
 - Ensure party leader username is recorded on party creation.

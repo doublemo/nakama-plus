@@ -108,6 +108,7 @@ func (s *ApiServer) RpcFuncHttp(w http.ResponseWriter, r *http.Request) {
 	}
 
 	start := time.Now()
+
 	var recvBytes, sentBytes int
 	var err error
 	// Check the RPC function ID.
@@ -138,10 +139,10 @@ func (s *ApiServer) RpcFuncHttp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var success bool
+	rpcCode := codes.Unknown
 	// After this point the RPC will be captured in metrics.
 	defer func() {
-		s.metrics.ApiRpc(id, time.Since(start), int64(recvBytes), int64(sentBytes), !success)
+		s.metrics.ApiRpc(id, time.Since(start), int64(recvBytes), int64(sentBytes), rpcCode)
 	}()
 
 	// Check if we need to mimic existing GRPC Gateway behaviour or expect to receive/send unwrapped data.
@@ -213,11 +214,13 @@ func (s *ApiServer) RpcFuncHttp(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Execute the function.
-	result, fnErr, code := fn(requestCtx, headers, queryParams, traceID, uid, username, vars, expiry, "", clientIP, clientPort, "", payload)
+	var result string
+	var fnErr error
+	result, fnErr, rpcCode = fn(requestCtx, headers, queryParams, traceID, uid, username, vars, expiry, "", clientIP, clientPort, "", payload)
 	if fnErr != nil {
-		response, _ := json.Marshal(map[string]interface{}{"error": fnErr, "message": fnErr.Error(), "code": code})
+		response, _ := json.Marshal(map[string]interface{}{"error": fnErr, "message": fnErr.Error(), "code": rpcCode})
 		w.Header().Set("content-type", "application/json")
-		w.WriteHeader(grpcgw.HTTPStatusFromCode(code))
+		w.WriteHeader(grpcgw.HTTPStatusFromCode(rpcCode))
 		sentBytes, err = w.Write(response)
 		if err != nil {
 			logger.Debug("Error writing response to client", zap.Error(err))
@@ -264,7 +267,6 @@ func (s *ApiServer) RpcFuncHttp(w http.ResponseWriter, r *http.Request) {
 		logger.Debug("Error writing response to client", zap.Error(err))
 		return
 	}
-	success = true
 }
 
 func (s *ApiServer) RpcFunc(ctx context.Context, in *api.Rpc) (*api.Rpc, error) {
