@@ -645,7 +645,7 @@ func GetRuntimePaths(logger *zap.Logger, rootPath string) ([]string, error) {
 	return paths, nil
 }
 
-func CheckRuntime2(logger *zap.Logger, config Config, version string) error {
+func CheckRuntime(logger *zap.Logger, config Config, version string) error {
 	// Get all paths inside the configured runtime.
 	paths, err := GetRuntimePaths(logger, config.GetRuntime().Path)
 	if err != nil {
