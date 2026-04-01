@@ -5,6 +5,9 @@ The format is based on [keep a changelog](http://keepachangelog.com) and this pr
 
 ## [Unreleased]
 
+### Fixed
+- Ensure party leader username is recorded on party creation.
+
 ### Changed
 - Improvements to Console user setup and management.
 
