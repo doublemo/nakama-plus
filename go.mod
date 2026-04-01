@@ -1,6 +1,6 @@
 module github.com/doublemo/nakama-plus/v3
 
-go 1.25.0
+go 1.26.1
 
 require (
 	github.com/blugelabs/bluge v0.2.2
@@ -9,7 +9,7 @@ require (
 	github.com/dgraph-io/ristretto v0.2.0
 	github.com/dgryski/dgoogauth v0.0.0-20190221195224-5a805980a5f3
 	github.com/dop251/goja v0.0.0-20250630131328-58d95d85e994
-	github.com/doublemo/nakama-common v1.44.0
+	github.com/doublemo/nakama-common v1.45.0
 	github.com/doublemo/nakama-kit v1.4.2
 	github.com/eko/gocache/lib/v4 v4.2.0
 	github.com/eko/gocache/store/ristretto/v4 v4.2.2
@@ -40,7 +40,7 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20250826171959-ef028d996bc1
 	google.golang.org/grpc v1.75.0
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.5.1
-	google.golang.org/protobuf v1.36.8
+	google.golang.org/protobuf v1.36.11
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	gopkg.in/yaml.v3 v3.0.1
 )
