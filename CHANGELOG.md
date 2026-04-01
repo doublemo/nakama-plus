@@ -11,6 +11,7 @@ The format is based on [keep a changelog](http://keepachangelog.com) and this pr
 - Ensure party leader username is recorded on party creation.
 - Option for faster cleanup of parties that are idle and empty.
 - Add In-App Purchase notification type to JS/Lua callback functions.
+- Fix permission check on Console Group AddMembers operation.
 
 ### Changed
 - Improvements to Console user setup and management.
