@@ -580,7 +580,7 @@ func checkAuth(ctx context.Context, logger *zap.Logger, config Config, auth, pat
 		if !ok {
 			return ctx, status.Error(codes.Unauthenticated, "Console authentication invalid.")
 		}
-		ip, _ := extractClientAddressFromContext(logger, ctx)
+		ip, _ := extractClientAddressFromContext(logger, config, ctx)
 		if !loginAttemptCache.Allow(username, ip) {
 			return ctx, status.Error(codes.Unauthenticated, "Console authentication invalid.")
 		}
@@ -669,7 +669,7 @@ func checkAuthCustom(r *http.Request, logger *zap.Logger, config Config, auth, m
 		if !ok {
 			return r, false, http.StatusUnauthorized, `{"error":"Console authentication invalid.","message":"Console authentication invalid.","code":16}`
 		}
-		ip, _ := extractClientAddressFromRequest(logger, r)
+		ip, _ := extractClientAddressFromRequest(logger, config, r)
 		if !loginAttemptCache.Allow(username, ip) {
 			return r, false, http.StatusUnauthorized, `{"error":"Console authentication invalid.","message":"Console authentication invalid.","code":16}`
 		}

@@ -73,7 +73,7 @@ func (s *ApiServer) Any(ctx context.Context, in *api.AnyRequest) (*api.AnyRespon
 		}
 	}
 
-	clientIP, clientPort := extractClientAddressFromContext(s.logger, ctx)
+	clientIP, clientPort := extractClientAddressFromContext(s.logger, s.config, ctx)
 	in.Header["client_ip"] = clientIP
 	in.Header["client_port"] = clientPort
 
@@ -94,7 +94,7 @@ func (s *ApiServer) Any(ctx context.Context, in *api.AnyRequest) (*api.AnyRespon
 			return nil
 		}
 		// Execute the before function lambda wrapped in a trace for stats measurement.
-		err := traceApiBefore(ctx, logger, s.metrics, ctx.Value(ctxFullMethodKey{}).(string), beforeFn)
+		err := traceApiBefore(ctx, logger, s.config, s.metrics, ctx.Value(ctxFullMethodKey{}).(string), beforeFn)
 		if err != nil {
 			return nil, err
 		}
@@ -124,7 +124,7 @@ func (s *ApiServer) Any(ctx context.Context, in *api.AnyRequest) (*api.AnyRespon
 			return fn(ctx, logger, traceID, userId, username, vars, expiry, clientIP, clientPort, w, in)
 		}
 		// Execute the after function lambda wrapped in a trace for stats measurement.
-		traceApiAfter(ctx, logger, s.metrics, fullMethod, afterFn)
+		traceApiAfter(ctx, logger, s.config, s.metrics, fullMethod, afterFn)
 	}
 	return w, nil
 }

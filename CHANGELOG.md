@@ -20,10 +20,12 @@ The format is based on [keep a changelog](http://keepachangelog.com) and this pr
 - Fix permission check on Console Group AddMembers operation.
 - Correct field usage in voided Google In-App Purchase subscription notifications.
 - Fix an issue where the Storage Index would keep entries which should have been filtered.
+- Avoid logging unnecessary context cancellation errors on storage operations.
 
 ### Changed
 - Improvements to Console user setup and management.
 - Ensure ended matches are removed from the Console UI list more quickly.
+- Better logic for determining client IP addresses from incoming requests.
 
 ## [3.35.1] - 2025-12-05
 ### Fixed
