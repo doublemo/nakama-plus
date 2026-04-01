@@ -3,13 +3,13 @@
 //line parser.go.y:2
 package parse
 
-import __yyfmt__ "fmt"
-
-//line parser.go.y:2
-
 import (
+	__yyfmt__ "fmt"
+
 	"github.com/doublemo/nakama-plus/v3/internal/gopher-lua/ast"
 )
+
+//line parser.go.y:2
 
 //line parser.go.y:34
 type yySymType struct {
