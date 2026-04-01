@@ -7,6 +7,11 @@ The format is based on [keep a changelog](http://keepachangelog.com) and this pr
 ### Added
 - Support Apple JWS receipts in In-App Purchase validation APIs.
 - Expose new Prometheus RPC metrics with label per gRPC status.
+- Add runtime Satori client feature to delete identities.
+- Add device identifiers as lookup options for runtime account get operations.
+- Add Go runtime function to import an account export snapshot.
+- Add TypeScript/JavaScript runtime function to import an account export snapshot.
+- Add Lua runtime function to import an account export snapshot.
 
 ### Fixed
 - Ensure party leader username is recorded on party creation.
