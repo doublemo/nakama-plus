@@ -12,6 +12,7 @@ The format is based on [keep a changelog](http://keepachangelog.com) and this pr
 - Add Go runtime function to import an account export snapshot.
 - Add TypeScript/JavaScript runtime function to import an account export snapshot.
 - Add Lua runtime function to import an account export snapshot.
+- Better searching by account display name in the Console UI.
 
 ### Fixed
 - Ensure party leader username is recorded on party creation.
