@@ -645,7 +645,7 @@ func GetRuntimePaths(logger *zap.Logger, rootPath string) ([]string, error) {
 	return paths, nil
 }
 
-func CheckRuntime(logger *zap.Logger, config Config, version string) error {
+func CheckRuntime2(logger *zap.Logger, config Config, version string) error {
 	// Get all paths inside the configured runtime.
 	paths, err := GetRuntimePaths(logger, config.GetRuntime().Path)
 	if err != nil {
@@ -773,7 +773,16 @@ func NewRuntime(ctx context.Context, logger, startupLogger *zap.Logger, db *sql.
 			eventQueue.Queue(func() { eventPeerFunction(ctx, logger, evt) })
 		}
 	}
-
+	type RuntimeProviderValue struct {
+		rpcFunctions       map[string]RuntimeRpcFunction
+		beforeRtFunctions  map[string]RuntimeBeforeRtFunction
+		afterRtFunctions   map[string]RuntimeAfterRtFunction
+		beforeReqFunctions *RuntimeBeforeReqFunctions
+		afterReqFunctions  *RuntimeAfterReqFunctions
+		shutdownFunction   RuntimeShutdownFunction
+		eventFunctions     *RuntimeEventFunctions
+		modulePaths        []string
+	}
 	allModules := make([]string, 0, len(jsModules)+len(luaModules)+len(goModules))
 	allModules = append(allModules, jsModules...)
 	allModules = append(allModules, luaModules...)

@@ -118,6 +118,33 @@ func local_request_Console_AuthenticateMFASetup_0(ctx context.Context, marshaler
 	return msg, metadata, err
 }
 
+func request_Console_AuthenticatePasswordChange_0(ctx context.Context, marshaler runtime.Marshaler, client ConsoleClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var (
+		protoReq AuthenticatePasswordChangeRequest
+		metadata runtime.ServerMetadata
+	)
+	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if req.Body != nil {
+		_, _ = io.Copy(io.Discard, req.Body)
+	}
+	msg, err := client.AuthenticatePasswordChange(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	return msg, metadata, err
+}
+
+func local_request_Console_AuthenticatePasswordChange_0(ctx context.Context, marshaler runtime.Marshaler, server ConsoleServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var (
+		protoReq AuthenticatePasswordChangeRequest
+		metadata runtime.ServerMetadata
+	)
+	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	msg, err := server.AuthenticatePasswordChange(ctx, &protoReq)
+	return msg, metadata, err
+}
+
 func request_Console_AddAccountNote_0(ctx context.Context, marshaler runtime.Marshaler, client ConsoleClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
 		protoReq AddAccountNoteRequest
@@ -3688,6 +3715,26 @@ func RegisterConsoleHandlerServer(ctx context.Context, mux *runtime.ServeMux, se
 		}
 		forward_Console_AuthenticateMFASetup_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 	})
+	mux.Handle(http.MethodPost, pattern_Console_AuthenticatePasswordChange_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		var stream runtime.ServerTransportStream
+		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/nakama.console.Console/AuthenticatePasswordChange", runtime.WithHTTPPathPattern("/v2/console/authenticate/password_change"))
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := local_request_Console_AuthenticatePasswordChange_0(annotatedContext, inboundMarshaler, server, req, pathParams)
+		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
+		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
+		if err != nil {
+			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		forward_Console_AuthenticatePasswordChange_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+	})
 	mux.Handle(http.MethodPost, pattern_Console_AddAccountNote_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
@@ -3854,7 +3901,7 @@ func RegisterConsoleHandlerServer(ctx context.Context, mux *runtime.ServeMux, se
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/nakama.console.Console/ResetUserPassword", runtime.WithHTTPPathPattern("/v1/console/user/{username}/reset/password"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/nakama.console.Console/ResetUserPassword", runtime.WithHTTPPathPattern("/v2/console/user/{username}/reset/password"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -5539,6 +5586,23 @@ func RegisterConsoleHandlerClient(ctx context.Context, mux *runtime.ServeMux, cl
 		}
 		forward_Console_AuthenticateMFASetup_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 	})
+	mux.Handle(http.MethodPost, pattern_Console_AuthenticatePasswordChange_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/nakama.console.Console/AuthenticatePasswordChange", runtime.WithHTTPPathPattern("/v2/console/authenticate/password_change"))
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := request_Console_AuthenticatePasswordChange_0(annotatedContext, inboundMarshaler, client, req, pathParams)
+		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
+		if err != nil {
+			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		forward_Console_AuthenticatePasswordChange_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+	})
 	mux.Handle(http.MethodPost, pattern_Console_AddAccountNote_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
@@ -5679,7 +5743,7 @@ func RegisterConsoleHandlerClient(ctx context.Context, mux *runtime.ServeMux, cl
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/nakama.console.Console/ResetUserPassword", runtime.WithHTTPPathPattern("/v1/console/user/{username}/reset/password"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/nakama.console.Console/ResetUserPassword", runtime.WithHTTPPathPattern("/v2/console/user/{username}/reset/password"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -7039,189 +7103,191 @@ func RegisterConsoleHandlerClient(ctx context.Context, mux *runtime.ServeMux, cl
 }
 
 var (
-	pattern_Console_Authenticate_0              = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v2", "console", "authenticate"}, ""))
-	pattern_Console_AuthenticateLogout_0        = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"v2", "console", "authenticate", "logout"}, ""))
-	pattern_Console_AuthenticateMFASetup_0      = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"v2", "console", "authenticate", "mfa"}, ""))
-	pattern_Console_AddAccountNote_0            = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"v2", "console", "account", "account_id", "note"}, ""))
-	pattern_Console_ListAccountNotes_0          = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"v2", "console", "account", "account_id", "note"}, ""))
-	pattern_Console_AddAclTemplate_0            = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"v2", "console", "acl", "template"}, ""))
-	pattern_Console_UpdateAclTemplate_0         = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"v2", "console", "acl", "template", "id"}, ""))
-	pattern_Console_ListAclTemplates_0          = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"v2", "console", "acl", "template"}, ""))
-	pattern_Console_DeleteAclTemplate_0         = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"v2", "console", "acl", "template", "id"}, ""))
-	pattern_Console_DeleteAccountNote_0         = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4, 1, 0, 4, 1, 5, 5}, []string{"v2", "console", "account", "account_id", "note", "note_id"}, ""))
-	pattern_Console_AddUser_0                   = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v2", "console", "user"}, ""))
-	pattern_Console_ResetUserPassword_0         = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4, 2, 5}, []string{"v1", "console", "user", "username", "reset", "password"}, ""))
-	pattern_Console_AddGroupUsers_0             = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"v2", "console", "group", "group_id", "add"}, ""))
-	pattern_Console_BanAccount_0                = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"v2", "console", "account", "id", "ban"}, ""))
-	pattern_Console_CallApiEndpoint_0           = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"v2", "console", "api", "endpoints", "method"}, ""))
-	pattern_Console_CallRpcEndpoint_0           = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4, 1, 0, 4, 1, 5, 5}, []string{"v2", "console", "api", "endpoints", "rpc", "method"}, ""))
-	pattern_Console_DeleteAllData_0             = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v2", "console", "all"}, ""))
-	pattern_Console_DeleteAccount_0             = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"v2", "console", "account", "id"}, ""))
-	pattern_Console_DeleteChannelMessages_0     = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v2", "console", "message"}, ""))
-	pattern_Console_DeleteFriend_0              = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4, 1, 0, 4, 1, 5, 5}, []string{"v2", "console", "account", "id", "friend", "friend_id"}, ""))
-	pattern_Console_DeleteGroup_0               = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"v2", "console", "group", "id"}, ""))
-	pattern_Console_DeleteGroupUser_0           = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4, 1, 0, 4, 1, 5, 5}, []string{"v2", "console", "account", "id", "group", "group_id"}, ""))
-	pattern_Console_DeleteStorage_0             = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v2", "console", "storage"}, ""))
-	pattern_Console_DeleteStorageObject_0       = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 1, 0, 4, 1, 5, 4, 1, 0, 4, 1, 5, 5}, []string{"v2", "console", "storage", "collection", "key", "user_id"}, ""))
-	pattern_Console_DeleteStorageObject_1       = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 1, 0, 4, 1, 5, 4, 1, 0, 4, 1, 5, 5, 1, 0, 4, 1, 5, 6}, []string{"v2", "console", "storage", "collection", "key", "user_id", "version"}, ""))
-	pattern_Console_DeleteAccounts_0            = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v2", "console", "account"}, ""))
-	pattern_Console_DeleteLeaderboard_0         = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"v2", "console", "leaderboard", "id"}, ""))
-	pattern_Console_DeleteLeaderboardRecord_0   = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4, 1, 0, 4, 1, 5, 5}, []string{"v2", "console", "leaderboard", "id", "owner", "owner_id"}, ""))
-	pattern_Console_DeleteNotification_0        = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"v2", "console", "notification", "id"}, ""))
-	pattern_Console_DeleteUser_0                = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v2", "console", "user"}, ""))
-	pattern_Console_DeleteWalletLedger_0        = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4, 1, 0, 4, 1, 5, 5}, []string{"v2", "console", "account", "id", "wallet", "wallet_id"}, ""))
-	pattern_Console_DemoteGroupMember_0         = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4, 1, 0, 4, 1, 5, 5, 2, 6}, []string{"v2", "console", "group", "group_id", "account", "id", "demote"}, ""))
-	pattern_Console_ExportAccount_0             = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"v2", "console", "account", "id", "export"}, ""))
-	pattern_Console_ImportAccount_0             = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"v2", "console", "account", "id", "import"}, ""))
-	pattern_Console_ImportAccountFull_0         = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v2", "console", "account"}, ""))
-	pattern_Console_ExportGroup_0               = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"v2", "console", "group", "id", "export"}, ""))
-	pattern_Console_GetAccount_0                = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"v2", "console", "account", "id"}, ""))
-	pattern_Console_GetConfig_0                 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v2", "console", "config"}, ""))
-	pattern_Console_GetFriends_0                = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"v2", "console", "account", "id", "friend"}, ""))
-	pattern_Console_GetGroup_0                  = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"v2", "console", "group", "id"}, ""))
-	pattern_Console_GetMembers_0                = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"v2", "console", "group", "id", "member"}, ""))
-	pattern_Console_GetGroups_0                 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"v2", "console", "account", "id", "group"}, ""))
-	pattern_Console_GetLeaderboard_0            = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"v2", "console", "leaderboard", "id"}, ""))
-	pattern_Console_GetMatchState_0             = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"v2", "console", "match", "id", "state"}, ""))
-	pattern_Console_GetRuntime_0                = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v2", "console", "runtime"}, ""))
-	pattern_Console_GetSetting_0                = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"v2", "console", "setting", "name"}, ""))
-	pattern_Console_GetStatus_0                 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v2", "console", "status"}, ""))
-	pattern_Console_GetStorage_0                = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 1, 0, 4, 1, 5, 4, 1, 0, 4, 1, 5, 5}, []string{"v2", "console", "storage", "collection", "key", "user_id"}, ""))
-	pattern_Console_GetUser_0                   = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"v2", "console", "user", "username"}, ""))
-	pattern_Console_GetWalletLedger_0           = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"v2", "console", "account", "account_id", "wallet"}, ""))
-	pattern_Console_GetNotification_0           = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"v2", "console", "notification", "id"}, ""))
-	pattern_Console_GetPurchase_0               = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"v2", "console", "iap", "purchase", "transaction_id"}, ""))
-	pattern_Console_GetSubscription_0           = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"v2", "console", "iap", "subscription", "original_transaction_id"}, ""))
-	pattern_Console_ListAuditLogs_0             = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"v2", "console", "audit", "log"}, ""))
-	pattern_Console_ListAuditLogsUsers_0        = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"v2", "console", "audit", "log", "users"}, ""))
-	pattern_Console_ListApiEndpoints_0          = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"v2", "console", "api", "endpoints"}, ""))
-	pattern_Console_ListLeaderboardRecords_0    = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"v2", "console", "leaderboard", "leaderboard_id", "records"}, ""))
-	pattern_Console_ListLeaderboards_0          = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v2", "console", "leaderboard"}, ""))
-	pattern_Console_ListSettings_0              = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v2", "console", "setting"}, ""))
-	pattern_Console_ListStorage_0               = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v2", "console", "storage"}, ""))
-	pattern_Console_ListStorageCollections_0    = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"v2", "console", "storage", "collections"}, ""))
-	pattern_Console_ListAccounts_0              = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v2", "console", "account"}, ""))
-	pattern_Console_ListChannelMessages_0       = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v2", "console", "channel"}, ""))
-	pattern_Console_ListGroups_0                = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v2", "console", "group"}, ""))
-	pattern_Console_ListNotifications_0         = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v2", "console", "notification"}, ""))
-	pattern_Console_ListMatches_0               = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v2", "console", "match"}, ""))
-	pattern_Console_ListPurchases_0             = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v2", "console", "purchase"}, ""))
-	pattern_Console_ListSubscriptions_0         = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v2", "console", "subscription"}, ""))
-	pattern_Console_ListUsers_0                 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v2", "console", "user"}, ""))
-	pattern_Console_PromoteGroupMember_0        = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4, 1, 0, 4, 1, 5, 5, 2, 6}, []string{"v2", "console", "group", "group_id", "account", "id", "promote"}, ""))
-	pattern_Console_RequireUserMfa_0            = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4, 2, 5}, []string{"v2", "console", "user", "username", "mfa", "require"}, ""))
-	pattern_Console_ResetUserMfa_0              = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4, 2, 5}, []string{"v2", "console", "user", "username", "mfa", "reset"}, ""))
-	pattern_Console_UnbanAccount_0              = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"v2", "console", "account", "id", "unban"}, ""))
-	pattern_Console_UnlinkCustom_0              = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4, 2, 5}, []string{"v2", "console", "account", "id", "unlink", "custom"}, ""))
-	pattern_Console_UnlinkDevice_0              = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4, 2, 5}, []string{"v2", "console", "account", "id", "unlink", "device"}, ""))
-	pattern_Console_UnlinkEmail_0               = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4, 2, 5}, []string{"v2", "console", "account", "id", "unlink", "email"}, ""))
-	pattern_Console_UnlinkApple_0               = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4, 2, 5}, []string{"v2", "console", "account", "id", "unlink", "apple"}, ""))
-	pattern_Console_UnlinkFacebook_0            = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4, 2, 5}, []string{"v2", "console", "account", "id", "unlink", "facebook"}, ""))
-	pattern_Console_UnlinkFacebookInstantGame_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4, 2, 5}, []string{"v2", "console", "account", "id", "unlink", "facebookinstantgame"}, ""))
-	pattern_Console_UnlinkGameCenter_0          = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4, 2, 5}, []string{"v2", "console", "account", "id", "unlink", "gamecenter"}, ""))
-	pattern_Console_UnlinkGoogle_0              = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4, 2, 5}, []string{"v2", "console", "account", "id", "unlink", "google"}, ""))
-	pattern_Console_UnlinkSteam_0               = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4, 2, 5}, []string{"v2", "console", "account", "id", "unlink", "steam"}, ""))
-	pattern_Console_UpdateAccount_0             = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"v2", "console", "account", "id"}, ""))
-	pattern_Console_UpdateGroup_0               = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"v2", "console", "group", "id"}, ""))
-	pattern_Console_UpdateSetting_0             = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"v2", "console", "setting", "name"}, ""))
-	pattern_Console_UpdateUser_0                = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"v2", "console", "user", "username"}, ""))
-	pattern_Console_WriteStorageObject_0        = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 1, 0, 4, 1, 5, 4, 1, 0, 4, 1, 5, 5}, []string{"v2", "console", "storage", "collection", "key", "user_id"}, ""))
-	pattern_Console_SatoriListTemplates_0       = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"v2", "console", "satori", "template"}, ""))
-	pattern_Console_SatoriSendDirectMessage_0   = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"v2", "console", "satori", "direct-message"}, ""))
-	pattern_Console_SendNotification_0          = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v2", "console", "notification"}, ""))
-	pattern_Console_RegisteredExtensions_0      = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v2", "console", "extensions"}, ""))
+	pattern_Console_Authenticate_0               = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v2", "console", "authenticate"}, ""))
+	pattern_Console_AuthenticateLogout_0         = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"v2", "console", "authenticate", "logout"}, ""))
+	pattern_Console_AuthenticateMFASetup_0       = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"v2", "console", "authenticate", "mfa"}, ""))
+	pattern_Console_AuthenticatePasswordChange_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"v2", "console", "authenticate", "password_change"}, ""))
+	pattern_Console_AddAccountNote_0             = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"v2", "console", "account", "account_id", "note"}, ""))
+	pattern_Console_ListAccountNotes_0           = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"v2", "console", "account", "account_id", "note"}, ""))
+	pattern_Console_AddAclTemplate_0             = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"v2", "console", "acl", "template"}, ""))
+	pattern_Console_UpdateAclTemplate_0          = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"v2", "console", "acl", "template", "id"}, ""))
+	pattern_Console_ListAclTemplates_0           = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"v2", "console", "acl", "template"}, ""))
+	pattern_Console_DeleteAclTemplate_0          = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"v2", "console", "acl", "template", "id"}, ""))
+	pattern_Console_DeleteAccountNote_0          = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4, 1, 0, 4, 1, 5, 5}, []string{"v2", "console", "account", "account_id", "note", "note_id"}, ""))
+	pattern_Console_AddUser_0                    = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v2", "console", "user"}, ""))
+	pattern_Console_ResetUserPassword_0          = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4, 2, 5}, []string{"v2", "console", "user", "username", "reset", "password"}, ""))
+	pattern_Console_AddGroupUsers_0              = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"v2", "console", "group", "group_id", "add"}, ""))
+	pattern_Console_BanAccount_0                 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"v2", "console", "account", "id", "ban"}, ""))
+	pattern_Console_CallApiEndpoint_0            = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"v2", "console", "api", "endpoints", "method"}, ""))
+	pattern_Console_CallRpcEndpoint_0            = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4, 1, 0, 4, 1, 5, 5}, []string{"v2", "console", "api", "endpoints", "rpc", "method"}, ""))
+	pattern_Console_DeleteAllData_0              = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v2", "console", "all"}, ""))
+	pattern_Console_DeleteAccount_0              = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"v2", "console", "account", "id"}, ""))
+	pattern_Console_DeleteChannelMessages_0      = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v2", "console", "message"}, ""))
+	pattern_Console_DeleteFriend_0               = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4, 1, 0, 4, 1, 5, 5}, []string{"v2", "console", "account", "id", "friend", "friend_id"}, ""))
+	pattern_Console_DeleteGroup_0                = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"v2", "console", "group", "id"}, ""))
+	pattern_Console_DeleteGroupUser_0            = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4, 1, 0, 4, 1, 5, 5}, []string{"v2", "console", "account", "id", "group", "group_id"}, ""))
+	pattern_Console_DeleteStorage_0              = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v2", "console", "storage"}, ""))
+	pattern_Console_DeleteStorageObject_0        = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 1, 0, 4, 1, 5, 4, 1, 0, 4, 1, 5, 5}, []string{"v2", "console", "storage", "collection", "key", "user_id"}, ""))
+	pattern_Console_DeleteStorageObject_1        = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 1, 0, 4, 1, 5, 4, 1, 0, 4, 1, 5, 5, 1, 0, 4, 1, 5, 6}, []string{"v2", "console", "storage", "collection", "key", "user_id", "version"}, ""))
+	pattern_Console_DeleteAccounts_0             = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v2", "console", "account"}, ""))
+	pattern_Console_DeleteLeaderboard_0          = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"v2", "console", "leaderboard", "id"}, ""))
+	pattern_Console_DeleteLeaderboardRecord_0    = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4, 1, 0, 4, 1, 5, 5}, []string{"v2", "console", "leaderboard", "id", "owner", "owner_id"}, ""))
+	pattern_Console_DeleteNotification_0         = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"v2", "console", "notification", "id"}, ""))
+	pattern_Console_DeleteUser_0                 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v2", "console", "user"}, ""))
+	pattern_Console_DeleteWalletLedger_0         = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4, 1, 0, 4, 1, 5, 5}, []string{"v2", "console", "account", "id", "wallet", "wallet_id"}, ""))
+	pattern_Console_DemoteGroupMember_0          = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4, 1, 0, 4, 1, 5, 5, 2, 6}, []string{"v2", "console", "group", "group_id", "account", "id", "demote"}, ""))
+	pattern_Console_ExportAccount_0              = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"v2", "console", "account", "id", "export"}, ""))
+	pattern_Console_ImportAccount_0              = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"v2", "console", "account", "id", "import"}, ""))
+	pattern_Console_ImportAccountFull_0          = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v2", "console", "account"}, ""))
+	pattern_Console_ExportGroup_0                = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"v2", "console", "group", "id", "export"}, ""))
+	pattern_Console_GetAccount_0                 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"v2", "console", "account", "id"}, ""))
+	pattern_Console_GetConfig_0                  = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v2", "console", "config"}, ""))
+	pattern_Console_GetFriends_0                 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"v2", "console", "account", "id", "friend"}, ""))
+	pattern_Console_GetGroup_0                   = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"v2", "console", "group", "id"}, ""))
+	pattern_Console_GetMembers_0                 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"v2", "console", "group", "id", "member"}, ""))
+	pattern_Console_GetGroups_0                  = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"v2", "console", "account", "id", "group"}, ""))
+	pattern_Console_GetLeaderboard_0             = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"v2", "console", "leaderboard", "id"}, ""))
+	pattern_Console_GetMatchState_0              = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"v2", "console", "match", "id", "state"}, ""))
+	pattern_Console_GetRuntime_0                 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v2", "console", "runtime"}, ""))
+	pattern_Console_GetSetting_0                 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"v2", "console", "setting", "name"}, ""))
+	pattern_Console_GetStatus_0                  = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v2", "console", "status"}, ""))
+	pattern_Console_GetStorage_0                 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 1, 0, 4, 1, 5, 4, 1, 0, 4, 1, 5, 5}, []string{"v2", "console", "storage", "collection", "key", "user_id"}, ""))
+	pattern_Console_GetUser_0                    = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"v2", "console", "user", "username"}, ""))
+	pattern_Console_GetWalletLedger_0            = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"v2", "console", "account", "account_id", "wallet"}, ""))
+	pattern_Console_GetNotification_0            = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"v2", "console", "notification", "id"}, ""))
+	pattern_Console_GetPurchase_0                = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"v2", "console", "iap", "purchase", "transaction_id"}, ""))
+	pattern_Console_GetSubscription_0            = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"v2", "console", "iap", "subscription", "original_transaction_id"}, ""))
+	pattern_Console_ListAuditLogs_0              = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"v2", "console", "audit", "log"}, ""))
+	pattern_Console_ListAuditLogsUsers_0         = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"v2", "console", "audit", "log", "users"}, ""))
+	pattern_Console_ListApiEndpoints_0           = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"v2", "console", "api", "endpoints"}, ""))
+	pattern_Console_ListLeaderboardRecords_0     = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"v2", "console", "leaderboard", "leaderboard_id", "records"}, ""))
+	pattern_Console_ListLeaderboards_0           = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v2", "console", "leaderboard"}, ""))
+	pattern_Console_ListSettings_0               = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v2", "console", "setting"}, ""))
+	pattern_Console_ListStorage_0                = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v2", "console", "storage"}, ""))
+	pattern_Console_ListStorageCollections_0     = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"v2", "console", "storage", "collections"}, ""))
+	pattern_Console_ListAccounts_0               = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v2", "console", "account"}, ""))
+	pattern_Console_ListChannelMessages_0        = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v2", "console", "channel"}, ""))
+	pattern_Console_ListGroups_0                 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v2", "console", "group"}, ""))
+	pattern_Console_ListNotifications_0          = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v2", "console", "notification"}, ""))
+	pattern_Console_ListMatches_0                = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v2", "console", "match"}, ""))
+	pattern_Console_ListPurchases_0              = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v2", "console", "purchase"}, ""))
+	pattern_Console_ListSubscriptions_0          = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v2", "console", "subscription"}, ""))
+	pattern_Console_ListUsers_0                  = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v2", "console", "user"}, ""))
+	pattern_Console_PromoteGroupMember_0         = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4, 1, 0, 4, 1, 5, 5, 2, 6}, []string{"v2", "console", "group", "group_id", "account", "id", "promote"}, ""))
+	pattern_Console_RequireUserMfa_0             = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4, 2, 5}, []string{"v2", "console", "user", "username", "mfa", "require"}, ""))
+	pattern_Console_ResetUserMfa_0               = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4, 2, 5}, []string{"v2", "console", "user", "username", "mfa", "reset"}, ""))
+	pattern_Console_UnbanAccount_0               = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"v2", "console", "account", "id", "unban"}, ""))
+	pattern_Console_UnlinkCustom_0               = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4, 2, 5}, []string{"v2", "console", "account", "id", "unlink", "custom"}, ""))
+	pattern_Console_UnlinkDevice_0               = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4, 2, 5}, []string{"v2", "console", "account", "id", "unlink", "device"}, ""))
+	pattern_Console_UnlinkEmail_0                = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4, 2, 5}, []string{"v2", "console", "account", "id", "unlink", "email"}, ""))
+	pattern_Console_UnlinkApple_0                = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4, 2, 5}, []string{"v2", "console", "account", "id", "unlink", "apple"}, ""))
+	pattern_Console_UnlinkFacebook_0             = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4, 2, 5}, []string{"v2", "console", "account", "id", "unlink", "facebook"}, ""))
+	pattern_Console_UnlinkFacebookInstantGame_0  = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4, 2, 5}, []string{"v2", "console", "account", "id", "unlink", "facebookinstantgame"}, ""))
+	pattern_Console_UnlinkGameCenter_0           = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4, 2, 5}, []string{"v2", "console", "account", "id", "unlink", "gamecenter"}, ""))
+	pattern_Console_UnlinkGoogle_0               = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4, 2, 5}, []string{"v2", "console", "account", "id", "unlink", "google"}, ""))
+	pattern_Console_UnlinkSteam_0                = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4, 2, 5}, []string{"v2", "console", "account", "id", "unlink", "steam"}, ""))
+	pattern_Console_UpdateAccount_0              = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"v2", "console", "account", "id"}, ""))
+	pattern_Console_UpdateGroup_0                = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"v2", "console", "group", "id"}, ""))
+	pattern_Console_UpdateSetting_0              = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"v2", "console", "setting", "name"}, ""))
+	pattern_Console_UpdateUser_0                 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"v2", "console", "user", "username"}, ""))
+	pattern_Console_WriteStorageObject_0         = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 1, 0, 4, 1, 5, 4, 1, 0, 4, 1, 5, 5}, []string{"v2", "console", "storage", "collection", "key", "user_id"}, ""))
+	pattern_Console_SatoriListTemplates_0        = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"v2", "console", "satori", "template"}, ""))
+	pattern_Console_SatoriSendDirectMessage_0    = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"v2", "console", "satori", "direct-message"}, ""))
+	pattern_Console_SendNotification_0           = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v2", "console", "notification"}, ""))
+	pattern_Console_RegisteredExtensions_0       = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v2", "console", "extensions"}, ""))
 )
 
 var (
-	forward_Console_Authenticate_0              = runtime.ForwardResponseMessage
-	forward_Console_AuthenticateLogout_0        = runtime.ForwardResponseMessage
-	forward_Console_AuthenticateMFASetup_0      = runtime.ForwardResponseMessage
-	forward_Console_AddAccountNote_0            = runtime.ForwardResponseMessage
-	forward_Console_ListAccountNotes_0          = runtime.ForwardResponseMessage
-	forward_Console_AddAclTemplate_0            = runtime.ForwardResponseMessage
-	forward_Console_UpdateAclTemplate_0         = runtime.ForwardResponseMessage
-	forward_Console_ListAclTemplates_0          = runtime.ForwardResponseMessage
-	forward_Console_DeleteAclTemplate_0         = runtime.ForwardResponseMessage
-	forward_Console_DeleteAccountNote_0         = runtime.ForwardResponseMessage
-	forward_Console_AddUser_0                   = runtime.ForwardResponseMessage
-	forward_Console_ResetUserPassword_0         = runtime.ForwardResponseMessage
-	forward_Console_AddGroupUsers_0             = runtime.ForwardResponseMessage
-	forward_Console_BanAccount_0                = runtime.ForwardResponseMessage
-	forward_Console_CallApiEndpoint_0           = runtime.ForwardResponseMessage
-	forward_Console_CallRpcEndpoint_0           = runtime.ForwardResponseMessage
-	forward_Console_DeleteAllData_0             = runtime.ForwardResponseMessage
-	forward_Console_DeleteAccount_0             = runtime.ForwardResponseMessage
-	forward_Console_DeleteChannelMessages_0     = runtime.ForwardResponseMessage
-	forward_Console_DeleteFriend_0              = runtime.ForwardResponseMessage
-	forward_Console_DeleteGroup_0               = runtime.ForwardResponseMessage
-	forward_Console_DeleteGroupUser_0           = runtime.ForwardResponseMessage
-	forward_Console_DeleteStorage_0             = runtime.ForwardResponseMessage
-	forward_Console_DeleteStorageObject_0       = runtime.ForwardResponseMessage
-	forward_Console_DeleteStorageObject_1       = runtime.ForwardResponseMessage
-	forward_Console_DeleteAccounts_0            = runtime.ForwardResponseMessage
-	forward_Console_DeleteLeaderboard_0         = runtime.ForwardResponseMessage
-	forward_Console_DeleteLeaderboardRecord_0   = runtime.ForwardResponseMessage
-	forward_Console_DeleteNotification_0        = runtime.ForwardResponseMessage
-	forward_Console_DeleteUser_0                = runtime.ForwardResponseMessage
-	forward_Console_DeleteWalletLedger_0        = runtime.ForwardResponseMessage
-	forward_Console_DemoteGroupMember_0         = runtime.ForwardResponseMessage
-	forward_Console_ExportAccount_0             = runtime.ForwardResponseMessage
-	forward_Console_ImportAccount_0             = runtime.ForwardResponseMessage
-	forward_Console_ImportAccountFull_0         = runtime.ForwardResponseMessage
-	forward_Console_ExportGroup_0               = runtime.ForwardResponseMessage
-	forward_Console_GetAccount_0                = runtime.ForwardResponseMessage
-	forward_Console_GetConfig_0                 = runtime.ForwardResponseMessage
-	forward_Console_GetFriends_0                = runtime.ForwardResponseMessage
-	forward_Console_GetGroup_0                  = runtime.ForwardResponseMessage
-	forward_Console_GetMembers_0                = runtime.ForwardResponseMessage
-	forward_Console_GetGroups_0                 = runtime.ForwardResponseMessage
-	forward_Console_GetLeaderboard_0            = runtime.ForwardResponseMessage
-	forward_Console_GetMatchState_0             = runtime.ForwardResponseMessage
-	forward_Console_GetRuntime_0                = runtime.ForwardResponseMessage
-	forward_Console_GetSetting_0                = runtime.ForwardResponseMessage
-	forward_Console_GetStatus_0                 = runtime.ForwardResponseMessage
-	forward_Console_GetStorage_0                = runtime.ForwardResponseMessage
-	forward_Console_GetUser_0                   = runtime.ForwardResponseMessage
-	forward_Console_GetWalletLedger_0           = runtime.ForwardResponseMessage
-	forward_Console_GetNotification_0           = runtime.ForwardResponseMessage
-	forward_Console_GetPurchase_0               = runtime.ForwardResponseMessage
-	forward_Console_GetSubscription_0           = runtime.ForwardResponseMessage
-	forward_Console_ListAuditLogs_0             = runtime.ForwardResponseMessage
-	forward_Console_ListAuditLogsUsers_0        = runtime.ForwardResponseMessage
-	forward_Console_ListApiEndpoints_0          = runtime.ForwardResponseMessage
-	forward_Console_ListLeaderboardRecords_0    = runtime.ForwardResponseMessage
-	forward_Console_ListLeaderboards_0          = runtime.ForwardResponseMessage
-	forward_Console_ListSettings_0              = runtime.ForwardResponseMessage
-	forward_Console_ListStorage_0               = runtime.ForwardResponseMessage
-	forward_Console_ListStorageCollections_0    = runtime.ForwardResponseMessage
-	forward_Console_ListAccounts_0              = runtime.ForwardResponseMessage
-	forward_Console_ListChannelMessages_0       = runtime.ForwardResponseMessage
-	forward_Console_ListGroups_0                = runtime.ForwardResponseMessage
-	forward_Console_ListNotifications_0         = runtime.ForwardResponseMessage
-	forward_Console_ListMatches_0               = runtime.ForwardResponseMessage
-	forward_Console_ListPurchases_0             = runtime.ForwardResponseMessage
-	forward_Console_ListSubscriptions_0         = runtime.ForwardResponseMessage
-	forward_Console_ListUsers_0                 = runtime.ForwardResponseMessage
-	forward_Console_PromoteGroupMember_0        = runtime.ForwardResponseMessage
-	forward_Console_RequireUserMfa_0            = runtime.ForwardResponseMessage
-	forward_Console_ResetUserMfa_0              = runtime.ForwardResponseMessage
-	forward_Console_UnbanAccount_0              = runtime.ForwardResponseMessage
-	forward_Console_UnlinkCustom_0              = runtime.ForwardResponseMessage
-	forward_Console_UnlinkDevice_0              = runtime.ForwardResponseMessage
-	forward_Console_UnlinkEmail_0               = runtime.ForwardResponseMessage
-	forward_Console_UnlinkApple_0               = runtime.ForwardResponseMessage
-	forward_Console_UnlinkFacebook_0            = runtime.ForwardResponseMessage
-	forward_Console_UnlinkFacebookInstantGame_0 = runtime.ForwardResponseMessage
-	forward_Console_UnlinkGameCenter_0          = runtime.ForwardResponseMessage
-	forward_Console_UnlinkGoogle_0              = runtime.ForwardResponseMessage
-	forward_Console_UnlinkSteam_0               = runtime.ForwardResponseMessage
-	forward_Console_UpdateAccount_0             = runtime.ForwardResponseMessage
-	forward_Console_UpdateGroup_0               = runtime.ForwardResponseMessage
-	forward_Console_UpdateSetting_0             = runtime.ForwardResponseMessage
-	forward_Console_UpdateUser_0                = runtime.ForwardResponseMessage
-	forward_Console_WriteStorageObject_0        = runtime.ForwardResponseMessage
-	forward_Console_SatoriListTemplates_0       = runtime.ForwardResponseMessage
-	forward_Console_SatoriSendDirectMessage_0   = runtime.ForwardResponseMessage
-	forward_Console_SendNotification_0          = runtime.ForwardResponseMessage
-	forward_Console_RegisteredExtensions_0      = runtime.ForwardResponseMessage
+	forward_Console_Authenticate_0               = runtime.ForwardResponseMessage
+	forward_Console_AuthenticateLogout_0         = runtime.ForwardResponseMessage
+	forward_Console_AuthenticateMFASetup_0       = runtime.ForwardResponseMessage
+	forward_Console_AuthenticatePasswordChange_0 = runtime.ForwardResponseMessage
+	forward_Console_AddAccountNote_0             = runtime.ForwardResponseMessage
+	forward_Console_ListAccountNotes_0           = runtime.ForwardResponseMessage
+	forward_Console_AddAclTemplate_0             = runtime.ForwardResponseMessage
+	forward_Console_UpdateAclTemplate_0          = runtime.ForwardResponseMessage
+	forward_Console_ListAclTemplates_0           = runtime.ForwardResponseMessage
+	forward_Console_DeleteAclTemplate_0          = runtime.ForwardResponseMessage
+	forward_Console_DeleteAccountNote_0          = runtime.ForwardResponseMessage
+	forward_Console_AddUser_0                    = runtime.ForwardResponseMessage
+	forward_Console_ResetUserPassword_0          = runtime.ForwardResponseMessage
+	forward_Console_AddGroupUsers_0              = runtime.ForwardResponseMessage
+	forward_Console_BanAccount_0                 = runtime.ForwardResponseMessage
+	forward_Console_CallApiEndpoint_0            = runtime.ForwardResponseMessage
+	forward_Console_CallRpcEndpoint_0            = runtime.ForwardResponseMessage
+	forward_Console_DeleteAllData_0              = runtime.ForwardResponseMessage
+	forward_Console_DeleteAccount_0              = runtime.ForwardResponseMessage
+	forward_Console_DeleteChannelMessages_0      = runtime.ForwardResponseMessage
+	forward_Console_DeleteFriend_0               = runtime.ForwardResponseMessage
+	forward_Console_DeleteGroup_0                = runtime.ForwardResponseMessage
+	forward_Console_DeleteGroupUser_0            = runtime.ForwardResponseMessage
+	forward_Console_DeleteStorage_0              = runtime.ForwardResponseMessage
+	forward_Console_DeleteStorageObject_0        = runtime.ForwardResponseMessage
+	forward_Console_DeleteStorageObject_1        = runtime.ForwardResponseMessage
+	forward_Console_DeleteAccounts_0             = runtime.ForwardResponseMessage
+	forward_Console_DeleteLeaderboard_0          = runtime.ForwardResponseMessage
+	forward_Console_DeleteLeaderboardRecord_0    = runtime.ForwardResponseMessage
+	forward_Console_DeleteNotification_0         = runtime.ForwardResponseMessage
+	forward_Console_DeleteUser_0                 = runtime.ForwardResponseMessage
+	forward_Console_DeleteWalletLedger_0         = runtime.ForwardResponseMessage
+	forward_Console_DemoteGroupMember_0          = runtime.ForwardResponseMessage
+	forward_Console_ExportAccount_0              = runtime.ForwardResponseMessage
+	forward_Console_ImportAccount_0              = runtime.ForwardResponseMessage
+	forward_Console_ImportAccountFull_0          = runtime.ForwardResponseMessage
+	forward_Console_ExportGroup_0                = runtime.ForwardResponseMessage
+	forward_Console_GetAccount_0                 = runtime.ForwardResponseMessage
+	forward_Console_GetConfig_0                  = runtime.ForwardResponseMessage
+	forward_Console_GetFriends_0                 = runtime.ForwardResponseMessage
+	forward_Console_GetGroup_0                   = runtime.ForwardResponseMessage
+	forward_Console_GetMembers_0                 = runtime.ForwardResponseMessage
+	forward_Console_GetGroups_0                  = runtime.ForwardResponseMessage
+	forward_Console_GetLeaderboard_0             = runtime.ForwardResponseMessage
+	forward_Console_GetMatchState_0              = runtime.ForwardResponseMessage
+	forward_Console_GetRuntime_0                 = runtime.ForwardResponseMessage
+	forward_Console_GetSetting_0                 = runtime.ForwardResponseMessage
+	forward_Console_GetStatus_0                  = runtime.ForwardResponseMessage
+	forward_Console_GetStorage_0                 = runtime.ForwardResponseMessage
+	forward_Console_GetUser_0                    = runtime.ForwardResponseMessage
+	forward_Console_GetWalletLedger_0            = runtime.ForwardResponseMessage
+	forward_Console_GetNotification_0            = runtime.ForwardResponseMessage
+	forward_Console_GetPurchase_0                = runtime.ForwardResponseMessage
+	forward_Console_GetSubscription_0            = runtime.ForwardResponseMessage
+	forward_Console_ListAuditLogs_0              = runtime.ForwardResponseMessage
+	forward_Console_ListAuditLogsUsers_0         = runtime.ForwardResponseMessage
+	forward_Console_ListApiEndpoints_0           = runtime.ForwardResponseMessage
+	forward_Console_ListLeaderboardRecords_0     = runtime.ForwardResponseMessage
+	forward_Console_ListLeaderboards_0           = runtime.ForwardResponseMessage
+	forward_Console_ListSettings_0               = runtime.ForwardResponseMessage
+	forward_Console_ListStorage_0                = runtime.ForwardResponseMessage
+	forward_Console_ListStorageCollections_0     = runtime.ForwardResponseMessage
+	forward_Console_ListAccounts_0               = runtime.ForwardResponseMessage
+	forward_Console_ListChannelMessages_0        = runtime.ForwardResponseMessage
+	forward_Console_ListGroups_0                 = runtime.ForwardResponseMessage
+	forward_Console_ListNotifications_0          = runtime.ForwardResponseMessage
+	forward_Console_ListMatches_0                = runtime.ForwardResponseMessage
+	forward_Console_ListPurchases_0              = runtime.ForwardResponseMessage
+	forward_Console_ListSubscriptions_0          = runtime.ForwardResponseMessage
+	forward_Console_ListUsers_0                  = runtime.ForwardResponseMessage
+	forward_Console_PromoteGroupMember_0         = runtime.ForwardResponseMessage
+	forward_Console_RequireUserMfa_0             = runtime.ForwardResponseMessage
+	forward_Console_ResetUserMfa_0               = runtime.ForwardResponseMessage
+	forward_Console_UnbanAccount_0               = runtime.ForwardResponseMessage
+	forward_Console_UnlinkCustom_0               = runtime.ForwardResponseMessage
+	forward_Console_UnlinkDevice_0               = runtime.ForwardResponseMessage
+	forward_Console_UnlinkEmail_0                = runtime.ForwardResponseMessage
+	forward_Console_UnlinkApple_0                = runtime.ForwardResponseMessage
+	forward_Console_UnlinkFacebook_0             = runtime.ForwardResponseMessage
+	forward_Console_UnlinkFacebookInstantGame_0  = runtime.ForwardResponseMessage
+	forward_Console_UnlinkGameCenter_0           = runtime.ForwardResponseMessage
+	forward_Console_UnlinkGoogle_0               = runtime.ForwardResponseMessage
+	forward_Console_UnlinkSteam_0                = runtime.ForwardResponseMessage
+	forward_Console_UpdateAccount_0              = runtime.ForwardResponseMessage
+	forward_Console_UpdateGroup_0                = runtime.ForwardResponseMessage
+	forward_Console_UpdateSetting_0              = runtime.ForwardResponseMessage
+	forward_Console_UpdateUser_0                 = runtime.ForwardResponseMessage
+	forward_Console_WriteStorageObject_0         = runtime.ForwardResponseMessage
+	forward_Console_SatoriListTemplates_0        = runtime.ForwardResponseMessage
+	forward_Console_SatoriSendDirectMessage_0    = runtime.ForwardResponseMessage
+	forward_Console_SendNotification_0           = runtime.ForwardResponseMessage
+	forward_Console_RegisteredExtensions_0       = runtime.ForwardResponseMessage
 )

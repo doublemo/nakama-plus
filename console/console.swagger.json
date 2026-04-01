@@ -25,38 +25,6 @@
     "application/json"
   ],
   "paths": {
-    "/v1/console/user/{username}/reset/password": {
-      "post": {
-        "summary": "Reset a user's password.",
-        "operationId": "ResetUserPassword",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/ResetUserResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpc.Status"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "username",
-            "description": "The unique username of the user account.",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          }
-        ],
-        "tags": [
-          "Console"
-        ]
-      }
-    },
     "/v2/console/account": {
       "get": {
         "summary": "List (and optionally filter) accounts.",
@@ -1537,6 +1505,41 @@
             "required": true,
             "schema": {
               "$ref": "#/definitions/AuthenticateMFASetupRequest"
+            }
+          }
+        ],
+        "tags": [
+          "Console"
+        ]
+      }
+    },
+    "/v2/console/authenticate/password_change": {
+      "post": {
+        "summary": "Change an account's password using a code, usually delivered over email.",
+        "operationId": "AuthenticatePasswordChange",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "type": "object",
+              "properties": {}
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpc.Status"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "description": "Request to change a password.",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/AuthenticatePasswordChangeRequest"
             }
           }
         ],
@@ -3497,6 +3500,38 @@
           "Console"
         ]
       }
+    },
+    "/v2/console/user/{username}/reset/password": {
+      "post": {
+        "summary": "Reset a user's password.",
+        "operationId": "ResetUserPassword",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/ResetUserResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpc.Status"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "username",
+            "description": "The unique username of the user account.",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "Console"
+        ]
+      }
     }
   },
   "definitions": {
@@ -3699,7 +3734,7 @@
         "HIRO_ENERGY"
       ],
       "default": "ACCOUNT",
-      "description": "ATTENTION: Do not modify the order of this enum.\r\nNew resources should always be appended."
+      "description": "ATTENTION: Do not modify the order of this enum.\nNew resources should always be appended."
     },
     "AclTemplate": {
       "type": "object",
@@ -3803,10 +3838,6 @@
         "username": {
           "type": "string",
           "description": "The username of the user."
-        },
-        "password": {
-          "type": "string",
-          "description": "The password of the user."
         },
         "email": {
           "type": "string",
@@ -4010,6 +4041,20 @@
         }
       },
       "description": "Response to change MFA."
+    },
+    "AuthenticatePasswordChangeRequest": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string",
+          "description": "Code."
+        },
+        "password": {
+          "type": "string",
+          "description": "New password."
+        }
+      },
+      "description": "Request to change a password."
     },
     "AuthenticateRequest": {
       "type": "object",
@@ -4743,7 +4788,7 @@
           "description": "Filter by elements matching all parameters."
         }
       },
-      "description": "The MultiTextValueFilterOption specifies the operation to apply to multi-value text fields.\r\nOnly a single operation can be used at one time."
+      "description": "The MultiTextValueFilterOption specifies the operation to apply to multi-value text fields.\nOnly a single operation can be used at one time."
     },
     "NullValue": {
       "type": "string",
@@ -5090,7 +5135,7 @@
           "description": "Filter by elements matching the pattern."
         }
       },
-      "description": "The SingleTextValueFilterOption specifies the operation to apply to single value text fields.\r\nOnly a single operation can be used at one time."
+      "description": "The SingleTextValueFilterOption specifies the operation to apply to single value text fields.\nOnly a single operation can be used at one time."
     },
     "StatusHealth": {
       "type": "string",

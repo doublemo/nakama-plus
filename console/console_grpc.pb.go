@@ -38,96 +38,97 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	Console_Authenticate_FullMethodName              = "/nakama.console.Console/Authenticate"
-	Console_AuthenticateLogout_FullMethodName        = "/nakama.console.Console/AuthenticateLogout"
-	Console_AuthenticateMFASetup_FullMethodName      = "/nakama.console.Console/AuthenticateMFASetup"
-	Console_AddAccountNote_FullMethodName            = "/nakama.console.Console/AddAccountNote"
-	Console_ListAccountNotes_FullMethodName          = "/nakama.console.Console/ListAccountNotes"
-	Console_AddAclTemplate_FullMethodName            = "/nakama.console.Console/AddAclTemplate"
-	Console_UpdateAclTemplate_FullMethodName         = "/nakama.console.Console/UpdateAclTemplate"
-	Console_ListAclTemplates_FullMethodName          = "/nakama.console.Console/ListAclTemplates"
-	Console_DeleteAclTemplate_FullMethodName         = "/nakama.console.Console/DeleteAclTemplate"
-	Console_DeleteAccountNote_FullMethodName         = "/nakama.console.Console/DeleteAccountNote"
-	Console_AddUser_FullMethodName                   = "/nakama.console.Console/AddUser"
-	Console_ResetUserPassword_FullMethodName         = "/nakama.console.Console/ResetUserPassword"
-	Console_AddGroupUsers_FullMethodName             = "/nakama.console.Console/AddGroupUsers"
-	Console_BanAccount_FullMethodName                = "/nakama.console.Console/BanAccount"
-	Console_CallApiEndpoint_FullMethodName           = "/nakama.console.Console/CallApiEndpoint"
-	Console_CallRpcEndpoint_FullMethodName           = "/nakama.console.Console/CallRpcEndpoint"
-	Console_DeleteAllData_FullMethodName             = "/nakama.console.Console/DeleteAllData"
-	Console_DeleteAccount_FullMethodName             = "/nakama.console.Console/DeleteAccount"
-	Console_DeleteChannelMessages_FullMethodName     = "/nakama.console.Console/DeleteChannelMessages"
-	Console_DeleteFriend_FullMethodName              = "/nakama.console.Console/DeleteFriend"
-	Console_DeleteGroup_FullMethodName               = "/nakama.console.Console/DeleteGroup"
-	Console_DeleteGroupUser_FullMethodName           = "/nakama.console.Console/DeleteGroupUser"
-	Console_DeleteStorage_FullMethodName             = "/nakama.console.Console/DeleteStorage"
-	Console_DeleteStorageObject_FullMethodName       = "/nakama.console.Console/DeleteStorageObject"
-	Console_DeleteAccounts_FullMethodName            = "/nakama.console.Console/DeleteAccounts"
-	Console_DeleteLeaderboard_FullMethodName         = "/nakama.console.Console/DeleteLeaderboard"
-	Console_DeleteLeaderboardRecord_FullMethodName   = "/nakama.console.Console/DeleteLeaderboardRecord"
-	Console_DeleteNotification_FullMethodName        = "/nakama.console.Console/DeleteNotification"
-	Console_DeleteUser_FullMethodName                = "/nakama.console.Console/DeleteUser"
-	Console_DeleteWalletLedger_FullMethodName        = "/nakama.console.Console/DeleteWalletLedger"
-	Console_DemoteGroupMember_FullMethodName         = "/nakama.console.Console/DemoteGroupMember"
-	Console_ExportAccount_FullMethodName             = "/nakama.console.Console/ExportAccount"
-	Console_ImportAccount_FullMethodName             = "/nakama.console.Console/ImportAccount"
-	Console_ImportAccountFull_FullMethodName         = "/nakama.console.Console/ImportAccountFull"
-	Console_ExportGroup_FullMethodName               = "/nakama.console.Console/ExportGroup"
-	Console_GetAccount_FullMethodName                = "/nakama.console.Console/GetAccount"
-	Console_GetConfig_FullMethodName                 = "/nakama.console.Console/GetConfig"
-	Console_GetFriends_FullMethodName                = "/nakama.console.Console/GetFriends"
-	Console_GetGroup_FullMethodName                  = "/nakama.console.Console/GetGroup"
-	Console_GetMembers_FullMethodName                = "/nakama.console.Console/GetMembers"
-	Console_GetGroups_FullMethodName                 = "/nakama.console.Console/GetGroups"
-	Console_GetLeaderboard_FullMethodName            = "/nakama.console.Console/GetLeaderboard"
-	Console_GetMatchState_FullMethodName             = "/nakama.console.Console/GetMatchState"
-	Console_GetRuntime_FullMethodName                = "/nakama.console.Console/GetRuntime"
-	Console_GetSetting_FullMethodName                = "/nakama.console.Console/GetSetting"
-	Console_GetStatus_FullMethodName                 = "/nakama.console.Console/GetStatus"
-	Console_GetStorage_FullMethodName                = "/nakama.console.Console/GetStorage"
-	Console_GetUser_FullMethodName                   = "/nakama.console.Console/GetUser"
-	Console_GetWalletLedger_FullMethodName           = "/nakama.console.Console/GetWalletLedger"
-	Console_GetNotification_FullMethodName           = "/nakama.console.Console/GetNotification"
-	Console_GetPurchase_FullMethodName               = "/nakama.console.Console/GetPurchase"
-	Console_GetSubscription_FullMethodName           = "/nakama.console.Console/GetSubscription"
-	Console_ListAuditLogs_FullMethodName             = "/nakama.console.Console/ListAuditLogs"
-	Console_ListAuditLogsUsers_FullMethodName        = "/nakama.console.Console/ListAuditLogsUsers"
-	Console_ListApiEndpoints_FullMethodName          = "/nakama.console.Console/ListApiEndpoints"
-	Console_ListLeaderboardRecords_FullMethodName    = "/nakama.console.Console/ListLeaderboardRecords"
-	Console_ListLeaderboards_FullMethodName          = "/nakama.console.Console/ListLeaderboards"
-	Console_ListSettings_FullMethodName              = "/nakama.console.Console/ListSettings"
-	Console_ListStorage_FullMethodName               = "/nakama.console.Console/ListStorage"
-	Console_ListStorageCollections_FullMethodName    = "/nakama.console.Console/ListStorageCollections"
-	Console_ListAccounts_FullMethodName              = "/nakama.console.Console/ListAccounts"
-	Console_ListChannelMessages_FullMethodName       = "/nakama.console.Console/ListChannelMessages"
-	Console_ListGroups_FullMethodName                = "/nakama.console.Console/ListGroups"
-	Console_ListNotifications_FullMethodName         = "/nakama.console.Console/ListNotifications"
-	Console_ListMatches_FullMethodName               = "/nakama.console.Console/ListMatches"
-	Console_ListPurchases_FullMethodName             = "/nakama.console.Console/ListPurchases"
-	Console_ListSubscriptions_FullMethodName         = "/nakama.console.Console/ListSubscriptions"
-	Console_ListUsers_FullMethodName                 = "/nakama.console.Console/ListUsers"
-	Console_PromoteGroupMember_FullMethodName        = "/nakama.console.Console/PromoteGroupMember"
-	Console_RequireUserMfa_FullMethodName            = "/nakama.console.Console/RequireUserMfa"
-	Console_ResetUserMfa_FullMethodName              = "/nakama.console.Console/ResetUserMfa"
-	Console_UnbanAccount_FullMethodName              = "/nakama.console.Console/UnbanAccount"
-	Console_UnlinkCustom_FullMethodName              = "/nakama.console.Console/UnlinkCustom"
-	Console_UnlinkDevice_FullMethodName              = "/nakama.console.Console/UnlinkDevice"
-	Console_UnlinkEmail_FullMethodName               = "/nakama.console.Console/UnlinkEmail"
-	Console_UnlinkApple_FullMethodName               = "/nakama.console.Console/UnlinkApple"
-	Console_UnlinkFacebook_FullMethodName            = "/nakama.console.Console/UnlinkFacebook"
-	Console_UnlinkFacebookInstantGame_FullMethodName = "/nakama.console.Console/UnlinkFacebookInstantGame"
-	Console_UnlinkGameCenter_FullMethodName          = "/nakama.console.Console/UnlinkGameCenter"
-	Console_UnlinkGoogle_FullMethodName              = "/nakama.console.Console/UnlinkGoogle"
-	Console_UnlinkSteam_FullMethodName               = "/nakama.console.Console/UnlinkSteam"
-	Console_UpdateAccount_FullMethodName             = "/nakama.console.Console/UpdateAccount"
-	Console_UpdateGroup_FullMethodName               = "/nakama.console.Console/UpdateGroup"
-	Console_UpdateSetting_FullMethodName             = "/nakama.console.Console/UpdateSetting"
-	Console_UpdateUser_FullMethodName                = "/nakama.console.Console/UpdateUser"
-	Console_WriteStorageObject_FullMethodName        = "/nakama.console.Console/WriteStorageObject"
-	Console_SatoriListTemplates_FullMethodName       = "/nakama.console.Console/SatoriListTemplates"
-	Console_SatoriSendDirectMessage_FullMethodName   = "/nakama.console.Console/SatoriSendDirectMessage"
-	Console_SendNotification_FullMethodName          = "/nakama.console.Console/SendNotification"
-	Console_RegisteredExtensions_FullMethodName      = "/nakama.console.Console/RegisteredExtensions"
+	Console_Authenticate_FullMethodName               = "/nakama.console.Console/Authenticate"
+	Console_AuthenticateLogout_FullMethodName         = "/nakama.console.Console/AuthenticateLogout"
+	Console_AuthenticateMFASetup_FullMethodName       = "/nakama.console.Console/AuthenticateMFASetup"
+	Console_AuthenticatePasswordChange_FullMethodName = "/nakama.console.Console/AuthenticatePasswordChange"
+	Console_AddAccountNote_FullMethodName             = "/nakama.console.Console/AddAccountNote"
+	Console_ListAccountNotes_FullMethodName           = "/nakama.console.Console/ListAccountNotes"
+	Console_AddAclTemplate_FullMethodName             = "/nakama.console.Console/AddAclTemplate"
+	Console_UpdateAclTemplate_FullMethodName          = "/nakama.console.Console/UpdateAclTemplate"
+	Console_ListAclTemplates_FullMethodName           = "/nakama.console.Console/ListAclTemplates"
+	Console_DeleteAclTemplate_FullMethodName          = "/nakama.console.Console/DeleteAclTemplate"
+	Console_DeleteAccountNote_FullMethodName          = "/nakama.console.Console/DeleteAccountNote"
+	Console_AddUser_FullMethodName                    = "/nakama.console.Console/AddUser"
+	Console_ResetUserPassword_FullMethodName          = "/nakama.console.Console/ResetUserPassword"
+	Console_AddGroupUsers_FullMethodName              = "/nakama.console.Console/AddGroupUsers"
+	Console_BanAccount_FullMethodName                 = "/nakama.console.Console/BanAccount"
+	Console_CallApiEndpoint_FullMethodName            = "/nakama.console.Console/CallApiEndpoint"
+	Console_CallRpcEndpoint_FullMethodName            = "/nakama.console.Console/CallRpcEndpoint"
+	Console_DeleteAllData_FullMethodName              = "/nakama.console.Console/DeleteAllData"
+	Console_DeleteAccount_FullMethodName              = "/nakama.console.Console/DeleteAccount"
+	Console_DeleteChannelMessages_FullMethodName      = "/nakama.console.Console/DeleteChannelMessages"
+	Console_DeleteFriend_FullMethodName               = "/nakama.console.Console/DeleteFriend"
+	Console_DeleteGroup_FullMethodName                = "/nakama.console.Console/DeleteGroup"
+	Console_DeleteGroupUser_FullMethodName            = "/nakama.console.Console/DeleteGroupUser"
+	Console_DeleteStorage_FullMethodName              = "/nakama.console.Console/DeleteStorage"
+	Console_DeleteStorageObject_FullMethodName        = "/nakama.console.Console/DeleteStorageObject"
+	Console_DeleteAccounts_FullMethodName             = "/nakama.console.Console/DeleteAccounts"
+	Console_DeleteLeaderboard_FullMethodName          = "/nakama.console.Console/DeleteLeaderboard"
+	Console_DeleteLeaderboardRecord_FullMethodName    = "/nakama.console.Console/DeleteLeaderboardRecord"
+	Console_DeleteNotification_FullMethodName         = "/nakama.console.Console/DeleteNotification"
+	Console_DeleteUser_FullMethodName                 = "/nakama.console.Console/DeleteUser"
+	Console_DeleteWalletLedger_FullMethodName         = "/nakama.console.Console/DeleteWalletLedger"
+	Console_DemoteGroupMember_FullMethodName          = "/nakama.console.Console/DemoteGroupMember"
+	Console_ExportAccount_FullMethodName              = "/nakama.console.Console/ExportAccount"
+	Console_ImportAccount_FullMethodName              = "/nakama.console.Console/ImportAccount"
+	Console_ImportAccountFull_FullMethodName          = "/nakama.console.Console/ImportAccountFull"
+	Console_ExportGroup_FullMethodName                = "/nakama.console.Console/ExportGroup"
+	Console_GetAccount_FullMethodName                 = "/nakama.console.Console/GetAccount"
+	Console_GetConfig_FullMethodName                  = "/nakama.console.Console/GetConfig"
+	Console_GetFriends_FullMethodName                 = "/nakama.console.Console/GetFriends"
+	Console_GetGroup_FullMethodName                   = "/nakama.console.Console/GetGroup"
+	Console_GetMembers_FullMethodName                 = "/nakama.console.Console/GetMembers"
+	Console_GetGroups_FullMethodName                  = "/nakama.console.Console/GetGroups"
+	Console_GetLeaderboard_FullMethodName             = "/nakama.console.Console/GetLeaderboard"
+	Console_GetMatchState_FullMethodName              = "/nakama.console.Console/GetMatchState"
+	Console_GetRuntime_FullMethodName                 = "/nakama.console.Console/GetRuntime"
+	Console_GetSetting_FullMethodName                 = "/nakama.console.Console/GetSetting"
+	Console_GetStatus_FullMethodName                  = "/nakama.console.Console/GetStatus"
+	Console_GetStorage_FullMethodName                 = "/nakama.console.Console/GetStorage"
+	Console_GetUser_FullMethodName                    = "/nakama.console.Console/GetUser"
+	Console_GetWalletLedger_FullMethodName            = "/nakama.console.Console/GetWalletLedger"
+	Console_GetNotification_FullMethodName            = "/nakama.console.Console/GetNotification"
+	Console_GetPurchase_FullMethodName                = "/nakama.console.Console/GetPurchase"
+	Console_GetSubscription_FullMethodName            = "/nakama.console.Console/GetSubscription"
+	Console_ListAuditLogs_FullMethodName              = "/nakama.console.Console/ListAuditLogs"
+	Console_ListAuditLogsUsers_FullMethodName         = "/nakama.console.Console/ListAuditLogsUsers"
+	Console_ListApiEndpoints_FullMethodName           = "/nakama.console.Console/ListApiEndpoints"
+	Console_ListLeaderboardRecords_FullMethodName     = "/nakama.console.Console/ListLeaderboardRecords"
+	Console_ListLeaderboards_FullMethodName           = "/nakama.console.Console/ListLeaderboards"
+	Console_ListSettings_FullMethodName               = "/nakama.console.Console/ListSettings"
+	Console_ListStorage_FullMethodName                = "/nakama.console.Console/ListStorage"
+	Console_ListStorageCollections_FullMethodName     = "/nakama.console.Console/ListStorageCollections"
+	Console_ListAccounts_FullMethodName               = "/nakama.console.Console/ListAccounts"
+	Console_ListChannelMessages_FullMethodName        = "/nakama.console.Console/ListChannelMessages"
+	Console_ListGroups_FullMethodName                 = "/nakama.console.Console/ListGroups"
+	Console_ListNotifications_FullMethodName          = "/nakama.console.Console/ListNotifications"
+	Console_ListMatches_FullMethodName                = "/nakama.console.Console/ListMatches"
+	Console_ListPurchases_FullMethodName              = "/nakama.console.Console/ListPurchases"
+	Console_ListSubscriptions_FullMethodName          = "/nakama.console.Console/ListSubscriptions"
+	Console_ListUsers_FullMethodName                  = "/nakama.console.Console/ListUsers"
+	Console_PromoteGroupMember_FullMethodName         = "/nakama.console.Console/PromoteGroupMember"
+	Console_RequireUserMfa_FullMethodName             = "/nakama.console.Console/RequireUserMfa"
+	Console_ResetUserMfa_FullMethodName               = "/nakama.console.Console/ResetUserMfa"
+	Console_UnbanAccount_FullMethodName               = "/nakama.console.Console/UnbanAccount"
+	Console_UnlinkCustom_FullMethodName               = "/nakama.console.Console/UnlinkCustom"
+	Console_UnlinkDevice_FullMethodName               = "/nakama.console.Console/UnlinkDevice"
+	Console_UnlinkEmail_FullMethodName                = "/nakama.console.Console/UnlinkEmail"
+	Console_UnlinkApple_FullMethodName                = "/nakama.console.Console/UnlinkApple"
+	Console_UnlinkFacebook_FullMethodName             = "/nakama.console.Console/UnlinkFacebook"
+	Console_UnlinkFacebookInstantGame_FullMethodName  = "/nakama.console.Console/UnlinkFacebookInstantGame"
+	Console_UnlinkGameCenter_FullMethodName           = "/nakama.console.Console/UnlinkGameCenter"
+	Console_UnlinkGoogle_FullMethodName               = "/nakama.console.Console/UnlinkGoogle"
+	Console_UnlinkSteam_FullMethodName                = "/nakama.console.Console/UnlinkSteam"
+	Console_UpdateAccount_FullMethodName              = "/nakama.console.Console/UpdateAccount"
+	Console_UpdateGroup_FullMethodName                = "/nakama.console.Console/UpdateGroup"
+	Console_UpdateSetting_FullMethodName              = "/nakama.console.Console/UpdateSetting"
+	Console_UpdateUser_FullMethodName                 = "/nakama.console.Console/UpdateUser"
+	Console_WriteStorageObject_FullMethodName         = "/nakama.console.Console/WriteStorageObject"
+	Console_SatoriListTemplates_FullMethodName        = "/nakama.console.Console/SatoriListTemplates"
+	Console_SatoriSendDirectMessage_FullMethodName    = "/nakama.console.Console/SatoriSendDirectMessage"
+	Console_SendNotification_FullMethodName           = "/nakama.console.Console/SendNotification"
+	Console_RegisteredExtensions_FullMethodName       = "/nakama.console.Console/RegisteredExtensions"
 )
 
 // ConsoleClient is the client API for Console service.
@@ -143,6 +144,8 @@ type ConsoleClient interface {
 	AuthenticateLogout(ctx context.Context, in *AuthenticateLogoutRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	// Change an account's MFA using a code, usually delivered over email.
 	AuthenticateMFASetup(ctx context.Context, in *AuthenticateMFASetupRequest, opts ...grpc.CallOption) (*AuthenticateMFASetupResponse, error)
+	// Change an account's password using a code, usually delivered over email.
+	AuthenticatePasswordChange(ctx context.Context, in *AuthenticatePasswordChangeRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	AddAccountNote(ctx context.Context, in *AddAccountNoteRequest, opts ...grpc.CallOption) (*AccountNote, error)
 	ListAccountNotes(ctx context.Context, in *ListAccountNotesRequest, opts ...grpc.CallOption) (*ListAccountNotesResponse, error)
 	AddAclTemplate(ctx context.Context, in *AddAclTemplateRequest, opts ...grpc.CallOption) (*AclTemplate, error)
@@ -247,7 +250,7 @@ type ConsoleClient interface {
 	ListSettings(ctx context.Context, in *ListSettingsRequest, opts ...grpc.CallOption) (*SettingList, error)
 	// List (and optionally filter) storage data.
 	ListStorage(ctx context.Context, in *ListStorageRequest, opts ...grpc.CallOption) (*StorageList, error)
-	//List storage collections
+	// List storage collections
 	ListStorageCollections(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*StorageCollectionsList, error)
 	// List (and optionally filter) accounts.
 	ListAccounts(ctx context.Context, in *ListAccountsRequest, opts ...grpc.CallOption) (*AccountList, error)
@@ -340,6 +343,16 @@ func (c *consoleClient) AuthenticateMFASetup(ctx context.Context, in *Authentica
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(AuthenticateMFASetupResponse)
 	err := c.cc.Invoke(ctx, Console_AuthenticateMFASetup_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *consoleClient) AuthenticatePasswordChange(ctx context.Context, in *AuthenticatePasswordChangeRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, Console_AuthenticatePasswordChange_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1229,6 +1242,8 @@ type ConsoleServer interface {
 	AuthenticateLogout(context.Context, *AuthenticateLogoutRequest) (*emptypb.Empty, error)
 	// Change an account's MFA using a code, usually delivered over email.
 	AuthenticateMFASetup(context.Context, *AuthenticateMFASetupRequest) (*AuthenticateMFASetupResponse, error)
+	// Change an account's password using a code, usually delivered over email.
+	AuthenticatePasswordChange(context.Context, *AuthenticatePasswordChangeRequest) (*emptypb.Empty, error)
 	AddAccountNote(context.Context, *AddAccountNoteRequest) (*AccountNote, error)
 	ListAccountNotes(context.Context, *ListAccountNotesRequest) (*ListAccountNotesResponse, error)
 	AddAclTemplate(context.Context, *AddAclTemplateRequest) (*AclTemplate, error)
@@ -1333,7 +1348,7 @@ type ConsoleServer interface {
 	ListSettings(context.Context, *ListSettingsRequest) (*SettingList, error)
 	// List (and optionally filter) storage data.
 	ListStorage(context.Context, *ListStorageRequest) (*StorageList, error)
-	//List storage collections
+	// List storage collections
 	ListStorageCollections(context.Context, *emptypb.Empty) (*StorageCollectionsList, error)
 	// List (and optionally filter) accounts.
 	ListAccounts(context.Context, *ListAccountsRequest) (*AccountList, error)
@@ -1410,6 +1425,9 @@ func (UnimplementedConsoleServer) AuthenticateLogout(context.Context, *Authentic
 }
 func (UnimplementedConsoleServer) AuthenticateMFASetup(context.Context, *AuthenticateMFASetupRequest) (*AuthenticateMFASetupResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AuthenticateMFASetup not implemented")
+}
+func (UnimplementedConsoleServer) AuthenticatePasswordChange(context.Context, *AuthenticatePasswordChangeRequest) (*emptypb.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AuthenticatePasswordChange not implemented")
 }
 func (UnimplementedConsoleServer) AddAccountNote(context.Context, *AddAccountNoteRequest) (*AccountNote, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AddAccountNote not implemented")
@@ -1743,6 +1761,24 @@ func _Console_AuthenticateMFASetup_Handler(srv interface{}, ctx context.Context,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ConsoleServer).AuthenticateMFASetup(ctx, req.(*AuthenticateMFASetupRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Console_AuthenticatePasswordChange_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AuthenticatePasswordChangeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ConsoleServer).AuthenticatePasswordChange(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Console_AuthenticatePasswordChange_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ConsoleServer).AuthenticatePasswordChange(ctx, req.(*AuthenticatePasswordChangeRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -3331,6 +3367,10 @@ var Console_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "AuthenticateMFASetup",
 			Handler:    _Console_AuthenticateMFASetup_Handler,
+		},
+		{
+			MethodName: "AuthenticatePasswordChange",
+			Handler:    _Console_AuthenticatePasswordChange_Handler,
 		},
 		{
 			MethodName: "AddAccountNote",

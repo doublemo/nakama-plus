@@ -5,6 +5,9 @@ The format is based on [keep a changelog](http://keepachangelog.com) and this pr
 
 ## [Unreleased]
 
+### Changed
+- Improvements to Console user setup and management.
+
 ## [3.35.1] - 2025-12-05
 ### Fixed
 - Fix migration script to correctly revert console fine-grained access control changes
