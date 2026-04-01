@@ -37,7 +37,7 @@ func (s *ConsoleServer) GetConfig(ctx context.Context, in *emptypb.Empty) (*cons
 		logger.Error("Error cloning config.", zap.Error(err))
 		return nil, status.Error(codes.Internal, "Error processing config.")
 	}
-
+	cfg.GetConsole().SigningKey = ObfuscationString
 	cfg.GetConsole().Password = ObfuscationString
 	for i, address := range cfg.GetDatabase().Addresses {
 		rawURL := fmt.Sprintf("postgresql://%s", address)

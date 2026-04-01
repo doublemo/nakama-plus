@@ -22,6 +22,7 @@ import (
 	"encoding/gob"
 	"encoding/json"
 	"errors"
+	"html"
 	"regexp"
 	"strconv"
 	"strings"
@@ -244,6 +245,12 @@ func (s *ConsoleServer) GetAccount(ctx context.Context, in *console.AccountId) (
 		}
 		return nil, status.Error(codes.Internal, "An error occurred while trying to retrieve user account.")
 	}
+
+	account.User.DisplayName = html.EscapeString(account.User.DisplayName)
+	account.User.AvatarUrl = html.EscapeString(account.User.AvatarUrl)
+	account.User.LangTag = html.EscapeString(account.User.LangTag)
+	account.User.Location = html.EscapeString(account.User.Location)
+	account.User.Timezone = html.EscapeString(account.User.Timezone)
 
 	return &console.Account{
 		Account:     account,
@@ -482,6 +489,11 @@ func (s *ConsoleServer) ListAccounts(ctx context.Context, in *console.ListAccoun
 				logger.Error("Error scanning users.", zap.Any("in", in), zap.Error(err))
 				return nil, status.Error(codes.Internal, "An error occurred while trying to list users.")
 			}
+			user.DisplayName = html.EscapeString(user.DisplayName)
+			user.AvatarUrl = html.EscapeString(user.AvatarUrl)
+			user.LangTag = html.EscapeString(user.LangTag)
+			user.Location = html.EscapeString(user.Location)
+			user.Timezone = html.EscapeString(user.Timezone)
 			users = append(users, user)
 		}
 		_ = rows.Close()
@@ -509,6 +521,11 @@ func (s *ConsoleServer) ListAccounts(ctx context.Context, in *console.ListAccoun
 					logger.Error("Error scanning users.", zap.Any("in", in), zap.Error(err))
 					return nil, status.Error(codes.Internal, "An error occurred while trying to list users.")
 				}
+				user.DisplayName = html.EscapeString(user.DisplayName)
+				user.AvatarUrl = html.EscapeString(user.AvatarUrl)
+				user.LangTag = html.EscapeString(user.LangTag)
+				user.Location = html.EscapeString(user.Location)
+				user.Timezone = html.EscapeString(user.Timezone)
 				users = append(users, user)
 			}
 			_ = rows.Close()
@@ -574,6 +591,11 @@ func (s *ConsoleServer) ListAccounts(ctx context.Context, in *console.ListAccoun
 			logger.Error("Error scanning users.", zap.Any("in", in), zap.Error(err))
 			return nil, status.Error(codes.Internal, "An error occurred while trying to list users.")
 		}
+		user.DisplayName = html.EscapeString(user.DisplayName)
+		user.AvatarUrl = html.EscapeString(user.AvatarUrl)
+		user.LangTag = html.EscapeString(user.LangTag)
+		user.Location = html.EscapeString(user.Location)
+		user.Timezone = html.EscapeString(user.Timezone)
 		users = append(users, user)
 		previousUser = user
 	}
@@ -715,7 +737,7 @@ func (s *ConsoleServer) UpdateAccount(ctx context.Context, in *console.UpdateAcc
 		if len(p) < 8 {
 			return nil, status.Error(codes.InvalidArgument, "Password must be at least 8 characters long.")
 		}
-		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(p), bcrypt.DefaultCost)
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(p), bcryptHashCost)
 		if err != nil {
 			s.logger.Error("Error hashing password.", zap.Error(err))
 			return nil, status.Error(codes.Internal, "Error updating user account password.")
