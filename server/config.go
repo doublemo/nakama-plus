@@ -1638,6 +1638,7 @@ func NewMFAConfig() *MFAConfig {
 
 type PartyConfig struct {
 	LabelUpdateIntervalMs int `yaml:"label_update_interval_ms" json:"label_update_interval_ms" usage:"Time in milliseconds between party label update batch processes. Default 1000."`
+	IdleCheckIntervalMs   int `yaml:"idle_check_interval_ms" json:"idle_check_interval_ms" usage:"Time in milliseconds between party idle checks. Default 30000"`
 }
 
 func (cfg *PartyConfig) Clone() *PartyConfig {
@@ -1651,6 +1652,7 @@ func (cfg *PartyConfig) Clone() *PartyConfig {
 
 func NewPartyConfig() *PartyConfig {
 	return &PartyConfig{
-		LabelUpdateIntervalMs: 1000,
+		LabelUpdateIntervalMs: 1_000,
+		IdleCheckIntervalMs:   30_000,
 	}
 }
