@@ -14,6 +14,7 @@ The format is based on [keep a changelog](http://keepachangelog.com) and this pr
 - Add In-App Purchase notification type to JS/Lua callback functions.
 - Fix permission check on Console Group AddMembers operation.
 - Correct field usage in voided Google In-App Purchase subscription notifications.
+- Fix an issue where the Storage Index would keep entries which should have been filtered.
 
 ### Changed
 - Improvements to Console user setup and management.
