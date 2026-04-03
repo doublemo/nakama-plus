@@ -4,6 +4,7 @@ All notable changes to this project are documented below.
 The format is based on [keep a changelog](http://keepachangelog.com) and this project uses [semantic versioning](http://semver.org).
 
 ## [Unreleased]
+## [3.38.0] - 2026-04-03
 ### Added
 - Support Apple JWS receipts in In-App Purchase validation APIs.
 - Expose new Prometheus RPC metrics with label per gRPC status.
