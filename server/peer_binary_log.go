@@ -165,7 +165,17 @@ func (s *LocalPeer) handleBinaryLog(v *pb.BinaryLog) {
 
 	case *pb.BinaryLog_LeaderboardRankCreate:
 		l := payload.LeaderboardRankCreate
-		s.leaderboardRankCache.Insert(l.LeaderboardId, int(l.SortOrder), l.Score, l.Subscore, l.Generation, l.ExpiryUnix, uuid.FromBytesOrNil([]byte(l.OwnerID)), l.Enable)
+		ownerID, err := uuid.FromString(l.OwnerID)
+		if err != nil || ownerID == uuid.Nil {
+			s.logger.Error("Invalid owner ID in leaderboard rank binary log", append(logFields,
+				zap.String("leaderboard_id", l.LeaderboardId),
+				zap.String("owner_id", l.OwnerID),
+				zap.Error(err),
+			)...)
+			break
+		}
+
+		s.leaderboardRankCache.Insert(l.LeaderboardId, int(l.SortOrder), l.Score, l.Subscore, l.Generation, l.ExpiryUnix, ownerID, l.Enable)
 		s.logger.Debug("processed leaderboard rank", append(logFields, zap.String("id", l.LeaderboardId))...)
 	case *pb.BinaryLog_LeaderboardRankDelete:
 		if payload.LeaderboardRankDelete != nil {
