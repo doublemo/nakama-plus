@@ -5,13 +5,23 @@ The format is based on [keep a changelog](http://keepachangelog.com) and this pr
 
 ## [Unreleased]
 ### Added
+- Improve logic in Apple JWS receipts validation.
+### Fixed
+- Fix an issue where group admin account deletion could leave orphaned group edges.
+
+## [3.39.0] - 2026-05-20
+### Added
 - Add new runtime function to update storage objects with retries.
+
+### Changed
 - Update Satori client to match latest API spec.
 - Add configurable retries to the Satori client.
 
 ### Fixed
 - Ignore negative custom runtime counter deltas to avoid panics during metrics collection.
 - Set account empty fields to null appropriately on console account import.
+- Correctly cancel context after matchmaker matched function completes.
+- Fix X-Forwarded-For header handling regression.
 
 ## [3.38.0] - 2026-04-03
 ### Added
