@@ -6,6 +6,7 @@ The format is based on [keep a changelog](http://keepachangelog.com) and this pr
 ## [Unreleased]
 ### Fixed
 - Ignore negative custom runtime counter deltas to avoid panics during metrics collection.
+- Set account empty fields to null appropriately on console account import.
 
 ## [3.38.0] - 2026-04-03
 ### Added
