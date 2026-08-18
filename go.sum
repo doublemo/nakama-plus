@@ -106,6 +106,8 @@ github.com/dop251/goja v0.0.0-20260311135729-065cd970411c h1:OcLmPfx1T1RmZVHHFwW
 github.com/dop251/goja v0.0.0-20260311135729-065cd970411c/go.mod h1:MxLav0peU43GgvwVgNbLAj1s/bSGboKkhuULvq/7hx4=
 github.com/doublemo/nakama-common v1.45.0 h1:c7Aat/B4ZOxlY4EBSeikRwCEjq6e9O/pHYb4X8Gj8wU=
 github.com/doublemo/nakama-common v1.45.0/go.mod h1:vpN23e52Y5UeinK4rE4IN8Ey235lUpP08JWEw/gX5CM=
+github.com/doublemo/nakama-common v1.47.0 h1:RGJvDBaQCcz3BNzl74TfN1Wt5hofPgec2Z6+9A5+vjg=
+github.com/doublemo/nakama-common v1.47.0/go.mod h1:++7qfZB0Ewp/8u9//VmzYfXvdx2JyWz6S0YP0SbyNEA=
 github.com/doublemo/nakama-kit v1.4.2 h1:UbCfgIwJbC5kM24pziDF82OGJjQZARK0KDvq71lrPJE=
 github.com/doublemo/nakama-kit v1.4.2/go.mod h1:BRiVucuCFNOoGPDqKP3qUSR1IkVIIp4sDDJxCnVaCYg=
 github.com/dustin/go-humanize v1.0.1 h1:GzkhY7T5VNhEkwH0PVJgjz+fX1rhBrR7pRT3mDkpeCY=
