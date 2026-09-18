@@ -1364,6 +1364,7 @@ type IAPConfig struct {
 	Google          *IAPGoogleConfig          `yaml:"google" json:"google" usage:"Google Play Store purchase validation configuration."`
 	Huawei          *IAPHuaweiConfig          `yaml:"huawei" json:"huawei" usage:"Huawei purchase validation configuration."`
 	FacebookInstant *IAPFacebookInstantConfig `yaml:"facebook_instant" json:"facebook_instant" usage:"Facebook Instant purchase validation configuration."`
+	Samsung         *IAPSamsungConfig         `yaml:"samsung" json:"samsung" usage:"Samsung Galaxy Store purchase validation configuration."`
 }
 
 func (cfg *IAPConfig) GetApple() runtime.IAPAppleConfig {
@@ -1380,6 +1381,13 @@ func (cfg *IAPConfig) GetHuawei() runtime.IAPHuaweiConfig {
 
 func (cfg *IAPConfig) GetFacebookInstant() runtime.IAPFacebookInstantConfig {
 	return cfg.FacebookInstant
+}
+
+func (cfg *IAPConfig) GetSamsung() runtime.IAPSamsungConfig {
+	if cfg.Samsung == nil {
+		return &IAPSamsungConfig{}
+	}
+	return cfg.Samsung
 }
 
 func (cfg *IAPConfig) Clone() *IAPConfig {
@@ -1406,6 +1414,11 @@ func (cfg *IAPConfig) Clone() *IAPConfig {
 		cfgCopy.Huawei = &c
 	}
 
+	if cfg.Samsung != nil {
+		c := *(cfg.Samsung)
+		cfgCopy.Samsung = &c
+	}
+
 	return &cfgCopy
 }
 
@@ -1415,6 +1428,7 @@ func NewIAPConfig() *IAPConfig {
 		Google:          &IAPGoogleConfig{},
 		Huawei:          &IAPHuaweiConfig{},
 		FacebookInstant: &IAPFacebookInstantConfig{},
+		Samsung:         &IAPSamsungConfig{},
 	}
 }
 
@@ -1569,6 +1583,14 @@ type IAPFacebookInstantConfig struct {
 func (i IAPFacebookInstantConfig) GetAppSecret() string {
 	return i.AppSecret
 }
+
+type IAPSamsungConfig struct {
+	PackageName string `yaml:"package_name" json:"package_name" usage:"Optional. When set, receipt packageName must match."`
+}
+
+func (i *IAPSamsungConfig) GetPackageName() string { return i.PackageName }
+
+var _ runtime.IAPSamsungConfig = (*IAPSamsungConfig)(nil)
 
 var _ runtime.GoogleAuthConfig = (*GoogleAuthConfig)(nil)
 

@@ -209,6 +209,8 @@ type (
 	RuntimeAfterValidatePurchaseHuaweiFunction             func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, out *api.ValidatePurchaseResponse, in *api.ValidatePurchaseHuaweiRequest) error
 	RuntimeBeforeValidatePurchaseFacebookInstantFunction   func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.ValidatePurchaseFacebookInstantRequest) (*api.ValidatePurchaseFacebookInstantRequest, error, codes.Code)
 	RuntimeAfterValidatePurchaseFacebookInstantFunction    func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, out *api.ValidatePurchaseResponse, in *api.ValidatePurchaseFacebookInstantRequest) error
+	RuntimeBeforeValidatePurchaseSamsungFunction           func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.ValidatePurchaseSamsungRequest) (*api.ValidatePurchaseSamsungRequest, error, codes.Code)
+	RuntimeAfterValidatePurchaseSamsungFunction            func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, out *api.ValidatePurchaseResponse, in *api.ValidatePurchaseSamsungRequest) error
 	RuntimeBeforeListSubscriptionsFunction                 func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.ListSubscriptionsRequest) (*api.ListSubscriptionsRequest, error, codes.Code)
 	RuntimeAfterListSubscriptionsFunction                  func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, out *api.SubscriptionList, in *api.ListSubscriptionsRequest) error
 	RuntimeBeforeGetSubscriptionFunction                   func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.GetSubscriptionRequest) (*api.GetSubscriptionRequest, error, codes.Code)
@@ -444,6 +446,7 @@ type RuntimeBeforeReqFunctions struct {
 	beforeValidateSubscriptionGoogleFunction        RuntimeBeforeValidateSubscriptionGoogleFunction
 	beforeValidatePurchaseHuaweiFunction            RuntimeBeforeValidatePurchaseHuaweiFunction
 	beforeValidatePurchaseFacebookInstantFunction   RuntimeBeforeValidatePurchaseFacebookInstantFunction
+	beforeValidatePurchaseSamsungFunction           RuntimeBeforeValidatePurchaseSamsungFunction
 	beforeListSubscriptionsFunction                 RuntimeBeforeListSubscriptionsFunction
 	beforeGetSubscriptionFunction                   RuntimeBeforeGetSubscriptionFunction
 	beforeGetMatchmakerStatsFunction                RuntimeBeforeGetMatchmakerStatsFunction
@@ -530,6 +533,7 @@ type RuntimeAfterReqFunctions struct {
 	afterValidateSubscriptionGoogleFunction        RuntimeAfterValidateSubscriptionGoogleFunction
 	afterValidatePurchaseHuaweiFunction            RuntimeAfterValidatePurchaseHuaweiFunction
 	afterValidatePurchaseFacebookInstantFunction   RuntimeAfterValidatePurchaseFacebookInstantFunction
+	afterValidatePurchaseSamsungFunction           RuntimeAfterValidatePurchaseSamsungFunction
 	afterListSubscriptionsFunction                 RuntimeAfterListSubscriptionsFunction
 	afterGetSubscriptionFunction                   RuntimeAfterGetSubscriptionFunction
 	afterGetMatchmakerStatsFunction                RuntimeAfterGetMatchmakerStatsFunction
@@ -1061,6 +1065,9 @@ func NewRuntime(ctx context.Context, logger, startupLogger *zap.Logger, db *sql.
 	if allBeforeReqFunctions.beforeUnlinkFacebookInstantGameFunction != nil {
 		startupLogger.Info("Registered JavaScript runtime Before function invocation", zap.String("id", "unlinkfacebookinstantgame"))
 	}
+	if allBeforeReqFunctions.beforeValidatePurchaseSamsungFunction != nil {
+		startupLogger.Info("Registered JavaScript runtime Before function invocation", zap.String("id", "validatepurchasesamsung"))
+	}
 	if allBeforeReqFunctions.beforeUnlinkGameCenterFunction != nil {
 		startupLogger.Info("Registered JavaScript runtime Before function invocation", zap.String("id", "unlinkgamecenter"))
 	}
@@ -1408,6 +1415,10 @@ func NewRuntime(ctx context.Context, logger, startupLogger *zap.Logger, db *sql.
 		allBeforeReqFunctions.beforeValidatePurchaseFacebookInstantFunction = luaBeforeReqFns.beforeValidatePurchaseFacebookInstantFunction
 		startupLogger.Info("Registered Lua runtime Before function invocation", zap.String("id", "validatepurchasefacebookinstant"))
 	}
+	if luaBeforeReqFns.beforeValidatePurchaseSamsungFunction != nil {
+		allBeforeReqFunctions.beforeValidatePurchaseSamsungFunction = luaBeforeReqFns.beforeValidatePurchaseSamsungFunction
+		startupLogger.Info("Registered Lua runtime Before function invocation", zap.String("id", "validatepurchasesamsung"))
+	}
 	if luaBeforeReqFns.beforeValidateSubscriptionAppleFunction != nil {
 		allBeforeReqFunctions.beforeValidateSubscriptionAppleFunction = luaBeforeReqFns.beforeValidateSubscriptionAppleFunction
 		startupLogger.Info("Registered Lua runtime Before function invocation", zap.String("id", "validatesubscriptionapple"))
@@ -1738,6 +1749,10 @@ func NewRuntime(ctx context.Context, logger, startupLogger *zap.Logger, db *sql.
 		allBeforeReqFunctions.beforeValidatePurchaseFacebookInstantFunction = goBeforeReqFns.beforeValidatePurchaseFacebookInstantFunction
 		startupLogger.Info("Registered Go runtime Before function invocation", zap.String("id", "validatepurchasefacebookinstant"))
 	}
+	if goBeforeReqFns.beforeValidatePurchaseSamsungFunction != nil {
+		allBeforeReqFunctions.beforeValidatePurchaseSamsungFunction = goBeforeReqFns.beforeValidatePurchaseSamsungFunction
+		startupLogger.Info("Registered Go runtime Before function invocation", zap.String("id", "validatepurchasesamsung"))
+	}
 	if goBeforeReqFns.beforeValidateSubscriptionAppleFunction != nil {
 		allBeforeReqFunctions.beforeValidateSubscriptionAppleFunction = goBeforeReqFns.beforeValidateSubscriptionAppleFunction
 		startupLogger.Info("Registered Go runtime Before function invocation", zap.String("id", "validatesubscriptionapple"))
@@ -1993,6 +2008,9 @@ func NewRuntime(ctx context.Context, logger, startupLogger *zap.Logger, db *sql.
 	}
 	if allAfterReqFunctions.afterValidatePurchaseFacebookInstantFunction != nil {
 		startupLogger.Info("Registered JavaScript runtime After function invocation", zap.String("id", "validatepurchasefacebookinstant"))
+	}
+	if allAfterReqFunctions.afterValidatePurchaseSamsungFunction != nil {
+		startupLogger.Info("Registered JavaScript runtime After function invocation", zap.String("id", "validatepurchasesamsung"))
 	}
 	if allAfterReqFunctions.afterValidateSubscriptionAppleFunction != nil {
 		startupLogger.Info("Registered JavaScript runtime After function invocation", zap.String("id", "validatesubscriptionapple"))
@@ -2312,6 +2330,10 @@ func NewRuntime(ctx context.Context, logger, startupLogger *zap.Logger, db *sql.
 	if luaAfterReqFns.afterValidatePurchaseFacebookInstantFunction != nil {
 		allAfterReqFunctions.afterValidatePurchaseFacebookInstantFunction = luaAfterReqFns.afterValidatePurchaseFacebookInstantFunction
 		startupLogger.Info("Registered Lua runtime After function invocation", zap.String("id", "validatepurchasefacebookinstant"))
+	}
+	if luaAfterReqFns.afterValidatePurchaseSamsungFunction != nil {
+		allAfterReqFunctions.afterValidatePurchaseSamsungFunction = luaAfterReqFns.afterValidatePurchaseSamsungFunction
+		startupLogger.Info("Registered Lua runtime After function invocation", zap.String("id", "validatepurchasesamsung"))
 	}
 	if luaAfterReqFns.afterValidateSubscriptionAppleFunction != nil {
 		allAfterReqFunctions.afterValidateSubscriptionAppleFunction = luaAfterReqFns.afterValidateSubscriptionAppleFunction
@@ -2642,6 +2664,10 @@ func NewRuntime(ctx context.Context, logger, startupLogger *zap.Logger, db *sql.
 	if goAfterReqFns.afterValidatePurchaseFacebookInstantFunction != nil {
 		allAfterReqFunctions.afterValidatePurchaseFacebookInstantFunction = goAfterReqFns.afterValidatePurchaseFacebookInstantFunction
 		startupLogger.Info("Registered Go runtime After function invocation", zap.String("id", "validatepurchasefacebookinstant"))
+	}
+	if goAfterReqFns.afterValidatePurchaseSamsungFunction != nil {
+		allAfterReqFunctions.afterValidatePurchaseSamsungFunction = goAfterReqFns.afterValidatePurchaseSamsungFunction
+		startupLogger.Info("Registered Go runtime After function invocation", zap.String("id", "validatepurchasesamsung"))
 	}
 	if goAfterReqFns.afterValidateSubscriptionAppleFunction != nil {
 		allAfterReqFunctions.afterValidateSubscriptionAppleFunction = goAfterReqFns.afterValidateSubscriptionAppleFunction
@@ -3589,6 +3615,14 @@ func (r *Runtime) BeforeValidatePurchaseFacebookInstant() RuntimeBeforeValidateP
 
 func (r *Runtime) AfterValidatePurchaseFacebookInstant() RuntimeAfterValidatePurchaseFacebookInstantFunction {
 	return r.afterReqFunctions.afterValidatePurchaseFacebookInstantFunction
+}
+
+func (r *Runtime) BeforeValidatePurchaseSamsung() RuntimeBeforeValidatePurchaseSamsungFunction {
+	return r.beforeReqFunctions.beforeValidatePurchaseSamsungFunction
+}
+
+func (r *Runtime) AfterValidatePurchaseSamsung() RuntimeAfterValidatePurchaseSamsungFunction {
+	return r.afterReqFunctions.afterValidatePurchaseSamsungFunction
 }
 
 func (r *Runtime) BeforeListParties() RuntimeBeforeListPartiesFunction {

@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "@bufbuild/buf": "^1.73.0"
+  }
+}
