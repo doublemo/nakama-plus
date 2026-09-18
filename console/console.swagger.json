@@ -2999,6 +2999,69 @@
         ]
       }
     },
+    "/v2/console/storage/index/{name}/query": {
+      "post": {
+        "summary": "Query a registered storage index.",
+        "operationId": "QueryStorageIndex",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/StorageIndexList"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpc.Status"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "description": "Index name.",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/QueryStorageIndexBody"
+            }
+          }
+        ],
+        "tags": [
+          "Console"
+        ]
+      }
+    },
+    "/v2/console/storage/indexes": {
+      "get": {
+        "summary": "List storage indexes.",
+        "operationId": "ListStorageIndexes",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/StorageIndexesList"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpc.Status"
+            }
+          }
+        },
+        "tags": [
+          "Console"
+        ]
+      }
+    },
     "/v2/console/storage/{collection}/{key}/{user_id}": {
       "get": {
         "summary": "Get a storage object.",
@@ -3734,7 +3797,7 @@
         "HIRO_ENERGY"
       ],
       "default": "ACCOUNT",
-      "description": "ATTENTION: Do not modify the order of this enum.\nNew resources should always be appended."
+      "description": "ATTENTION: Do not modify the order of this enum.\r\nNew resources should always be appended."
     },
     "AclTemplate": {
       "type": "object",
@@ -4788,7 +4851,7 @@
           "description": "Filter by elements matching all parameters."
         }
       },
-      "description": "The MultiTextValueFilterOption specifies the operation to apply to multi-value text fields.\nOnly a single operation can be used at one time."
+      "description": "The MultiTextValueFilterOption specifies the operation to apply to multi-value text fields.\r\nOnly a single operation can be used at one time."
     },
     "NullValue": {
       "type": "string",
@@ -4796,7 +4859,7 @@
         "NULL_VALUE"
       ],
       "default": "NULL_VALUE",
-      "description": "`NullValue` is a singleton enumeration to represent the null value for the\n`Value` type union.\n\nThe JSON representation for `NullValue` is JSON `null`.\n\n - NULL_VALUE: Null value."
+      "description": "Represents a JSON `null`.\n\n`NullValue` is a sentinel, using an enum with only one value to represent\nthe null value for the `Value` type union.\n\nA field of type `NullValue` with any value other than `0` is considered\ninvalid. Most ProtoJSON serializers will emit a Value with a `null_value` set\nas a JSON `null` regardless of the integer value, and so will round trip to\na `0` value.\n\n - NULL_VALUE: Null value."
     },
     "PageOptions": {
       "type": "object",
@@ -4864,6 +4927,31 @@
         }
       },
       "description": "A list of validated purchases stored by Nakama."
+    },
+    "QueryStorageIndexBody": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "Index query."
+        },
+        "limit": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Max number of results per page."
+        },
+        "order": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Optional sorting for the results."
+        },
+        "cursor": {
+          "type": "string",
+          "description": "Optional cursor to retrieve next page of records."
+        }
+      }
     },
     "RequireUserMfaBody": {
       "type": "object",
@@ -5135,7 +5223,7 @@
           "description": "Filter by elements matching the pattern."
         }
       },
-      "description": "The SingleTextValueFilterOption specifies the operation to apply to single value text fields.\nOnly a single operation can be used at one time."
+      "description": "The SingleTextValueFilterOption specifies the operation to apply to single value text fields.\r\nOnly a single operation can be used at one time."
     },
     "StatusHealth": {
       "type": "string",
@@ -5252,6 +5340,77 @@
           "title": "Available collection names in the whole of the storage"
         }
       }
+    },
+    "StorageIndex": {
+      "type": "object",
+      "properties": {
+        "collection": {
+          "type": "string",
+          "description": "Collection name."
+        },
+        "index": {
+          "type": "string",
+          "description": "Index name."
+        },
+        "key": {
+          "type": "string",
+          "description": "Index key."
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Indexed fields."
+        },
+        "sortable_fields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Sortable fields."
+        },
+        "max_entries": {
+          "type": "string",
+          "format": "int64",
+          "description": "Maximum cap of index entries."
+        },
+        "index_only": {
+          "type": "boolean",
+          "description": "Whether the index fetches values exclusively from the index (returning only indexed fields) only or goes to db."
+        }
+      }
+    },
+    "StorageIndexList": {
+      "type": "object",
+      "properties": {
+        "objects": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/StorageObject"
+          },
+          "description": "A list of storage objects."
+        },
+        "next_cursor": {
+          "type": "string",
+          "description": "Cursor to fetch next page of results, if any."
+        }
+      }
+    },
+    "StorageIndexesList": {
+      "type": "object",
+      "properties": {
+        "indexes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/StorageIndex"
+          },
+          "description": "List of storage indexes matching list/filter operation."
+        }
+      },
+      "description": "List of storage indices."
     },
     "StorageList": {
       "type": "object",
@@ -5413,10 +5572,11 @@
         "APPLE_APP_STORE",
         "GOOGLE_PLAY_STORE",
         "HUAWEI_APP_GALLERY",
-        "FACEBOOK_INSTANT_STORE"
+        "FACEBOOK_INSTANT_STORE",
+        "SAMSUNG_GALAXY_STORE"
       ],
       "default": "APPLE_APP_STORE",
-      "description": "- APPLE_APP_STORE: Apple App Store\n - GOOGLE_PLAY_STORE: Google Play Store\n - HUAWEI_APP_GALLERY: Huawei App Gallery\n - FACEBOOK_INSTANT_STORE: Facebook Instant Store",
+      "description": "- APPLE_APP_STORE: Apple App Store\n - GOOGLE_PLAY_STORE: Google Play Store\n - HUAWEI_APP_GALLERY: Huawei App Gallery\n - FACEBOOK_INSTANT_STORE: Facebook Instant Store\n - SAMSUNG_GALAXY_STORE: Samsung Galaxy Store",
       "title": "Validation Provider,"
     },
     "SubscriptionList": {
