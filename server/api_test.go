@@ -22,6 +22,8 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"strings"
 	"sync"
@@ -33,12 +35,15 @@ import (
 	"github.com/doublemo/nakama-common/runtime"
 	"github.com/doublemo/nakama-plus/v3/apigrpc"
 	"github.com/gofrs/uuid/v5"
+	grpcgw "github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -99,6 +104,7 @@ func (d *DummySession) Vars() map[string]string {
 	return nil
 }
 func (d *DummySession) Headers() map[string][]string { return nil }
+
 func (d *DummySession) Expiry() int64 {
 	return int64(0)
 }
@@ -292,4 +298,33 @@ func UserIDFromSession(session *api.Session) (uuid.UUID, error) {
 	}
 
 	return uuid.FromString(data["uid"].(string))
+}
+
+func TestWWWAuthenticateHeaderOnUnauthenticated(t *testing.T) {
+	t.Parallel()
+
+	mux := grpcgw.NewServeMux()
+	marshaler := &grpcgw.JSONPb{}
+	req := httptest.NewRequest(http.MethodPost, "/v2/session/logout", nil)
+	rec := httptest.NewRecorder()
+
+	err := status.Error(codes.Unauthenticated, "Auth token required")
+	handleHTTPError(context.Background(), mux, marshaler, rec, req, err)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, rec.Code)
+	}
+
+	auth := rec.Header().Get("WWW-Authenticate")
+	if auth == "Auth token required" {
+		t.Fatal("WWW-Authenticate must not contain the raw gRPC error message")
+	}
+	if auth != `Bearer realm="nakama"` {
+		t.Fatalf("expected Bearer realm header, got %q", auth)
+	}
+
+	body := rec.Body.String()
+	if !strings.Contains(body, "Auth token required") {
+		t.Fatalf("expected JSON error body to contain message, got %q", body)
+	}
 }
