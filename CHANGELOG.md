@@ -4,14 +4,14 @@ All notable changes to this project are documented below.
 The format is based on [keep a changelog](http://keepachangelog.com) and this project uses [semantic versioning](http://semver.org).
 
 ## [Unreleased]
+
+## [3.40.0] - 2026-07-13
 ### Added
+- Add Samsung Galaxy Store purchase validation request type and `SAMSUNG_GALAXY_STORE` store provider enum.
+- Add Samsung IAP runtime hooks and `PurchaseValidateSamsung` module function.
+- Add `IAPSamsungConfig` to runtime `GetConfig()` IAP section.
 - Improve logic in Apple JWS receipts validation.
 - Add `console.disable_display_name_search` config option to disable console account search by display name entirely.
-
-### Fixed
-- Fix an issue where group admin account deletion could leave orphaned group edges.
-- Fix In-App Purchase validation persist parameter handling for Apple JWS receipts.
-- Fix race conditions in leaderboard/tournament scheduler which could prevent hooks from triggering under certain conditions.
 
 ## [3.39.0] - 2026-05-20
 ### Added
