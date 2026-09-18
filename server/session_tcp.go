@@ -44,6 +44,7 @@ type sessionTcp struct {
 	logger     *atomic.Pointer[zap.Logger]
 	config     Config
 	id         uuid.UUID
+	headers    *atomic.Value
 	format     *atomic.Uint32
 	userID     *atomic.String
 	username   *atomic.String
@@ -98,6 +99,7 @@ func NewSessionTcp(logger *zap.Logger, config Config, sessionID uuid.UUID, proto
 		userID:     atomic.NewString(""),
 		username:   atomic.NewString(""),
 		vars:       &atomic.Value{},
+		headers:    &atomic.Value{},
 		expiry:     atomic.NewInt64(0),
 		clientIP:   atomic.NewString(""),
 		clientPort: atomic.NewString(""),
@@ -138,6 +140,7 @@ func NewSessionTcp(logger *zap.Logger, config Config, sessionID uuid.UUID, proto
 		s.clientPort.Store(strconv.Itoa(addr.Port))
 	}
 	s.vars.Store(make(map[string]string))
+	s.headers.Store(make(map[string][]string))
 	return s
 }
 
@@ -185,6 +188,10 @@ func (s *sessionTcp) Vars() map[string]string {
 	return vars
 }
 
+func (s *sessionTcp) Headers() map[string][]string {
+	return s.headers.Load().(map[string][]string)
+}
+
 func (s *sessionTcp) Expiry() int64 {
 	return s.expiry.Load()
 }
@@ -192,7 +199,7 @@ func (s *sessionTcp) Expiry() int64 {
 func (s *sessionTcp) Consume() {
 	// Fire an event for session start.
 	if fn := s.runtime.EventSessionStart(); fn != nil {
-		fn(s.ctx, s.userID.String(), s.username.Load(), s.Vars(), s.expiry.Load(), s.id.String(), s.clientIP.Load(), s.clientPort.Load(), s.lang.Load(), time.Now().UTC().Unix())
+		fn(s.ctx, s.userID.String(), s.username.Load(), s.Headers(), s.Vars(), s.expiry.Load(), s.id.String(), s.clientIP.Load(), s.clientPort.Load(), s.lang.Load(), time.Now().UTC().Unix())
 	}
 
 	logger := s.logger.Load()
@@ -590,7 +597,7 @@ func (s *sessionTcp) Close(msg string, reason runtime.PresenceReason, envelopes 
 	}
 	// Fire an event for session end.
 	if fn := s.runtime.EventSessionEnd(); fn != nil {
-		fn(s.ctx, s.userID.Load(), s.username.Load(), s.Vars(), s.expiry.Load(), s.id.String(), s.clientIP.Load(), s.clientPort.Load(), s.lang.Load(), time.Now().UTC().Unix(), msg)
+		fn(s.ctx, s.userID.Load(), s.username.Load(), s.Headers(), s.Vars(), s.expiry.Load(), s.id.String(), s.clientIP.Load(), s.clientPort.Load(), s.lang.Load(), time.Now().UTC().Unix(), msg)
 	}
 }
 
