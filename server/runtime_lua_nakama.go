@@ -8198,11 +8198,6 @@ func (n *RuntimeLuaNakamaModule) purchaseValidateApple(l *lua.LState) int {
 	persist := l.OptBool(3, true)
 
 	passwordOverride := l.OptString(4, n.config.GetIAP().Apple.SharedPassword)
-	if passwordOverride == "" {
-		l.RaiseError("Apple IAP is not configured.")
-		return 0
-	}
-
 	validation, err := ValidatePurchasesApple(l.Context(), n.logger, n.db, uid, passwordOverride, receipt, persist)
 	if err != nil {
 		l.RaiseError("error validating Apple receipt: %v", err.Error())
@@ -8499,11 +8494,6 @@ func (n *RuntimeLuaNakamaModule) subscriptionValidateApple(l *lua.LState) int {
 	persist := l.OptBool(3, true)
 
 	passwordOverride := l.OptString(4, n.config.GetIAP().Apple.SharedPassword)
-	if passwordOverride == "" {
-		l.RaiseError("Apple IAP is not configured.")
-		return 0
-	}
-
 	validation, err := ValidateSubscriptionApple(l.Context(), n.logger, n.db, uid, passwordOverride, receipt, persist)
 	if err != nil {
 		l.RaiseError("error validating Apple receipt: %v", err.Error())

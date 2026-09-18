@@ -1491,7 +1491,7 @@ func googleNotificationHandler(logger *zap.Logger, db *sql.DB, config *IAPGoogle
 					return
 				}
 
-				transactionId := googleNotification.SubscriptionNotification.PurchaseToken
+				transactionId := googleNotification.VoidedPurchaseNotification.PurchaseToken
 				if gSubscription.LinkedPurchaseToken != "" {
 					transactionId = gSubscription.LinkedPurchaseToken
 				}
