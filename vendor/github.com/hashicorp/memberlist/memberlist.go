@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2013, 2026
 // SPDX-License-Identifier: MPL-2.0
 
 /*
@@ -30,7 +30,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/hashicorp/go-metrics/compat"
+	metrics "github.com/hashicorp/go-metrics"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-sockaddr"
 	"github.com/miekg/dns"
@@ -39,19 +39,19 @@ import (
 var errNodeNamesAreRequired = errors.New("memberlist: node names are required by configuration but one was not provided")
 
 type Memberlist struct {
-	sequenceNum uint32 // Local sequence number
-	incarnation uint32 // Local incarnation number
-	numNodes    uint32 // Number of known nodes (estimate)
-	pushPullReq uint32 // Number of push/pull requests
+	sequenceNum uint32        // Local sequence number
+	incarnation atomic.Uint32 // Local incarnation number
+	numNodes    atomic.Uint32 // Number of known nodes (estimate)
+	pushPullReq atomic.Uint32 // Number of push/pull requests
 
 	advertiseLock sync.RWMutex
 	advertiseAddr net.IP
 	advertisePort uint16
 
 	config         *Config
-	shutdown       int32 // Used as an atomic boolean value
+	shutdown       atomic.Uint32 // Used as an atomic boolean value
 	shutdownCh     chan struct{}
-	leave          int32 // Used as an atomic boolean value
+	leave          atomic.Int32 // Used as an atomic boolean value
 	leaveBroadcast chan struct{}
 
 	shutdownLock sync.Mutex // Serializes calls to Shutdown
@@ -99,10 +99,10 @@ func (conf *Config) BuildVsnArray() []uint8 {
 // Does not schedule execution of background maintenance.
 func newMemberlist(conf *Config) (*Memberlist, error) {
 	if conf.ProtocolVersion < ProtocolVersionMin {
-		return nil, fmt.Errorf("Protocol version '%d' too low. Must be in range: [%d, %d]",
+		return nil, fmt.Errorf("protocol version '%d' too low. Must be in range: [%d, %d]",
 			conf.ProtocolVersion, ProtocolVersionMin, ProtocolVersionMax)
 	} else if conf.ProtocolVersion > ProtocolVersionMax {
-		return nil, fmt.Errorf("Protocol version '%d' too high. Must be in range: [%d, %d]",
+		return nil, fmt.Errorf("protocol version '%d' too high. Must be in range: [%d, %d]",
 			conf.ProtocolVersion, ProtocolVersionMin, ProtocolVersionMax)
 	}
 
@@ -124,7 +124,7 @@ func newMemberlist(conf *Config) (*Memberlist, error) {
 	}
 
 	if conf.LogOutput != nil && conf.Logger != nil {
-		return nil, fmt.Errorf("Cannot specify both LogOutput and Logger. Please choose a single log configuration setting.")
+		return nil, fmt.Errorf("cannot specify both LogOutput and Logger; please choose a single log configuration setting")
 	}
 
 	logDest := conf.LogOutput
@@ -151,7 +151,7 @@ func newMemberlist(conf *Config) (*Memberlist, error) {
 		// See comment below for details about the retry in here.
 		makeNetRetry := func(limit int) (*NetTransport, error) {
 			var err error
-			for try := 0; try < limit; try++ {
+			for range limit {
 				var nt *NetTransport
 				if nt, err = NewNetTransport(nc); err == nil {
 					return nt, nil
@@ -178,7 +178,7 @@ func newMemberlist(conf *Config) (*Memberlist, error) {
 
 		nt, err := makeNetRetry(limit)
 		if err != nil {
-			return nil, fmt.Errorf("Could not set up network transport: %v", err)
+			return nil, fmt.Errorf("could not set up network transport: %v", err)
 		}
 		if conf.BindPort == 0 {
 			port := nt.GetAutoBindPort()
@@ -251,7 +251,7 @@ func Create(conf *Config) (*Memberlist, error) {
 		return nil, err
 	}
 	if err := m.setAlive(); err != nil {
-		m.Shutdown()
+		_ = m.Shutdown()
 		return nil, err
 	}
 	m.schedule()
@@ -273,7 +273,7 @@ func (m *Memberlist) Join(existing []string) (int, error) {
 	for _, exist := range existing {
 		addrs, err := m.resolveAddr(exist)
 		if err != nil {
-			err = fmt.Errorf("Failed to resolve %s: %v", exist, err)
+			err = fmt.Errorf("failed to resolve %s: %v", exist, err)
 			errs = multierror.Append(errs, err)
 			m.logger.Printf("[WARN] memberlist: %v", err)
 			continue
@@ -283,7 +283,7 @@ func (m *Memberlist) Join(existing []string) (int, error) {
 			hp := joinHostPort(addr.ip.String(), addr.port)
 			a := Address{Addr: hp, Name: addr.nodeName}
 			if err := m.pushPullNode(a, true); err != nil {
-				err = fmt.Errorf("Failed to join %s: %v", a.Addr, err)
+				err = fmt.Errorf("failed to join %s: %v", a.Addr, err)
 				errs = multierror.Append(errs, err)
 				m.logger.Printf("[DEBUG] memberlist: %v", err)
 				continue
@@ -439,14 +439,15 @@ func (m *Memberlist) setAlive() error {
 	// Check if this is a public address without encryption
 	ipAddr, err := sockaddr.NewIPAddr(addr.String())
 	if err != nil {
-		return fmt.Errorf("Failed to parse interface addresses: %v", err)
+		return fmt.Errorf("failed to parse interface addresses: %v", err)
 	}
 	ifAddrs := []sockaddr.IfAddr{
 		sockaddr.IfAddr{
 			SockAddr: ipAddr,
 		},
 	}
-	_, publicIfs, err := sockaddr.IfByRFC("6890", ifAddrs)
+	_, publicIfs, _ := sockaddr.IfByRFC("6890", ifAddrs)
+
 	if len(publicIfs) > 0 && !m.config.EncryptionEnabled() {
 		m.logger.Printf("[WARN] memberlist: Binding to public address without encryption!")
 	}
@@ -490,7 +491,7 @@ func (m *Memberlist) refreshAdvertise() (net.IP, int, error) {
 	addr, port, err := m.transport.FinalAdvertiseAddr(
 		m.config.AdvertiseAddr, m.config.AdvertisePort)
 	if err != nil {
-		return nil, 0, fmt.Errorf("Failed to get final advertise address: %v", err)
+		return nil, 0, fmt.Errorf("failed to get final advertise address: %v", err)
 	}
 	m.setAdvertise(addr, port)
 	return addr, port, nil
@@ -654,10 +655,12 @@ func (m *Memberlist) Leave(timeout time.Duration) error {
 	}
 
 	if !m.hasLeft() {
-		atomic.StoreInt32(&m.leave, 1)
+		m.leave.Store(1)
 
 		m.nodeLock.Lock()
 		state, ok := m.nodeMap[m.config.Name]
+		incarnation := state.Incarnation
+		name := state.Name
 		m.nodeLock.Unlock()
 		if !ok {
 			m.logger.Printf("[WARN] memberlist: Leave but we're not in the node map.")
@@ -669,9 +672,9 @@ func (m *Memberlist) Leave(timeout time.Duration) error {
 		// intentionally. When Node equals From, other nodes know for
 		// sure this node is gone.
 		d := dead{
-			Incarnation: state.Incarnation,
-			Node:        state.Name,
-			From:        state.Name,
+			Incarnation: incarnation,
+			Node:        name,
+			From:        name,
 		}
 		m.deadNode(&d)
 
@@ -743,18 +746,18 @@ func (m *Memberlist) Shutdown() error {
 	}
 
 	// Now tear down everything else.
-	atomic.StoreInt32(&m.shutdown, 1)
+	m.shutdown.Store(1)
 	close(m.shutdownCh)
 	m.deschedule()
 	return nil
 }
 
 func (m *Memberlist) hasShutdown() bool {
-	return atomic.LoadInt32(&m.shutdown) == 1
+	return m.shutdown.Load() == 1
 }
 
 func (m *Memberlist) hasLeft() bool {
-	return atomic.LoadInt32(&m.leave) == 1
+	return m.leave.Load() == 1
 }
 
 func (m *Memberlist) getNodeState(addr string) NodeStateType {

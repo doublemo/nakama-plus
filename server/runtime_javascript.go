@@ -246,10 +246,10 @@ func (rp *RuntimeProviderJS) BeforeRt(ctx context.Context, id string, logger *za
 		logger.Error("Could not marshall envelope to JSON", zap.Any("envelope", envelope), zap.Error(err))
 		return nil, errors.New("Could not run runtime Before function.")
 	}
-	var envelopeMap map[string]interface{}
+	var envelopeMap map[string]any
 	if err := json.Unmarshal(envelopeJSON, &envelopeMap); err != nil {
 		rp.Put(r)
-		logger.Error("Could not unmarshall envelope to interface{}", zap.Any("envelope_json", envelopeJSON), zap.Error(err))
+		logger.Error("Could not unmarshall envelope to any", zap.Any("envelope_json", envelopeJSON), zap.Error(err))
 		return nil, errors.New("Could not run runtime Before function.")
 	}
 
@@ -311,7 +311,7 @@ func (rp *RuntimeProviderJS) AfterRt(ctx context.Context, id string, logger *zap
 		return errors.New("Runtime After function not found.")
 	}
 
-	var outMap map[string]interface{}
+	var outMap map[string]any
 	if out != nil {
 		outJSON, err := rp.protojsonMarshaler.Marshal(out)
 		if err != nil {
@@ -321,7 +321,7 @@ func (rp *RuntimeProviderJS) AfterRt(ctx context.Context, id string, logger *zap
 		}
 		if err := json.Unmarshal([]byte(outJSON), &outMap); err != nil {
 			rp.Put(r)
-			logger.Error("Could not unmarshall envelope to interface{}", zap.Any("out_json", outJSON), zap.Error(err))
+			logger.Error("Could not unmarshall envelope to any", zap.Any("out_json", outJSON), zap.Error(err))
 			return errors.New("Could not run runtime After function.")
 		}
 	}
@@ -332,10 +332,10 @@ func (rp *RuntimeProviderJS) AfterRt(ctx context.Context, id string, logger *zap
 		logger.Error("Could not marshall envelope to JSON", zap.Any("in", in), zap.Error(err))
 		return errors.New("Could not run runtime After function.")
 	}
-	var inMap map[string]interface{}
+	var inMap map[string]any
 	if err := json.Unmarshal([]byte(inJSON), &inMap); err != nil {
 		rp.Put(r)
-		logger.Error("Could not unmarshall envelope to interface{}", zap.Any("in_json", inJSON), zap.Error(err))
+		logger.Error("Could not unmarshall envelope to any", zap.Any("in_json", inJSON), zap.Error(err))
 		return errors.New("Could not run runtime After function.")
 	}
 
@@ -371,7 +371,7 @@ func (rp *RuntimeProviderJS) AfterRt(ctx context.Context, id string, logger *zap
 	return nil
 }
 
-func (rp *RuntimeProviderJS) BeforeReq(ctx context.Context, id string, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, req interface{}) (interface{}, error, codes.Code) {
+func (rp *RuntimeProviderJS) BeforeReq(ctx context.Context, id string, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, req any) (any, error, codes.Code) {
 	r, err := rp.Get(ctx)
 	if err != nil {
 		return nil, err, codes.Internal
@@ -382,7 +382,7 @@ func (rp *RuntimeProviderJS) BeforeReq(ctx context.Context, id string, logger *z
 		return nil, errors.New("Runtime Before function not found."), codes.NotFound
 	}
 
-	var reqMap map[string]interface{}
+	var reqMap map[string]any
 	var reqProto proto.Message
 	if req != nil {
 		// Req may be nil for requests that carry no input body.
@@ -401,7 +401,7 @@ func (rp *RuntimeProviderJS) BeforeReq(ctx context.Context, id string, logger *z
 		}
 		if err := json.Unmarshal([]byte(reqJSON), &reqMap); err != nil {
 			rp.Put(r)
-			logger.Error("Could not unmarshall request to interface{}", zap.Any("request_json", reqJSON), zap.Error(err))
+			logger.Error("Could not unmarshall request to any", zap.Any("request_json", reqJSON), zap.Error(err))
 			return nil, errors.New("Could not run runtime Before function."), codes.Internal
 		}
 	}
@@ -454,7 +454,7 @@ func (rp *RuntimeProviderJS) BeforeReq(ctx context.Context, id string, logger *z
 	return req, nil, codes.OK
 }
 
-func (rp *RuntimeProviderJS) AfterReq(ctx context.Context, id string, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, res interface{}, req interface{}) error {
+func (rp *RuntimeProviderJS) AfterReq(ctx context.Context, id string, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, res any, req any) error {
 	r, err := rp.Get(ctx)
 	if err != nil {
 		return err
@@ -465,7 +465,7 @@ func (rp *RuntimeProviderJS) AfterReq(ctx context.Context, id string, logger *za
 		return errors.New("Runtime After function not found.")
 	}
 
-	var resMap map[string]interface{}
+	var resMap map[string]any
 	if res != nil {
 		// Res may be nil if there is no response body.
 		resProto, ok := res.(proto.Message)
@@ -483,12 +483,12 @@ func (rp *RuntimeProviderJS) AfterReq(ctx context.Context, id string, logger *za
 
 		if err := json.Unmarshal([]byte(resJSON), &resMap); err != nil {
 			rp.Put(r)
-			logger.Error("Could not unmarshall response to interface{}", zap.Any("response_json", resJSON), zap.Error(err))
+			logger.Error("Could not unmarshall response to any", zap.Any("response_json", resJSON), zap.Error(err))
 			return errors.New("Could not run runtime After function.")
 		}
 	}
 
-	var reqMap map[string]interface{}
+	var reqMap map[string]any
 	if req != nil {
 		// Req may be nil if there is no request body.
 		reqProto, ok := req.(proto.Message)
@@ -506,7 +506,7 @@ func (rp *RuntimeProviderJS) AfterReq(ctx context.Context, id string, logger *za
 
 		if err := json.Unmarshal([]byte(reqJSON), &reqMap); err != nil {
 			rp.Put(r)
-			logger.Error("Could not unmarshall request to interface{}", zap.Any("request_json", reqJSON), zap.Error(err))
+			logger.Error("Could not unmarshall request to any", zap.Any("request_json", reqJSON), zap.Error(err))
 			return errors.New("Could not run runtime After function.")
 		}
 	}
@@ -543,7 +543,7 @@ func (rp *RuntimeProviderJS) AfterReq(ctx context.Context, id string, logger *za
 	return nil
 }
 
-func (r *RuntimeJS) InvokeFunction(execMode RuntimeExecutionMode, id string, fn goja.Callable, logger goja.Value, httpHeaders, queryParams map[string][]string, traceID, uid, username string, vars map[string]string, sessionExpiry int64, sid, clientIP, clientPort, lang string, payloads ...interface{}) (interface{}, error, codes.Code) {
+func (r *RuntimeJS) InvokeFunction(execMode RuntimeExecutionMode, id string, fn goja.Callable, logger goja.Value, httpHeaders, queryParams map[string][]string, traceID, uid, username string, vars map[string]string, sessionExpiry int64, sid, clientIP, clientPort, lang string, payloads ...any) (any, error, codes.Code) {
 	ctx := NewRuntimeJsContext(r.vm, r.node, r.version, r.env, execMode, httpHeaders, queryParams, traceID, sessionExpiry, uid, username, vars, sid, clientIP, clientPort, lang)
 
 	args := []goja.Value{ctx, logger, r.nkInst}
@@ -574,7 +574,7 @@ func (r *RuntimeJS) invokeFunction(execMode RuntimeExecutionMode, id string, fn 
 			errMsg := exErr.Error()
 			errCode := codes.Internal
 			custom := false
-			if errMap, ok := exErr.Value().Export().(map[string]interface{}); ok {
+			if errMap, ok := exErr.Value().Export().(map[string]any); ok {
 				// Custom exception with message and code
 				if msg, ok := errMap["message"]; ok {
 					if msgStr, ok := msg.(string); ok {
@@ -738,8 +738,8 @@ func NewRuntimeProviderJS(ctx context.Context, logger, startupLogger *zap.Logger
 				beforeRtFunctions[id] = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, sessionID, clientIP, clientPort, lang string, envelope *rtapi.Envelope) (*rtapi.Envelope, error) {
 					return runtimeProviderJS.BeforeRt(ctx, id, logger, traceID, userID, username, vars, expiry, sessionID, clientIP, clientPort, lang, envelope)
 				}
-			} else if strings.HasPrefix(id, strings.ToLower(API_PREFIX)) {
-				shortID := strings.TrimPrefix(id, strings.ToLower(API_PREFIX))
+			} else if after, ok := strings.CutPrefix(id, strings.ToLower(API_PREFIX)); ok {
+				shortID := after
 				switch shortID {
 				case "getaccount":
 					beforeReqFunctions.beforeGetAccountFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string) (error, codes.Code) {
@@ -1380,8 +1380,8 @@ func NewRuntimeProviderJS(ctx context.Context, logger, startupLogger *zap.Logger
 				afterRtFunctions[id] = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, sessionID, clientIP, clientPort, lang string, out, in *rtapi.Envelope) error {
 					return runtimeProviderJS.AfterRt(ctx, id, logger, traceID, userID, username, vars, expiry, sessionID, clientIP, clientPort, lang, out, in)
 				}
-			} else if strings.HasPrefix(id, strings.ToLower(API_PREFIX)) {
-				shortID := strings.TrimPrefix(id, strings.ToLower(API_PREFIX))
+			} else if after, ok := strings.CutPrefix(id, strings.ToLower(API_PREFIX)); ok {
+				shortID := after
 				switch shortID {
 				case "getaccount":
 					afterReqFunctions.afterGetAccountFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, out *api.Account) error {
@@ -1898,7 +1898,7 @@ func (rp *RuntimeProviderJS) MatchmakerMatched(ctx context.Context, entries []*M
 		return "", false, errors.New("Runtime Matchmaker Matched function not found.")
 	}
 
-	entriesSlice := make([]interface{}, 0, len(entries))
+	entriesSlice := make([]any, 0, len(entries))
 	for _, e := range entries {
 		presenceObj := r.vm.NewObject()
 		_ = presenceObj.Set("userId", e.Presence.UserId)
@@ -2001,7 +2001,7 @@ func (rp *RuntimeProviderJS) TournamentEnd(ctx context.Context, tournament *api.
 		_ = tournamentObj.Set("nextReset", tournament.NextReset)
 	}
 	_ = tournamentObj.Set("operator", strings.ToLower(tournament.Operator.String()))
-	metadataMap := make(map[string]interface{})
+	metadataMap := make(map[string]any)
 	err = json.Unmarshal([]byte(tournament.Metadata), &metadataMap)
 	if err != nil {
 		rp.Put(r)
@@ -2078,7 +2078,7 @@ func (rp *RuntimeProviderJS) TournamentReset(ctx context.Context, tournament *ap
 		_ = tournamentObj.Set("nextReset", tournament.NextReset)
 	}
 	_ = tournamentObj.Set("operator", strings.ToLower(tournament.Operator.String()))
-	metadataMap := make(map[string]interface{})
+	metadataMap := make(map[string]any)
 	err = json.Unmarshal([]byte(tournament.Metadata), &metadataMap)
 	if err != nil {
 		rp.Put(r)
@@ -2146,7 +2146,7 @@ func (rp *RuntimeProviderJS) LeaderboardReset(ctx context.Context, leaderboard *
 	if leaderboard.NextReset != 0 {
 		_ = leaderboardObj.Set("nextReset", leaderboard.NextReset)
 	}
-	metadataMap := make(map[string]interface{})
+	metadataMap := make(map[string]any)
 	err = json.Unmarshal([]byte(leaderboard.Metadata), &metadataMap)
 	if err != nil {
 		rp.Put(r)
@@ -2421,7 +2421,7 @@ func (rp *RuntimeProviderJS) StorageIndexFilter(ctx context.Context, indexName s
 		return false, errors.New("Could not run Storage Index Filter hook.")
 	}
 
-	objectMap := make(map[string]interface{}, 7)
+	objectMap := make(map[string]any, 7)
 	objectMap["key"] = storageWrite.Object.Key
 	objectMap["collection"] = storageWrite.Object.Collection
 	if storageWrite.OwnerID != "" {
@@ -2433,7 +2433,7 @@ func (rp *RuntimeProviderJS) StorageIndexFilter(ctx context.Context, indexName s
 	objectMap["permissionRead"] = storageWrite.Object.PermissionRead
 	objectMap["permissionWrite"] = storageWrite.Object.PermissionWrite
 
-	valueMap := make(map[string]interface{})
+	valueMap := make(map[string]any)
 	err = json.Unmarshal([]byte(storageWrite.Object.Value), &valueMap)
 	if err != nil {
 		return false, fmt.Errorf("Error running runtime Storage Index Filter hook for %q index: %v", indexName, err.Error())

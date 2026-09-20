@@ -215,7 +215,7 @@ func dbConnect(ctx context.Context, logger *zap.Logger, config Config, connConfi
 				resolvedAddr = newResolvedAddr
 				resolvedAddrMap = newResolvedAddrMap
 				for _, conn := range conns {
-					if err := conn.Raw(func(driverConn interface{}) error {
+					if err := conn.Raw(func(driverConn any) error {
 						pgc, ok := driverConn.(*stdlib.Conn)
 						if !ok {
 							return ErrDatabaseDriverMismatch
@@ -261,14 +261,14 @@ func dbResolveAddress(ctx context.Context, logger *zap.Logger, lookupFunc pgconn
 
 // Tx is used to permit clients to implement custom transaction logic.
 type Tx interface {
-	ExecContext(context.Context, string, ...interface{}) (sql.Result, error)
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
 	Commit() error
 	Rollback() error
 }
 
 // Scannable Interface to help utility functions accept either *sql.Row or *sql.Rows for scanning one row at a time.
 type Scannable interface {
-	Scan(dest ...interface{}) error
+	Scan(dest ...any) error
 }
 
 // ExecuteRetryable Retry functions that perform non-transactional database operations.
@@ -293,7 +293,7 @@ func ExecuteRetryablePgx(ctx context.Context, db *sql.DB, fn func(conn *pgx.Conn
 	defer c.Close()
 	return c.Raw(func(dc any) (err error) {
 		conn := dc.(*stdlib.Conn).Conn()
-		for i := 0; i < 5; i++ {
+		for range 5 {
 			err = fn(conn)
 			var pgErr *pgconn.PgError
 			if errors.As(errorCause(err), &pgErr) && pgErr.Code[:2] == "40" {
@@ -329,7 +329,7 @@ func executeInTxPostgres(ctx context.Context, db *sql.DB, fn func(*sql.Tx) error
 	}()
 
 	// Prevent infinite loop (unlikely, but possible)
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		if tx, err = db.BeginTx(ctx, nil); err != nil { // Can fail only if undernath connection is broken
 			tx = nil
 			return err
@@ -379,7 +379,7 @@ func executeInTxCockroach(ctx context.Context, db *sql.DB, fn func(*sql.Tx) erro
 	}
 
 	// Prevent infinite loop (unlikely, but possible)
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		released := false
 		err = fn(tx)
 		if err == nil {
@@ -438,7 +438,7 @@ func executeInTxPostgresPgx(ctx context.Context, db *sql.DB, fn func(pgx.Tx) err
 		}()
 
 		// Prevent infinite loop (unlikely, but possible)
-		for i := 0; i < 5; i++ {
+		for range 5 {
 			if tx, err = conn.BeginTx(ctx, pgx.TxOptions{}); err != nil { // Can fail only if undernath connection is broken
 				tx = nil
 				return err
@@ -497,7 +497,7 @@ func executeInTxCockroachPgx(ctx context.Context, db *sql.DB, fn func(pgx.Tx) er
 		}
 
 		// Prevent infinite loop (unlikely, but possible)
-		for i := 0; i < 5; i++ {
+		for range 5 {
 			released := false
 			err = fn(tx)
 			if err == nil {

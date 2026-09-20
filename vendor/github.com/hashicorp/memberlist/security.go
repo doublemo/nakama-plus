@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2013, 2026
 // SPDX-License-Identifier: MPL-2.0
 
 package memberlist
@@ -40,13 +40,13 @@ const (
 func pkcs7encode(buf *bytes.Buffer, ignore, blockSize int) {
 	n := buf.Len() - ignore
 	more := blockSize - (n % blockSize)
-	for i := 0; i < more; i++ {
+	for range more {
 		buf.WriteByte(byte(more))
 	}
 }
 
 // pkcs7decode is used to decode a buffer that has been padded
-func pkcs7decode(buf []byte, blockSize int) []byte {
+func pkcs7decode(buf []byte, _ int) []byte {
 	if len(buf) == 0 {
 		panic("Cannot decode a PKCS7 buffer of zero length")
 	}
@@ -115,7 +115,7 @@ func encryptPayload(vsn encryptionVersion, key []byte, msg []byte, data []byte, 
 
 	// Ensure we are correctly padded (only version 0)
 	if vsn == 0 {
-		io.Copy(dst, bytes.NewReader(msg))
+		_, _ = io.Copy(dst, bytes.NewReader(msg))
 		pkcs7encode(dst, offset+versionSize+nonceSize, aes.BlockSize)
 	}
 
@@ -172,18 +172,18 @@ func decryptMessage(key, msg []byte, data []byte) ([]byte, error) {
 func decryptPayload(keys [][]byte, msg []byte, data []byte) ([]byte, error) {
 	// Ensure we have at least one byte
 	if len(msg) == 0 {
-		return nil, fmt.Errorf("Cannot decrypt empty payload")
+		return nil, fmt.Errorf("cannot decrypt empty payload")
 	}
 
 	// Verify the version
 	vsn := encryptionVersion(msg[0])
 	if vsn > maxEncryptionVersion {
-		return nil, fmt.Errorf("Unsupported encryption version %d", msg[0])
+		return nil, fmt.Errorf("unsupported encryption version %d", msg[0])
 	}
 
 	// Ensure the length is sane
 	if len(msg) < encryptedLength(vsn, 0) {
-		return nil, fmt.Errorf("Payload is too small to decrypt: %d", len(msg))
+		return nil, fmt.Errorf("payload is too small to decrypt: %d", len(msg))
 	}
 
 	for _, key := range keys {
@@ -198,7 +198,7 @@ func decryptPayload(keys [][]byte, msg []byte, data []byte) ([]byte, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("No installed keys could decrypt the message")
+	return nil, fmt.Errorf("no installed keys could decrypt the message")
 }
 
 func appendBytes(first []byte, second []byte) []byte {

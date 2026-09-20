@@ -24,6 +24,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -479,7 +480,7 @@ func (n *RuntimeGoNakamaModule) AccountsGetId(ctx context.Context, userIDs, devi
 // @summary Update an account by user ID.
 // @param ctx(type=context.Context) The context object represents information about the server and requester.
 // @param userID(type=string) User ID for which the information is to be updated. Must be valid UUID.
-// @param metadata(type=map[string]interface{}) The metadata to update for this account.
+// @param metadata(type=map[string]any) The metadata to update for this account.
 // @param username(type=string) Username to be set. Must be unique. Use "" if it is not being updated.
 // @param displayName(type=string) Display name to be updated. Use "" if it is not being updated.
 // @param timezone(type=string) Timezone to be updated. Use "" if it is not being updated.
@@ -487,7 +488,7 @@ func (n *RuntimeGoNakamaModule) AccountsGetId(ctx context.Context, userIDs, devi
 // @param langTag(type=string) Lang tag to be updated. Use "" if it is not being updated.
 // @param avatarUrl(type=string) User's avatar URL. Use "" if it is not being updated.
 // @return error(error) An optional error value if an error occurred.
-func (n *RuntimeGoNakamaModule) AccountUpdateId(ctx context.Context, userID, username string, metadata map[string]interface{}, displayName, timezone, location, langTag, avatarUrl string) error {
+func (n *RuntimeGoNakamaModule) AccountUpdateId(ctx context.Context, userID, username string, metadata map[string]any, displayName, timezone, location, langTag, avatarUrl string) error {
 	u, err := uuid.FromString(userID)
 	if err != nil {
 		return errors.New("expects user ID to be a valid identifier")
@@ -650,10 +651,8 @@ func (n *RuntimeGoNakamaModule) UsersGetUsername(ctx context.Context, usernames 
 		return make([]*api.User, 0), nil
 	}
 
-	for _, username := range usernames {
-		if username == "" {
-			return nil, errors.New("each username must be a string")
-		}
+	if slices.Contains(usernames, "") {
+		return nil, errors.New("each username must be a string")
 	}
 
 	users, err := GetUsers(ctx, n.logger, n.db, n.statusRegistry, nil, usernames, nil)
@@ -1581,10 +1580,10 @@ func (n *RuntimeGoNakamaModule) SessionLogout(userID, token, refreshToken string
 // @summary Create a new authoritative realtime multiplayer match running on the given runtime module name. The given params are passed to the match's init hook.
 // @param ctx(type=context.Context) The context object represents information about the server and requester.
 // @param module(type=string) The name of an available runtime module that will be responsible for the match. This was registered in InitModule.
-// @param params(type=map[string]interface{}) Any value to pass to the match init hook.
+// @param params(type=map[string]any) Any value to pass to the match init hook.
 // @return matchId(string) The match ID of the newly created match. Clients can immediately use this ID to join the match.
 // @return error(error) An optional error value if an error occurred.
-func (n *RuntimeGoNakamaModule) MatchCreate(ctx context.Context, module string, params map[string]interface{}) (string, error) {
+func (n *RuntimeGoNakamaModule) MatchCreate(ctx context.Context, module string, params map[string]any) (string, error) {
 	if module == "" {
 		return "", errors.New("expects module name")
 	}
@@ -1645,7 +1644,7 @@ func (n *RuntimeGoNakamaModule) MatchList(ctx context.Context, limit int, author
 // @param ctx(type=context.Context) Context object represents information about the match and server for information purposes.
 // @param id(type=string) The user ID or session ID to send a reservation signal for.
 // @param data(type=string) An arbitrary input supplied by the runtime caller of the signal.
-// @return state(interface{}) An (optionally) updated state. May be any non-nil value, or nil to end the match.
+// @return state(any) An (optionally) updated state. May be any non-nil value, or nil to end the match.
 // @return data(string) Arbitrary data to return to the runtime caller of the signal. May be a string or nil.
 // @return error(error) An optional error value if an error occurred.
 func (n *RuntimeGoNakamaModule) MatchSignal(ctx context.Context, id string, data string) (string, error) {
@@ -1657,12 +1656,12 @@ func (n *RuntimeGoNakamaModule) MatchSignal(ctx context.Context, id string, data
 // @param ctx(type=context.Context) The context object represents information about the server and requester.
 // @param userID(type=string) The user ID of the user to be sent the notification.
 // @param subject(type=string) Notification subject.
-// @param content(type=map[string]interface{}) Notification content. Must be set but can be an struct.
+// @param content(type=map[string]any) Notification content. Must be set but can be an struct.
 // @param code(type=int) Notification code to use. Must be equal or greater than 0.
 // @param sender(type=string, optional=true) The sender of this notification. If left empty, it will be assumed that it is a system notification.
 // @param persistent(type=bool, default=false) Whether to record this in the database for later listing.
 // @return error(error) An optional error value if an error occurred.
-func (n *RuntimeGoNakamaModule) NotificationSend(ctx context.Context, userID, subject string, content map[string]interface{}, code int, sender string, persistent bool) error {
+func (n *RuntimeGoNakamaModule) NotificationSend(ctx context.Context, userID, subject string, content map[string]any, code int, sender string, persistent bool) error {
 	uid, err := uuid.FromString(userID)
 	if err != nil {
 		return errors.New("expects userID to be a valid UUID")
@@ -1767,11 +1766,11 @@ func (n *RuntimeGoNakamaModule) NotificationsSend(ctx context.Context, notificat
 // @summary Send an in-app notification to all users.
 // @param ctx(type=context.Context) The context object represents information about the server and requester.
 // @param subject(type=string) Notification subject.
-// @param content(type=map[string]interface{}) Notification content. Must be set but can be any empty map.
+// @param content(type=map[string]any) Notification content. Must be set but can be any empty map.
 // @param code(type=int) Notification code to use. Must be greater than or equal to 0.
 // @param persistent(type=bool) Whether to record this in the database for later listing.
 // @return error(error) An optional error value if an error occurred.
-func (n *RuntimeGoNakamaModule) NotificationSendAll(ctx context.Context, subject string, content map[string]interface{}, code int, persistent bool) error {
+func (n *RuntimeGoNakamaModule) NotificationSendAll(ctx context.Context, subject string, content map[string]any, code int, persistent bool) error {
 	if subject == "" {
 		return errors.New("expects subject to be a non-empty string")
 	}
@@ -1919,12 +1918,12 @@ func (n *RuntimeGoNakamaModule) NotificationsUpdate(ctx context.Context, updates
 // @param ctx(type=context.Context) The context object represents information about the server and requester.
 // @param userID(type=string) The ID of the user whose wallet to update.
 // @param changeset(type=map[string]int64) The set of wallet operations to apply.
-// @param metadata(type=map[string]interface{}) Additional metadata to tag the wallet update with.
+// @param metadata(type=map[string]any) Additional metadata to tag the wallet update with.
 // @param updateLedger(type=bool, default=false) Whether to record this update in the ledger.
 // @return updatedValue(map) The updated wallet value.
 // @return previousValue(map) The previous wallet value.
 // @return error(error) An optional error value if an error occurred.
-func (n *RuntimeGoNakamaModule) WalletUpdate(ctx context.Context, userID string, changeset map[string]int64, metadata map[string]interface{}, updateLedger bool) (map[string]int64, map[string]int64, error) {
+func (n *RuntimeGoNakamaModule) WalletUpdate(ctx context.Context, userID string, changeset map[string]int64, metadata map[string]any, updateLedger bool) (map[string]int64, map[string]int64, error) {
 	uid, err := uuid.FromString(userID)
 	if err != nil {
 		return nil, nil, errors.New("expects a valid user id")
@@ -2001,10 +2000,10 @@ func (n *RuntimeGoNakamaModule) WalletsUpdate(ctx context.Context, updates []*ru
 // @summary Update the metadata for a particular wallet update in a user's wallet ledger history. Useful when adding a note to a transaction for example.
 // @param ctx(type=context.Context) The context object represents information about the server and requester.
 // @param itemID(type=string) The ID of the wallet ledger item to update.
-// @param metadata(type=map[string]interface{}) The new metadata to set on the wallet ledger item.
+// @param metadata(type=map[string]any) The new metadata to set on the wallet ledger item.
 // @return updateWalletLedger(runtime.WalletLedgerItem) The updated wallet ledger item.
 // @return error(error) An optional error value if an error occurred.
-func (n *RuntimeGoNakamaModule) WalletLedgerUpdate(ctx context.Context, itemID string, metadata map[string]interface{}) (runtime.WalletLedgerItem, error) {
+func (n *RuntimeGoNakamaModule) WalletLedgerUpdate(ctx context.Context, itemID string, metadata map[string]any) (runtime.WalletLedgerItem, error) {
 	id, err := uuid.FromString(itemID)
 	if err != nil {
 		return nil, errors.New("expects a valid item id")
@@ -2538,10 +2537,10 @@ func (n *RuntimeGoNakamaModule) MultiUpdate(ctx context.Context, accountUpdates 
 // @param sortOrder(type=string, default="desc") The sort order for records in the leaderboard. Possible values are "asc" or "desc".
 // @param operator(type=string, default="best") The operator that determines how scores behave when submitted. Possible values are "best", "set", or "incr".
 // @param resetSchedule(type=string) The cron format used to define the reset schedule for the leaderboard. This controls when a leaderboard is reset and can be used to power daily/weekly/monthly leaderboards.
-// @param metadata(type=map[string]interface{}) The metadata you want associated to the leaderboard. Some good examples are weather conditions for a racing game.
+// @param metadata(type=map[string]any) The metadata you want associated to the leaderboard. Some good examples are weather conditions for a racing game.
 // @param enableRanks(type=bool) Whether to enable rank values for the leaderboard.
 // @return error(error) An optional error value if an error occurred.
-func (n *RuntimeGoNakamaModule) LeaderboardCreate(ctx context.Context, leaderboardID string, authoritative bool, sortOrder, operator, resetSchedule string, metadata map[string]interface{}, enableRanks bool) error {
+func (n *RuntimeGoNakamaModule) LeaderboardCreate(ctx context.Context, leaderboardID string, authoritative bool, sortOrder, operator, resetSchedule string, metadata map[string]any, enableRanks bool) error {
 	if leaderboardID == "" {
 		return errors.New("expects a leaderboard ID string")
 	}
@@ -2776,11 +2775,11 @@ func (n *RuntimeGoNakamaModule) LeaderboardRecordsListCursorFromRank(leaderboard
 // @param username(type=string) The owner username of this score submission, if it's a user.
 // @param score(type=int64) The score to submit.
 // @param subscore(type=int64, optional=true) A secondary subscore parameter for the submission.
-// @param metadata(type=map[string]interface{}, optional=true) The metadata you want associated to this submission. Some good examples are weather conditions for a racing game.
+// @param metadata(type=map[string]any, optional=true) The metadata you want associated to this submission. Some good examples are weather conditions for a racing game.
 // @param overrideOperator(type=*int) An override operator for the new record. The accepted values include: 0 (no override), 1 (best), 2 (set), 3 (incr), 4 (decr). Passing nil is the same as passing a pointer to 0 (no override), which uses the default leaderboard operator.
 // @return record(*api.LeaderboardRecord) The newly created leaderboard record.
 // @return error(error) An optional error value if an error occurred.
-func (n *RuntimeGoNakamaModule) LeaderboardRecordWrite(ctx context.Context, id, ownerID, username string, score, subscore int64, metadata map[string]interface{}, overrideOperator *int) (*api.LeaderboardRecord, error) {
+func (n *RuntimeGoNakamaModule) LeaderboardRecordWrite(ctx context.Context, id, ownerID, username string, score, subscore int64, metadata map[string]any, overrideOperator *int) (*api.LeaderboardRecord, error) {
 	if id == "" {
 		return nil, errors.New("expects a leaderboard ID string")
 	}
@@ -2887,7 +2886,7 @@ func (n *RuntimeGoNakamaModule) LeaderboardsGetId(ctx context.Context, IDs []str
 // @param sortOrder(type=string, default="desc") The sort order for records in the tournament. Possible values are "asc" or "desc".
 // @param operator(type=string, default="best") The operator that determines how scores behave when submitted. The possible values are "best", "set", or "incr".
 // @param resetSchedule(type=string) The cron format used to define the reset schedule for the tournament. This controls when the underlying leaderboard resets and the tournament is considered active again.
-// @param metadata(type=map[string]interface{}) The metadata you want associated to the tournament. Some good examples are weather conditions for a racing game.
+// @param metadata(type=map[string]any) The metadata you want associated to the tournament. Some good examples are weather conditions for a racing game.
 // @param title(type=string) The title of the tournament.
 // @param description(type=string) The description of the tournament.
 // @param category(type=int) A category associated with the tournament. This can be used to filter different types of tournaments. Between 0 and 127.
@@ -2899,7 +2898,7 @@ func (n *RuntimeGoNakamaModule) LeaderboardsGetId(ctx context.Context, IDs []str
 // @param joinRequired(type=bool, default=false) Whether the tournament needs to be joined before a record write is allowed.
 // @param enableRanks(type=bool) Whether to enable rank values for the tournament.
 // @return error(error) An optional error value if an error occurred.
-func (n *RuntimeGoNakamaModule) TournamentCreate(ctx context.Context, id string, authoritative bool, sortOrder, operator, resetSchedule string, metadata map[string]interface{}, title, description string, category, startTime, endTime, duration, maxSize, maxNumScore int, joinRequired, enableRanks bool) error {
+func (n *RuntimeGoNakamaModule) TournamentCreate(ctx context.Context, id string, authoritative bool, sortOrder, operator, resetSchedule string, metadata map[string]any, title, description string, category, startTime, endTime, duration, maxSize, maxNumScore int, joinRequired, enableRanks bool) error {
 	if id == "" {
 		return errors.New("expects a tournament ID string")
 	}
@@ -3176,11 +3175,11 @@ func (n *RuntimeGoNakamaModule) TournamentRecordsList(ctx context.Context, tourn
 // @param username(type=string) The owner username of this score submission, if it's a user.
 // @param score(type=int64) The score to submit.
 // @param subscore(type=int64, optional=true) A secondary subscore parameter for the submission.
-// @param metadata(type=map[string]interface{}, optional=true) The metadata you want associated to this submission. Some good examples are weather conditions for a racing game.
+// @param metadata(type=map[string]any, optional=true) The metadata you want associated to this submission. Some good examples are weather conditions for a racing game.
 // @param overrideOperator(type=*int) An override operator for the new record. The accepted values include: 0 (no override), 1 (best), 2 (set), 3 (incr), 4 (decr). Passing nil is the same as passing a pointer to 0 (no override), which uses the default leaderboard operator.
 // @return result(*api.LeaderboardRecord) The newly created leaderboard record.
 // @return error(error) An optional error value if an error occurred.
-func (n *RuntimeGoNakamaModule) TournamentRecordWrite(ctx context.Context, id, ownerID, username string, score, subscore int64, metadata map[string]interface{}, overrideOperator *int) (*api.LeaderboardRecord, error) {
+func (n *RuntimeGoNakamaModule) TournamentRecordWrite(ctx context.Context, id, ownerID, username string, score, subscore int64, metadata map[string]any, overrideOperator *int) (*api.LeaderboardRecord, error) {
 	if id == "" {
 		return nil, errors.New("expects a tournament ID string")
 	}
@@ -3643,11 +3642,11 @@ func (n *RuntimeGoNakamaModule) GroupsGetId(ctx context.Context, groupIDs []stri
 // @param description(type=string, optional=true) Group description, can be left empty as nil/null.
 // @param avatarUrl(type=string, optional=true) URL to the group avatar, can be left empty as nil/null.
 // @param open(type=bool, optional=true, default=false) Whether the group is for anyone to join, or members will need to send invitations to join.
-// @param metadata(type=map[string]interface{}, optional=true) Custom information to store for this group. Can be left empty as nil/null.
+// @param metadata(type=map[string]any, optional=true) Custom information to store for this group. Can be left empty as nil/null.
 // @param maxCount(type=int, default=100) Maximum number of members to have in the group.
 // @return createGroup(*api.Group) The groupId of the newly created group.
 // @return error(error) An optional error value if an error occurred.
-func (n *RuntimeGoNakamaModule) GroupCreate(ctx context.Context, userID, name, creatorID, langTag, description, avatarUrl string, open bool, metadata map[string]interface{}, maxCount int) (*api.Group, error) {
+func (n *RuntimeGoNakamaModule) GroupCreate(ctx context.Context, userID, name, creatorID, langTag, description, avatarUrl string, open bool, metadata map[string]any, maxCount int) (*api.Group, error) {
 	uid, err := uuid.FromString(userID)
 	if err != nil {
 		return nil, errors.New("expects user ID to be a valid identifier")
@@ -3692,10 +3691,10 @@ func (n *RuntimeGoNakamaModule) GroupCreate(ctx context.Context, userID, name, c
 // @param description(type=string) Group description, can be left empty if not updated.
 // @param avatarUrl(type=string) URL to the group avatar, can be left empty if not updated.
 // @param open(type=bool) Whether the group is for anyone to join or not.
-// @param metadata(type=map[string]interface{}) Custom information to store for this group. Use nil if field is not being updated.
+// @param metadata(type=map[string]any) Custom information to store for this group. Use nil if field is not being updated.
 // @param maxCount(type=int) Maximum number of members to have in the group. Use 0, nil/null if field is not being updated.
 // @return error(error) An optional error value if an error occurred.
-func (n *RuntimeGoNakamaModule) GroupUpdate(ctx context.Context, groupID, userID, name, creatorID, langTag, description, avatarUrl string, open bool, metadata map[string]interface{}, maxCount int) error {
+func (n *RuntimeGoNakamaModule) GroupUpdate(ctx context.Context, groupID, userID, name, creatorID, langTag, description, avatarUrl string, open bool, metadata map[string]any, maxCount int) error {
 	group, err := uuid.FromString(groupID)
 	if err != nil {
 		return errors.New("expects group ID to be a valid identifier")
@@ -4477,13 +4476,13 @@ func (n *RuntimeGoNakamaModule) FriendMetadataUpdate(ctx context.Context, userID
 // @summary Send a message on a realtime chat channel.
 // @param ctx(type=context.Context) The context object represents information about the server and requester.
 // @param channelId(type=string) The ID of the channel to send the message on.
-// @param content(type=map[string]interface{}) Message content.
+// @param content(type=map[string]any) Message content.
 // @param senderId(type=string, optional=true) The UUID for the sender of this message. If left empty, it will be assumed that it is a system message.
 // @param senderUsername(type=string, optional=true) The username of the user to send this message as. If left empty, it will be assumed that it is a system message.
 // @param persist(type=bool) Whether to record this message in the channel history.
 // @return channelMessageSend(*rtapi.ChannelMessageAck) Message sent ack containing the following variables: 'channelId', 'contentStr', 'senderId', 'senderUsername', and 'persist'.
 // @return error(error) An optional error value if an error occurred.
-func (n *RuntimeGoNakamaModule) ChannelMessageSend(ctx context.Context, channelId string, content map[string]interface{}, senderId, senderUsername string, persist bool) (*rtapi.ChannelMessageAck, error) {
+func (n *RuntimeGoNakamaModule) ChannelMessageSend(ctx context.Context, channelId string, content map[string]any, senderId, senderUsername string, persist bool) (*rtapi.ChannelMessageAck, error) {
 	channelIdToStreamResult, err := ChannelIdToStream(channelId)
 	if err != nil {
 		return nil, err
@@ -4506,13 +4505,13 @@ func (n *RuntimeGoNakamaModule) ChannelMessageSend(ctx context.Context, channelI
 // @param ctx(type=context.Context) The context object represents information about the server and requester.
 // @param channelId(type=string) The ID of the channel to send the message on.
 // @param messageId(type=string) The ID of the message to update.
-// @param content(type=map[string]interface{}) Message content.
+// @param content(type=map[string]any) Message content.
 // @param senderId(type=string, optional=true) The UUID for the sender of this message. If left empty, it will be assumed that it is a system message.
 // @param senderUsername(type=string, optional=true) The username of the user to send this message as. If left empty, it will be assumed that it is a system message.
 // @param persist(type=bool) Whether to record this message in the channel history.
 // @return channelMessageUpdate(*rtapi.ChannelMessageAck) Message updated ack containing the following variables: 'channelId', 'contentStr', 'senderId', 'senderUsername', and 'persist'.
 // @return error(error) An optional error value if an error occurred.
-func (n *RuntimeGoNakamaModule) ChannelMessageUpdate(ctx context.Context, channelId, messageId string, content map[string]interface{}, senderId, senderUsername string, persist bool) (*rtapi.ChannelMessageAck, error) {
+func (n *RuntimeGoNakamaModule) ChannelMessageUpdate(ctx context.Context, channelId, messageId string, content map[string]any, senderId, senderUsername string, persist bool) (*rtapi.ChannelMessageAck, error) {
 	channelIdToStreamResult, err := ChannelIdToStream(channelId)
 	if err != nil {
 		return nil, err

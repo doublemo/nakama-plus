@@ -42,8 +42,8 @@ func loggerForBenchmark(b *testing.B) *zap.Logger {
 }
 
 type fatalable interface {
-	Fatal(args ...interface{})
-	Fatalf(format string, args ...interface{})
+	Fatal(args ...any)
+	Fatalf(format string, args ...any)
 }
 
 // createTestMatchRegistry creates a LocalMatchRegistry minimally configured for testing purposes
@@ -86,7 +86,7 @@ func newTestMatch(ctx context.Context, logger runtime.Logger, db *sql.DB, nk run
 	return &testMatch{}, nil
 }
 
-func (m *testMatch) MatchInit(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, params map[string]interface{}) (interface{}, int, string) {
+func (m *testMatch) MatchInit(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, params map[string]any) (any, int, string) {
 	state := &testMatchState{
 		presences: make(map[string]runtime.Presence),
 	}
@@ -102,12 +102,12 @@ func (m *testMatch) MatchInit(ctx context.Context, logger runtime.Logger, db *sq
 	return state, tickRate, label
 }
 
-func (m *testMatch) MatchJoinAttempt(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, dispatcher runtime.MatchDispatcher, tick int64, state interface{}, presence runtime.Presence, metadata map[string]string) (interface{}, bool, string) {
+func (m *testMatch) MatchJoinAttempt(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, dispatcher runtime.MatchDispatcher, tick int64, state any, presence runtime.Presence, metadata map[string]string) (any, bool, string) {
 	acceptUser := true
 	return state, acceptUser, ""
 }
 
-func (m *testMatch) MatchJoin(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, dispatcher runtime.MatchDispatcher, tick int64, state interface{}, presences []runtime.Presence) interface{} {
+func (m *testMatch) MatchJoin(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, dispatcher runtime.MatchDispatcher, tick int64, state any, presences []runtime.Presence) any {
 	mState, _ := state.(*testMatchState)
 	for _, p := range presences {
 		mState.presences[p.GetUserId()] = p
@@ -115,7 +115,7 @@ func (m *testMatch) MatchJoin(ctx context.Context, logger runtime.Logger, db *sq
 	return mState
 }
 
-func (m *testMatch) MatchLeave(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, dispatcher runtime.MatchDispatcher, tick int64, state interface{}, presences []runtime.Presence) interface{} {
+func (m *testMatch) MatchLeave(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, dispatcher runtime.MatchDispatcher, tick int64, state any, presences []runtime.Presence) any {
 	mState, _ := state.(*testMatchState)
 	for _, p := range presences {
 		delete(mState.presences, p.GetUserId())
@@ -123,7 +123,7 @@ func (m *testMatch) MatchLeave(ctx context.Context, logger runtime.Logger, db *s
 	return mState
 }
 
-func (m *testMatch) MatchLoop(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, dispatcher runtime.MatchDispatcher, tick int64, state interface{}, messages []runtime.MatchData) interface{} {
+func (m *testMatch) MatchLoop(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, dispatcher runtime.MatchDispatcher, tick int64, state any, messages []runtime.MatchData) any {
 	mState, _ := state.(*testMatchState)
 	for _, presence := range mState.presences {
 		logger.Info("Presence %v named %v", presence.GetUserId(), presence.GetUsername())
@@ -138,7 +138,7 @@ func (m *testMatch) MatchLoop(ctx context.Context, logger runtime.Logger, db *sq
 	return mState
 }
 
-func (m *testMatch) MatchTerminate(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, dispatcher runtime.MatchDispatcher, tick int64, state interface{}, graceSeconds int) interface{} {
+func (m *testMatch) MatchTerminate(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, dispatcher runtime.MatchDispatcher, tick int64, state any, graceSeconds int) any {
 	message := "Server shutting down in " + strconv.Itoa(graceSeconds) + " seconds."
 	reliable := true
 	if err := dispatcher.BroadcastMessage(2, []byte(message), []runtime.Presence{}, nil, reliable); err != nil {
@@ -147,7 +147,7 @@ func (m *testMatch) MatchTerminate(ctx context.Context, logger runtime.Logger, d
 	return state
 }
 
-func (m *testMatch) MatchSignal(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, dispatcher runtime.MatchDispatcher, tick int64, state interface{}, data string) (interface{}, string) {
+func (m *testMatch) MatchSignal(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, dispatcher runtime.MatchDispatcher, tick int64, state any, data string) (any, string) {
 	return state, "signal received: " + data
 }
 

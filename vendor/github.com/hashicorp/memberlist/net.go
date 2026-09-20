@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2013, 2026
 // SPDX-License-Identifier: MPL-2.0
 
 package memberlist
@@ -7,15 +7,15 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"hash/crc32"
 	"io"
 	"math"
 	"net"
-	"sync/atomic"
 	"time"
 
-	"github.com/hashicorp/go-metrics/compat"
+	metrics "github.com/hashicorp/go-metrics"
 	"github.com/hashicorp/go-msgpack/v2/codec"
 )
 
@@ -87,7 +87,11 @@ const (
 	userMsgOverhead        = 1
 	blockingWarning        = 10 * time.Millisecond // Warn if a UDP packet takes this long to process
 	maxPushStateBytes      = 20 * 1024 * 1024
-	maxPushPullRequests    = 128 // Maximum number of concurrent push/pull requests
+	maxPushStateNodes      = 1024 * 1024      // Each requires conservatively  ~20 bytes when encoded
+	maxUserMsgBytes        = 20 * 1024 * 1024 // Largest user message we will buffer off the wire
+	maxPushPullRequests    = 128              // Maximum number of concurrent push/pull requests
+
+	maxDecompressedBytes = 2 * maxPushStateBytes // Largest push/pull we will decompress: user state plus an equal node budget
 )
 
 // ping request sent directly to node
@@ -234,22 +238,32 @@ func (m *Memberlist) streamListen() {
 
 // handleConn handles a single incoming stream connection from the transport.
 func (m *Memberlist) handleConn(conn net.Conn) {
-	defer conn.Close()
 	m.logger.Printf("[DEBUG] memberlist: Stream connection %s", LogConn(conn))
 
 	metrics.IncrCounterWithLabels([]string{"memberlist", "tcp", "accept"}, 1, m.metricLabels)
 
-	conn.SetDeadline(time.Now().Add(m.config.TCPTimeout))
+	if err := conn.SetDeadline(time.Now().Add(m.config.TCPTimeout)); err != nil {
+		m.logger.Printf("Err: Could not set the deadline: %s", err)
+	}
 
 	var (
 		streamLabel string
 		err         error
+		// Store the original conn, because the code below shadows it.
+		// If reading the label header from the stream fail, we should still close the connection.
+		origConn = conn
 	)
 	conn, streamLabel, err = RemoveLabelHeaderFromStream(conn)
 	if err != nil {
-		m.logger.Printf("[ERR] memberlist: failed to receive and remove the stream label header: %s %s", err, LogConn(conn))
+		m.logger.Printf("[ERR] memberlist: failed to receive and remove the stream label header: %s %s", err, LogConn(origConn))
+		_ = origConn.Close()
 		return
 	}
+
+	defer func() {
+		// Always close the wrapped connection, that we got after removing the label header.
+		_ = conn.Close()
+	}()
 
 	if m.config.SkipInboundLabelCheck {
 		if streamLabel != "" {
@@ -293,8 +307,8 @@ func (m *Memberlist) handleConn(conn net.Conn) {
 		}
 	case pushPullMsg:
 		// Increment counter of pending push/pulls
-		numConcurrent := atomic.AddUint32(&m.pushPullReq, 1)
-		defer atomic.AddUint32(&m.pushPullReq, ^uint32(0))
+		numConcurrent := m.pushPullReq.Add(1)
+		defer m.pushPullReq.Add(^uint32(0))
 
 		// Check if we have too many open push/pull requests
 		if numConcurrent >= maxPushPullRequests {
@@ -707,7 +721,7 @@ func (m *Memberlist) ensureCanConnect(from net.Addr) error {
 
 	ip := net.ParseIP(host)
 	if ip == nil {
-		return fmt.Errorf("Cannot parse IP from %s", host)
+		return fmt.Errorf("cannot parse IP from %s", host)
 	}
 	return m.config.IPAllowed(ip)
 }
@@ -751,7 +765,7 @@ func (m *Memberlist) handleDead(buf []byte, from net.Addr) {
 }
 
 // handleUser is used to notify channels of incoming user data
-func (m *Memberlist) handleUser(buf []byte, from net.Addr) {
+func (m *Memberlist) handleUser(buf []byte, _ net.Addr) {
 	d := m.config.Delegate
 	if d != nil {
 		d.NotifyMsg(buf)
@@ -772,7 +786,7 @@ func (m *Memberlist) handleCompressed(buf []byte, from net.Addr, timestamp time.
 }
 
 // encodeAndSendMsg is used to combine the encoding and sending steps
-func (m *Memberlist) encodeAndSendMsg(a Address, msgType messageType, msg interface{}) error {
+func (m *Memberlist) encodeAndSendMsg(a Address, msgType messageType, msg any) error {
 	out, err := encode(msgType, msg, m.config.MsgpackUseNewTimeFormat)
 	if err != nil {
 		return err
@@ -840,10 +854,10 @@ func (m *Memberlist) rawSendMsgPacket(a Address, node *Node, msg []byte) error {
 		}
 		m.nodeLock.RLock()
 		nodeState, ok := m.nodeMap[toAddr]
-		m.nodeLock.RUnlock()
 		if ok {
 			node = &nodeState.Node
 		}
+		m.nodeLock.RUnlock()
 	}
 
 	// Add a CRC to the end of the payload if the recipient understands
@@ -922,7 +936,9 @@ func (m *Memberlist) sendUserMsg(a Address, sendBuf []byte) error {
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer func() {
+		_ = conn.Close()
+	}()
 
 	bufConn := bytes.NewBuffer(nil)
 	if err := bufConn.WriteByte(byte(userMsg)); err != nil {
@@ -930,11 +946,9 @@ func (m *Memberlist) sendUserMsg(a Address, sendBuf []byte) error {
 	}
 
 	header := userMsgHeader{UserMsgLen: len(sendBuf)}
-	hd := codec.MsgpackHandle{
-		BasicHandle: codec.BasicHandle{
-			TimeNotBuiltin: !m.config.MsgpackUseNewTimeFormat,
-		},
-	}
+	hd := codec.MsgpackHandle{}
+	hd.TimeNotBuiltin = !m.config.MsgpackUseNewTimeFormat
+
 	enc := codec.NewEncoder(bufConn, &hd)
 	if err := enc.Encode(&header); err != nil {
 		return err
@@ -958,7 +972,9 @@ func (m *Memberlist) sendAndReceiveState(a Address, join bool) ([]pushNodeState,
 	if err != nil {
 		return nil, nil, err
 	}
-	defer conn.Close()
+	defer func() {
+		_ = conn.Close()
+	}()
 	m.logger.Printf("[DEBUG] memberlist: Initiating push/pull sync with: %s %s", a.Name, conn.RemoteAddr())
 	metrics.IncrCounterWithLabels([]string{"memberlist", "tcp", "connect"}, 1, m.metricLabels)
 
@@ -967,7 +983,9 @@ func (m *Memberlist) sendAndReceiveState(a Address, join bool) ([]pushNodeState,
 		return nil, nil, err
 	}
 
-	conn.SetDeadline(time.Now().Add(m.config.TCPTimeout))
+	if err := conn.SetDeadline(time.Now().Add(m.config.TCPTimeout)); err != nil {
+		m.logger.Printf("Err: Could not set the deadline: %s", err)
+	}
 	msgType, bufConn, dec, err := m.readStream(conn, m.config.Label)
 	if err != nil {
 		return nil, nil, err
@@ -995,7 +1013,9 @@ func (m *Memberlist) sendAndReceiveState(a Address, join bool) ([]pushNodeState,
 // sendLocalState is invoked to send our local state over a stream connection.
 func (m *Memberlist) sendLocalState(conn net.Conn, join bool, streamLabel string) error {
 	// Setup a deadline
-	conn.SetDeadline(time.Now().Add(m.config.TCPTimeout))
+	if err := conn.SetDeadline(time.Now().Add(m.config.TCPTimeout)); err != nil {
+		m.logger.Printf("Err: Could not set the deadline: %s", err)
+	}
 
 	// Prepare the local node state
 	m.nodeLock.RLock()
@@ -1117,7 +1137,7 @@ func (m *Memberlist) decryptRemoteState(bufConn io.Reader, streamLabel string) (
 	metrics.AddSampleWithLabels([]string{"memberlist", "size", "remote"}, float32(moreBytes), m.metricLabels)
 
 	if moreBytes > maxPushStateBytes {
-		return nil, fmt.Errorf("Remote node state is larger than limit (%d)", moreBytes)
+		return nil, fmt.Errorf("remote node state is larger than limit (%d)", moreBytes)
 
 	}
 
@@ -1166,7 +1186,7 @@ func (m *Memberlist) readStream(conn net.Conn, streamLabel string) (messageType,
 	if msgType == encryptMsg {
 		if !m.config.EncryptionEnabled() {
 			return 0, nil, nil,
-				fmt.Errorf("Remote state is encrypted and encryption is not configured")
+				fmt.Errorf("remote state is encrypted and encryption is not configured")
 		}
 
 		plain, err := m.decryptRemoteState(bufConn, streamLabel)
@@ -1179,7 +1199,7 @@ func (m *Memberlist) readStream(conn net.Conn, streamLabel string) (messageType,
 		bufConn = bytes.NewReader(plain[1:])
 	} else if m.config.EncryptionEnabled() && m.config.GossipVerifyIncoming {
 		return 0, nil, nil,
-			fmt.Errorf("Encryption is configured but remote state is not encrypted")
+			fmt.Errorf("encryption is configured but remote state is not encrypted")
 	}
 
 	// Get the msgPack decoders
@@ -1195,6 +1215,9 @@ func (m *Memberlist) readStream(conn net.Conn, streamLabel string) (messageType,
 		decomp, err := decompressBuffer(&c)
 		if err != nil {
 			return 0, nil, nil, err
+		}
+		if len(decomp) == 0 {
+			return 0, nil, nil, errors.New("decompressed message is empty")
 		}
 
 		// Reset the message type
@@ -1218,6 +1241,10 @@ func (m *Memberlist) readRemoteState(bufConn io.Reader, dec *codec.Decoder) (boo
 		return false, nil, nil, err
 	}
 
+	if header.Nodes < 0 || header.Nodes > maxPushStateNodes {
+		return false, nil, nil, fmt.Errorf("number of nodes in header (%d) exceeds limit", header.Nodes)
+	}
+
 	// Allocate space for the transfer
 	remoteNodes := make([]pushNodeState, header.Nodes)
 
@@ -1228,6 +1255,10 @@ func (m *Memberlist) readRemoteState(bufConn io.Reader, dec *codec.Decoder) (boo
 		}
 	}
 
+	if header.UserStateLen < 0 || header.UserStateLen > maxPushStateBytes {
+		return false, nil, nil, fmt.Errorf("user state length (%d) exceeds limit", header.UserStateLen)
+	}
+
 	// Read the remote user state into a buffer
 	var userBuf []byte
 	if header.UserStateLen > 0 {
@@ -1235,7 +1266,7 @@ func (m *Memberlist) readRemoteState(bufConn io.Reader, dec *codec.Decoder) (boo
 		bytes, err := io.ReadAtLeast(bufConn, userBuf, header.UserStateLen)
 		if err == nil && bytes != header.UserStateLen {
 			err = fmt.Errorf(
-				"Failed to read full user state (%d / %d)",
+				"failed to read full user state (%d / %d)",
 				bytes, header.UserStateLen)
 		}
 		if err != nil {
@@ -1264,19 +1295,22 @@ func (m *Memberlist) mergeRemoteState(join bool, remoteNodes []pushNodeState, us
 	if join && m.config.Merge != nil {
 		nodes := make([]*Node, len(remoteNodes))
 		for idx, n := range remoteNodes {
-			nodes[idx] = &Node{
+			node := &Node{
 				Name:  n.Name,
 				Addr:  n.Addr,
 				Port:  n.Port,
 				Meta:  n.Meta,
 				State: n.State,
-				PMin:  n.Vsn[0],
-				PMax:  n.Vsn[1],
-				PCur:  n.Vsn[2],
-				DMin:  n.Vsn[3],
-				DMax:  n.Vsn[4],
-				DCur:  n.Vsn[5],
 			}
+			if len(n.Vsn) >= 6 {
+				node.PMin = n.Vsn[0]
+				node.PMax = n.Vsn[1]
+				node.PCur = n.Vsn[2]
+				node.DMin = n.Vsn[3]
+				node.DMax = n.Vsn[4]
+				node.DCur = n.Vsn[5]
+			}
+			nodes[idx] = node
 		}
 		if err := m.config.Merge.NotifyMerge(nodes); err != nil {
 			return err
@@ -1301,6 +1335,10 @@ func (m *Memberlist) readUserMsg(bufConn io.Reader, dec *codec.Decoder) error {
 		return err
 	}
 
+	if header.UserMsgLen < 0 || header.UserMsgLen > maxUserMsgBytes {
+		return fmt.Errorf("user message length (%d) exceeds limit", header.UserMsgLen)
+	}
+
 	// Read the user message into a buffer
 	var userBuf []byte
 	if header.UserMsgLen > 0 {
@@ -1308,7 +1346,7 @@ func (m *Memberlist) readUserMsg(bufConn io.Reader, dec *codec.Decoder) error {
 		bytes, err := io.ReadAtLeast(bufConn, userBuf, header.UserMsgLen)
 		if err == nil && bytes != header.UserMsgLen {
 			err = fmt.Errorf(
-				"Failed to read full user message (%d / %d)",
+				"failed to read full user message (%d / %d)",
 				bytes, header.UserMsgLen)
 		}
 		if err != nil {
@@ -1333,7 +1371,7 @@ func (m *Memberlist) sendPingAndWaitForAck(a Address, ping ping, deadline time.T
 		return false, errNodeNamesAreRequired
 	}
 
-	conn, err := m.transport.DialAddressTimeout(a, deadline.Sub(time.Now()))
+	conn, err := m.transport.DialAddressTimeout(a, time.Until(deadline))
 	if err != nil {
 		// If the node is actually dead we expect this to fail, so we
 		// shouldn't spam the logs with it. After this point, errors
@@ -1341,8 +1379,10 @@ func (m *Memberlist) sendPingAndWaitForAck(a Address, ping ping, deadline time.T
 		// get propagated up.
 		return false, nil
 	}
-	defer conn.Close()
-	conn.SetDeadline(deadline)
+	defer func() {
+		_ = conn.Close()
+	}()
+	_ = conn.SetDeadline(deadline)
 
 	out, err := encode(pingMsg, &ping, m.config.MsgpackUseNewTimeFormat)
 	if err != nil {
@@ -1359,7 +1399,7 @@ func (m *Memberlist) sendPingAndWaitForAck(a Address, ping ping, deadline time.T
 	}
 
 	if msgType != ackRespMsg {
-		return false, fmt.Errorf("Unexpected msgType (%d) from ping %s", msgType, LogConn(conn))
+		return false, fmt.Errorf("unexpected msgType (%d) from ping %s", msgType, LogConn(conn))
 	}
 
 	var ack ackResp
@@ -1368,7 +1408,7 @@ func (m *Memberlist) sendPingAndWaitForAck(a Address, ping ping, deadline time.T
 	}
 
 	if ack.SeqNo != ping.SeqNo {
-		return false, fmt.Errorf("Sequence number from ack (%d) doesn't match ping (%d)", ack.SeqNo, ping.SeqNo)
+		return false, fmt.Errorf("sequence number from ack (%d) doesn't match ping (%d)", ack.SeqNo, ping.SeqNo)
 	}
 
 	return true, nil

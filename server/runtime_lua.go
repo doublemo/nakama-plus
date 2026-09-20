@@ -191,8 +191,8 @@ func NewRuntimeProviderLua(ctx context.Context, logger, startupLogger *zap.Logge
 				beforeRtFunctions[id] = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, sessionID, clientIP, clientPort, lang string, envelope *rtapi.Envelope) (*rtapi.Envelope, error) {
 					return runtimeProviderLua.BeforeRt(ctx, id, logger, traceID, userID, username, vars, expiry, sessionID, clientIP, clientPort, lang, envelope)
 				}
-			} else if strings.HasPrefix(id, strings.ToLower(API_PREFIX)) {
-				shortID := strings.TrimPrefix(id, strings.ToLower(API_PREFIX))
+			} else if after, ok := strings.CutPrefix(id, strings.ToLower(API_PREFIX)); ok {
+				shortID := after
 				switch shortID {
 				case "getaccount":
 					beforeReqFunctions.beforeGetAccountFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string) (error, codes.Code) {
@@ -850,8 +850,8 @@ func NewRuntimeProviderLua(ctx context.Context, logger, startupLogger *zap.Logge
 				afterRtFunctions[id] = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, sessionID, clientIP, clientPort, lang string, out, in *rtapi.Envelope) error {
 					return runtimeProviderLua.AfterRt(ctx, id, logger, traceID, userID, username, vars, expiry, sessionID, clientIP, clientPort, lang, out, in)
 				}
-			} else if strings.HasPrefix(id, strings.ToLower(API_PREFIX)) {
-				shortID := strings.TrimPrefix(id, strings.ToLower(API_PREFIX))
+			} else if after, ok := strings.CutPrefix(id, strings.ToLower(API_PREFIX)); ok {
+				shortID := after
 				switch shortID {
 				case "getaccount":
 					afterReqFunctions.afterGetAccountFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, out *api.Account) error {
@@ -1458,10 +1458,10 @@ func (rp *RuntimeProviderLua) BeforeRt(ctx context.Context, id string, logger *z
 		logger.Error("Could not marshall envelope to JSON", zap.Any("envelope", envelope), zap.Error(err))
 		return nil, errors.New("Could not run runtime Before function.")
 	}
-	var envelopeMap map[string]interface{}
+	var envelopeMap map[string]any
 	if err := json.Unmarshal([]byte(envelopeJSON), &envelopeMap); err != nil {
 		rp.Put(r)
-		logger.Error("Could not unmarshall envelope to interface{}", zap.Any("envelope_json", envelopeJSON), zap.Error(err))
+		logger.Error("Could not unmarshall envelope to any", zap.Any("envelope_json", envelopeJSON), zap.Error(err))
 		return nil, errors.New("Could not run runtime Before function.")
 	}
 
@@ -1514,7 +1514,7 @@ func (rp *RuntimeProviderLua) AfterRt(ctx context.Context, id string, logger *za
 		return errors.New("Runtime After function not found.")
 	}
 
-	var outMap map[string]interface{}
+	var outMap map[string]any
 	if out != nil {
 		outJSON, err := rp.protojsonMarshaler.Marshal(out)
 		if err != nil {
@@ -1524,7 +1524,7 @@ func (rp *RuntimeProviderLua) AfterRt(ctx context.Context, id string, logger *za
 		}
 		if err := json.Unmarshal([]byte(outJSON), &outMap); err != nil {
 			rp.Put(r)
-			logger.Error("Could not unmarshall envelope to interface{}", zap.Any("out_json", outJSON), zap.Error(err))
+			logger.Error("Could not unmarshall envelope to any", zap.Any("out_json", outJSON), zap.Error(err))
 			return errors.New("Could not run runtime After function.")
 		}
 	}
@@ -1535,10 +1535,10 @@ func (rp *RuntimeProviderLua) AfterRt(ctx context.Context, id string, logger *za
 		logger.Error("Could not marshall envelope to JSON", zap.Any("in", in), zap.Error(err))
 		return errors.New("Could not run runtime After function.")
 	}
-	var inMap map[string]interface{}
+	var inMap map[string]any
 	if err := json.Unmarshal([]byte(inJSON), &inMap); err != nil {
 		rp.Put(r)
-		logger.Error("Could not unmarshall envelope to interface{}", zap.Any("in_json", inJSON), zap.Error(err))
+		logger.Error("Could not unmarshall envelope to any", zap.Any("in_json", inJSON), zap.Error(err))
 		return errors.New("Could not run runtime After function.")
 	}
 
@@ -1565,7 +1565,7 @@ func (rp *RuntimeProviderLua) AfterRt(ctx context.Context, id string, logger *za
 	return nil
 }
 
-func (rp *RuntimeProviderLua) BeforeReq(ctx context.Context, id string, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, req interface{}) (interface{}, error, codes.Code) {
+func (rp *RuntimeProviderLua) BeforeReq(ctx context.Context, id string, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, req any) (any, error, codes.Code) {
 	r, err := rp.Get(ctx)
 	if err != nil {
 		return nil, err, codes.Internal
@@ -1576,7 +1576,7 @@ func (rp *RuntimeProviderLua) BeforeReq(ctx context.Context, id string, logger *
 		return nil, errors.New("Runtime Before function not found."), codes.NotFound
 	}
 
-	var reqMap map[string]interface{}
+	var reqMap map[string]any
 	var reqProto proto.Message
 	if req != nil {
 		// Req may be nil for requests that carry no input body.
@@ -1595,7 +1595,7 @@ func (rp *RuntimeProviderLua) BeforeReq(ctx context.Context, id string, logger *
 		}
 		if err := json.Unmarshal([]byte(reqJSON), &reqMap); err != nil {
 			rp.Put(r)
-			logger.Error("Could not unmarshall request to interface{}", zap.Any("request_json", reqJSON), zap.Error(err))
+			logger.Error("Could not unmarshall request to any", zap.Any("request_json", reqJSON), zap.Error(err))
 			return nil, errors.New("Could not run runtime Before function."), codes.Internal
 		}
 	}
@@ -1639,7 +1639,7 @@ func (rp *RuntimeProviderLua) BeforeReq(ctx context.Context, id string, logger *
 	return req, nil, 0
 }
 
-func (rp *RuntimeProviderLua) AfterReq(ctx context.Context, id string, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, res interface{}, req interface{}) error {
+func (rp *RuntimeProviderLua) AfterReq(ctx context.Context, id string, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, res any, req any) error {
 	r, err := rp.Get(ctx)
 	if err != nil {
 		return err
@@ -1650,7 +1650,7 @@ func (rp *RuntimeProviderLua) AfterReq(ctx context.Context, id string, logger *z
 		return errors.New("Runtime After function not found.")
 	}
 
-	var resMap map[string]interface{}
+	var resMap map[string]any
 	if res != nil {
 		// Res may be nil if there is no response body.
 		resProto, ok := res.(proto.Message)
@@ -1668,12 +1668,12 @@ func (rp *RuntimeProviderLua) AfterReq(ctx context.Context, id string, logger *z
 
 		if err := json.Unmarshal([]byte(resJSON), &resMap); err != nil {
 			rp.Put(r)
-			logger.Error("Could not unmarshall response to interface{}", zap.Any("response_json", resJSON), zap.Error(err))
+			logger.Error("Could not unmarshall response to any", zap.Any("response_json", resJSON), zap.Error(err))
 			return errors.New("Could not run runtime After function.")
 		}
 	}
 
-	var reqMap map[string]interface{}
+	var reqMap map[string]any
 	if req != nil {
 		// Req may be nil if there is no request body.
 		reqProto, ok := req.(proto.Message)
@@ -1691,7 +1691,7 @@ func (rp *RuntimeProviderLua) AfterReq(ctx context.Context, id string, logger *z
 
 		if err := json.Unmarshal([]byte(reqJSON), &reqMap); err != nil {
 			rp.Put(r)
-			logger.Error("Could not unmarshall request to interface{}", zap.Any("request_json", reqJSON), zap.Error(err))
+			logger.Error("Could not unmarshall request to any", zap.Any("request_json", reqJSON), zap.Error(err))
 			return errors.New("Could not run runtime After function.")
 		}
 	}
@@ -1833,7 +1833,7 @@ func (rp *RuntimeProviderLua) TournamentEnd(ctx context.Context, tournament *api
 		tournamentTable.RawSetString("prev_reset", lua.LNil)
 	}
 
-	metadataMap := make(map[string]interface{})
+	metadataMap := make(map[string]any)
 	err = json.Unmarshal([]byte(tournament.Metadata), &metadataMap)
 	if err != nil {
 		rp.Put(r)
@@ -1905,7 +1905,7 @@ func (rp *RuntimeProviderLua) TournamentReset(ctx context.Context, tournament *a
 	} else {
 		tournamentTable.RawSetString("prev_reset", lua.LNil)
 	}
-	metadataMap := make(map[string]interface{})
+	metadataMap := make(map[string]any)
 	err = json.Unmarshal([]byte(tournament.Metadata), &metadataMap)
 	if err != nil {
 		rp.Put(r)
@@ -1966,7 +1966,7 @@ func (rp *RuntimeProviderLua) LeaderboardReset(ctx context.Context, leaderboard 
 	if leaderboard.NextReset != 0 {
 		leaderboardTable.RawSetString("next_reset", lua.LString(strconv.FormatUint(uint64(leaderboard.NextReset), 10)))
 	}
-	metadataMap := make(map[string]interface{})
+	metadataMap := make(map[string]any)
 	err = json.Unmarshal([]byte(leaderboard.Metadata), &metadataMap)
 	if err != nil {
 		rp.Put(r)
@@ -2188,7 +2188,7 @@ func (rp *RuntimeProviderLua) StorageIndexFilter(ctx context.Context, indexName 
 	writeTable.RawSetString("permission_read", lua.LNumber(write.Object.PermissionRead.GetValue()))
 	writeTable.RawSetString("permission_write", lua.LNumber(write.Object.PermissionWrite.GetValue()))
 
-	valueMap := make(map[string]interface{})
+	valueMap := make(map[string]any)
 	err = json.Unmarshal([]byte(write.Object.Value), &valueMap)
 	if err != nil {
 		return false, fmt.Errorf("failed to convert value to json: %s", err.Error())
@@ -2430,7 +2430,7 @@ func (r *RuntimeLua) GetCallback(e RuntimeExecutionMode, key string) *lua.LFunct
 	return nil
 }
 
-func (r *RuntimeLua) InvokeFunction(execMode RuntimeExecutionMode, fn *lua.LFunction, headers, queryParams map[string][]string, traceID, uid string, username string, vars map[string]string, sessionExpiry int64, sid string, clientIP, clientPort, lang string, payloads ...interface{}) (interface{}, error, codes.Code, bool) {
+func (r *RuntimeLua) InvokeFunction(execMode RuntimeExecutionMode, fn *lua.LFunction, headers, queryParams map[string][]string, traceID, uid string, username string, vars map[string]string, sessionExpiry int64, sid string, clientIP, clientPort, lang string, payloads ...any) (any, error, codes.Code, bool) {
 	ctx := NewRuntimeLuaContext(r.vm, r.node, r.version, r.luaEnv, execMode, headers, queryParams, traceID, sessionExpiry, uid, username, vars, sid, clientIP, clientPort, lang)
 	lv := make([]lua.LValue, 0, len(payloads))
 	for _, payload := range payloads {

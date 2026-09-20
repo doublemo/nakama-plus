@@ -104,13 +104,13 @@ func (l *Leaderboard) GetOperator() string {
 func (l *Leaderboard) GetReset() string {
 	return l.ResetScheduleStr
 }
-func (l *Leaderboard) GetMetadata() map[string]interface{} {
-	metadata := make(map[string]interface{})
+func (l *Leaderboard) GetMetadata() map[string]any {
+	metadata := make(map[string]any)
 	if l.Metadata == "" || l.Metadata == "{}" {
 		return metadata
 	}
 	if err := json.Unmarshal([]byte(l.Metadata), &metadata); err != nil {
-		log.Printf("Could not unmarshal leaderboard metadata into map[string]interface{}: %v \r\n", err)
+		log.Printf("Could not unmarshal leaderboard metadata into map[string]any: %v \r\n", err)
 	}
 
 	return metadata
@@ -210,7 +210,7 @@ func (l *LocalLeaderboardCache) RefreshAllLeaderboards(ctx context.Context) erro
 SELECT id, authoritative, sort_order, operator, reset_schedule, metadata, create_time,
 category, description, duration, end_time, join_required, max_size, max_num_score, title, start_time, enable_ranks
 FROM leaderboard`
-		params := make([]interface{}, 0, 3)
+		params := make([]any, 0, 3)
 		params = append(params, limit)
 		if id != "" {
 			query += " WHERE (create_time, id) > ($2, $3)"
@@ -393,7 +393,7 @@ func (l *LocalLeaderboardCache) Create(ctx context.Context, id string, authorita
 		query += ", $7"
 	}
 	query += ") RETURNING create_time"
-	params := []interface{}{id, authoritative, sortOrder, operator, metadata, enableRanks}
+	params := []any{id, authoritative, sortOrder, operator, metadata, enableRanks}
 	if resetSchedule != "" {
 		params = append(params, resetSchedule)
 	}
@@ -538,7 +538,7 @@ func (l *LocalLeaderboardCache) CreateTournament(ctx context.Context, id string,
 		return nil, false, fmt.Errorf("cannot create tournament as leaderboard is already in use")
 	}
 
-	params := []interface{}{id, authoritative, sortOrder, operator, duration}
+	params := []any{id, authoritative, sortOrder, operator, duration}
 	columns := "id, authoritative, sort_order, operator, duration"
 	values := "$1, $2, $3, $4, $5"
 

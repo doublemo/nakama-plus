@@ -134,8 +134,7 @@ func (ri *RuntimeGoInitializer) RegisterRpc(id string, fn func(ctx context.Conte
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeRPC, headers, queryParams, traceID, expiry, userID, username, vars, sessionID, clientIP, clientPort, lang)
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithField("rpc_id", id)), ri.db, ri.nk, payload)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -160,7 +159,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeRt(id string, fn func(ctx context.
 	id = strings.ToLower(RTAPI_PREFIX) + apiID
 	ri.beforeRt[id] = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, sessionID, clientIP, clientPort, lang string, envelope *rtapi.Envelope) (*rtapi.Envelope, error) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeBefore, nil, nil, traceID, expiry, userID, username, vars, sessionID, clientIP, clientPort, lang)
-		loggerFields := map[string]interface{}{"api_id": apiID, "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": apiID, "mode": RuntimeExecutionModeBefore.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, envelope)
 	}
 	return nil
@@ -176,7 +175,7 @@ func (ri *RuntimeGoInitializer) RegisterAfterRt(id string, fn func(ctx context.C
 	id = strings.ToLower(RTAPI_PREFIX) + apiID
 	ri.afterRt[id] = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, sessionID, clientIP, clientPort, lang string, out, in *rtapi.Envelope) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, sessionID, clientIP, clientPort, lang)
-		loggerFields := map[string]interface{}{"api_id": apiID, "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": apiID, "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, out, in)
 	}
 	return nil
@@ -189,11 +188,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterRt(id string, fn func(ctx context.C
 func (ri *RuntimeGoInitializer) RegisterBeforeGetAccount(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule) error) error {
 	ri.beforeReq.beforeGetAccountFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string) (error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeBefore, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "getaccount", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "getaccount", "mode": RuntimeExecutionModeBefore.String()}
 		fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return runtimeErr, codes.Internal
@@ -215,7 +213,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeGetAccount(fn func(ctx context.Con
 func (ri *RuntimeGoInitializer) RegisterAfterGetAccount(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, out *api.Account) error) error {
 	ri.afterReq.afterGetAccountFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, out *api.Account) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "getaccount", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "getaccount", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, out)
 	}
 	return nil
@@ -228,11 +226,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterGetAccount(fn func(ctx context.Cont
 func (ri *RuntimeGoInitializer) RegisterBeforeUpdateAccount(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.UpdateAccountRequest) (*api.UpdateAccountRequest, error)) error {
 	ri.beforeReq.beforeUpdateAccountFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.UpdateAccountRequest) (*api.UpdateAccountRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeBefore, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "updateaccount", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "updateaccount", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -254,7 +251,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeUpdateAccount(fn func(ctx context.
 func (ri *RuntimeGoInitializer) RegisterAfterUpdateAccount(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.UpdateAccountRequest) error) error {
 	ri.afterReq.afterUpdateAccountFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.UpdateAccountRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "updateaccount", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "updateaccount", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields))), ri.db, ri.nk, in)
 	}
 	return nil
@@ -267,11 +264,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterUpdateAccount(fn func(ctx context.C
 func (ri *RuntimeGoInitializer) RegisterBeforeDeleteAccount(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule) error) error {
 	ri.beforeReq.beforeDeleteAccountFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string) (error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeBefore, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "deleteaccount", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "deleteaccount", "mode": RuntimeExecutionModeBefore.String()}
 		fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return runtimeErr, codes.Internal
@@ -293,7 +289,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeDeleteAccount(fn func(ctx context.
 func (ri *RuntimeGoInitializer) RegisterAfterDeleteAccount(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule) error) error {
 	ri.afterReq.afterDeleteAccountFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "deleteaccount", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "deleteaccount", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk)
 	}
 	return nil
@@ -306,11 +302,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterDeleteAccount(fn func(ctx context.C
 func (ri *RuntimeGoInitializer) RegisterBeforeSessionRefresh(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.SessionRefreshRequest) (*api.SessionRefreshRequest, error)) error {
 	ri.beforeReq.beforeSessionRefreshFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.SessionRefreshRequest) (*api.SessionRefreshRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeBefore, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "sessionrefresh", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "sessionrefresh", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -332,7 +327,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeSessionRefresh(fn func(ctx context
 func (ri *RuntimeGoInitializer) RegisterAfterSessionRefresh(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, out *api.Session, in *api.SessionRefreshRequest) error) error {
 	ri.afterReq.afterSessionRefreshFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, out *api.Session, in *api.SessionRefreshRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "sessionrefresh", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "sessionrefresh", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, out, in)
 	}
 	return nil
@@ -345,11 +340,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterSessionRefresh(fn func(ctx context.
 func (ri *RuntimeGoInitializer) RegisterBeforeSessionLogout(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.SessionLogoutRequest) (*api.SessionLogoutRequest, error)) error {
 	ri.beforeReq.beforeSessionLogoutFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.SessionLogoutRequest) (*api.SessionLogoutRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeBefore, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "sessionlogout", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "sessionlogout", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -371,7 +365,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeSessionLogout(fn func(ctx context.
 func (ri *RuntimeGoInitializer) RegisterAfterSessionLogout(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.SessionLogoutRequest) error) error {
 	ri.afterReq.afterSessionLogoutFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.SessionLogoutRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "sessionlogout", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "sessionlogout", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 	}
 	return nil
@@ -384,11 +378,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterSessionLogout(fn func(ctx context.C
 func (ri *RuntimeGoInitializer) RegisterBeforeAuthenticateApple(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.AuthenticateAppleRequest) (*api.AuthenticateAppleRequest, error)) error {
 	ri.beforeReq.beforeAuthenticateAppleFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.AuthenticateAppleRequest) (*api.AuthenticateAppleRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeBefore, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "authenticateapple", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "authenticateapple", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -410,7 +403,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeAuthenticateApple(fn func(ctx cont
 func (ri *RuntimeGoInitializer) RegisterAfterAuthenticateApple(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, out *api.Session, in *api.AuthenticateAppleRequest) error) error {
 	ri.afterReq.afterAuthenticateAppleFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, out *api.Session, in *api.AuthenticateAppleRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "authenticateapple", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "authenticateapple", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, out, in)
 	}
 	return nil
@@ -423,11 +416,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterAuthenticateApple(fn func(ctx conte
 func (ri *RuntimeGoInitializer) RegisterBeforeAuthenticateCustom(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.AuthenticateCustomRequest) (*api.AuthenticateCustomRequest, error)) error {
 	ri.beforeReq.beforeAuthenticateCustomFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.AuthenticateCustomRequest) (*api.AuthenticateCustomRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeBefore, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "authenticatecustom", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "authenticatecustom", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -449,7 +441,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeAuthenticateCustom(fn func(ctx con
 func (ri *RuntimeGoInitializer) RegisterAfterAuthenticateCustom(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, out *api.Session, in *api.AuthenticateCustomRequest) error) error {
 	ri.afterReq.afterAuthenticateCustomFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, out *api.Session, in *api.AuthenticateCustomRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "authenticatecustom", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "authenticatecustom", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, out, in)
 	}
 	return nil
@@ -462,11 +454,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterAuthenticateCustom(fn func(ctx cont
 func (ri *RuntimeGoInitializer) RegisterBeforeAuthenticateDevice(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.AuthenticateDeviceRequest) (*api.AuthenticateDeviceRequest, error)) error {
 	ri.beforeReq.beforeAuthenticateDeviceFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.AuthenticateDeviceRequest) (*api.AuthenticateDeviceRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeBefore, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "authenticatedevice", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "authenticatedevice", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -488,7 +479,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeAuthenticateDevice(fn func(ctx con
 func (ri *RuntimeGoInitializer) RegisterAfterAuthenticateDevice(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, out *api.Session, in *api.AuthenticateDeviceRequest) error) error {
 	ri.afterReq.afterAuthenticateDeviceFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, out *api.Session, in *api.AuthenticateDeviceRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "authenticatedevice", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "authenticatedevice", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, out, in)
 	}
 	return nil
@@ -501,11 +492,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterAuthenticateDevice(fn func(ctx cont
 func (ri *RuntimeGoInitializer) RegisterBeforeAuthenticateEmail(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.AuthenticateEmailRequest) (*api.AuthenticateEmailRequest, error)) error {
 	ri.beforeReq.beforeAuthenticateEmailFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.AuthenticateEmailRequest) (*api.AuthenticateEmailRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeBefore, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "authenticateemail", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "authenticateemail", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -527,7 +517,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeAuthenticateEmail(fn func(ctx cont
 func (ri *RuntimeGoInitializer) RegisterAfterAuthenticateEmail(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, out *api.Session, in *api.AuthenticateEmailRequest) error) error {
 	ri.afterReq.afterAuthenticateEmailFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, out *api.Session, in *api.AuthenticateEmailRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "authenticateemail", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "authenticateemail", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, out, in)
 	}
 	return nil
@@ -540,11 +530,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterAuthenticateEmail(fn func(ctx conte
 func (ri *RuntimeGoInitializer) RegisterBeforeAuthenticateFacebook(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.AuthenticateFacebookRequest) (*api.AuthenticateFacebookRequest, error)) error {
 	ri.beforeReq.beforeAuthenticateFacebookFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.AuthenticateFacebookRequest) (*api.AuthenticateFacebookRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeBefore, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "authenticatefacebook", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "authenticatefacebook", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -566,7 +555,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeAuthenticateFacebook(fn func(ctx c
 func (ri *RuntimeGoInitializer) RegisterAfterAuthenticateFacebook(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, out *api.Session, in *api.AuthenticateFacebookRequest) error) error {
 	ri.afterReq.afterAuthenticateFacebookFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, out *api.Session, in *api.AuthenticateFacebookRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "authenticatefacebook", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "authenticatefacebook", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, out, in)
 	}
 	return nil
@@ -579,11 +568,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterAuthenticateFacebook(fn func(ctx co
 func (ri *RuntimeGoInitializer) RegisterBeforeAuthenticateFacebookInstantGame(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.AuthenticateFacebookInstantGameRequest) (*api.AuthenticateFacebookInstantGameRequest, error)) error {
 	ri.beforeReq.beforeAuthenticateFacebookInstantGameFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.AuthenticateFacebookInstantGameRequest) (*api.AuthenticateFacebookInstantGameRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeBefore, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "authenticatefacebookinstantgame", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "authenticatefacebookinstantgame", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -605,7 +593,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeAuthenticateFacebookInstantGame(fn
 func (ri *RuntimeGoInitializer) RegisterAfterAuthenticateFacebookInstantGame(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, out *api.Session, in *api.AuthenticateFacebookInstantGameRequest) error) error {
 	ri.afterReq.afterAuthenticateFacebookInstantGameFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, out *api.Session, in *api.AuthenticateFacebookInstantGameRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "authenticatefacebookinstantgame", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "authenticatefacebookinstantgame", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, out, in)
 	}
 	return nil
@@ -618,11 +606,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterAuthenticateFacebookInstantGame(fn 
 func (ri *RuntimeGoInitializer) RegisterBeforeAuthenticateGameCenter(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.AuthenticateGameCenterRequest) (*api.AuthenticateGameCenterRequest, error)) error {
 	ri.beforeReq.beforeAuthenticateGameCenterFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.AuthenticateGameCenterRequest) (*api.AuthenticateGameCenterRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeBefore, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "authenticategamecenter", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "authenticategamecenter", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -644,7 +631,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeAuthenticateGameCenter(fn func(ctx
 func (ri *RuntimeGoInitializer) RegisterAfterAuthenticateGameCenter(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, out *api.Session, in *api.AuthenticateGameCenterRequest) error) error {
 	ri.afterReq.afterAuthenticateGameCenterFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, out *api.Session, in *api.AuthenticateGameCenterRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "authenticategamecenter", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "authenticategamecenter", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, out, in)
 	}
 	return nil
@@ -657,11 +644,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterAuthenticateGameCenter(fn func(ctx 
 func (ri *RuntimeGoInitializer) RegisterBeforeAuthenticateGoogle(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.AuthenticateGoogleRequest) (*api.AuthenticateGoogleRequest, error)) error {
 	ri.beforeReq.beforeAuthenticateGoogleFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.AuthenticateGoogleRequest) (*api.AuthenticateGoogleRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeBefore, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "authenticategoogle", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "authenticategoogle", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -683,7 +669,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeAuthenticateGoogle(fn func(ctx con
 func (ri *RuntimeGoInitializer) RegisterAfterAuthenticateGoogle(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, out *api.Session, in *api.AuthenticateGoogleRequest) error) error {
 	ri.afterReq.afterAuthenticateGoogleFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, out *api.Session, in *api.AuthenticateGoogleRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "authenticategoogle", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "authenticategoogle", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, out, in)
 	}
 	return nil
@@ -696,11 +682,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterAuthenticateGoogle(fn func(ctx cont
 func (ri *RuntimeGoInitializer) RegisterBeforeAuthenticateSteam(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.AuthenticateSteamRequest) (*api.AuthenticateSteamRequest, error)) error {
 	ri.beforeReq.beforeAuthenticateSteamFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.AuthenticateSteamRequest) (*api.AuthenticateSteamRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeBefore, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "authenticatesteam", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "authenticatesteam", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -722,7 +707,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeAuthenticateSteam(fn func(ctx cont
 func (ri *RuntimeGoInitializer) RegisterAfterAuthenticateSteam(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, out *api.Session, in *api.AuthenticateSteamRequest) error) error {
 	ri.afterReq.afterAuthenticateSteamFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, out *api.Session, in *api.AuthenticateSteamRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "authenticatesteam", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "authenticatesteam", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, out, in)
 	}
 	return nil
@@ -735,11 +720,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterAuthenticateSteam(fn func(ctx conte
 func (ri *RuntimeGoInitializer) RegisterBeforeListChannelMessages(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.ListChannelMessagesRequest) (*api.ListChannelMessagesRequest, error)) error {
 	ri.beforeReq.beforeListChannelMessagesFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.ListChannelMessagesRequest) (*api.ListChannelMessagesRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeBefore, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "listchannelmessages", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "listchannelmessages", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -761,7 +745,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeListChannelMessages(fn func(ctx co
 func (ri *RuntimeGoInitializer) RegisterAfterListChannelMessages(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, out *api.ChannelMessageList, in *api.ListChannelMessagesRequest) error) error {
 	ri.afterReq.afterListChannelMessagesFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, out *api.ChannelMessageList, in *api.ListChannelMessagesRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "listchannelmessages", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "listchannelmessages", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, out, in)
 	}
 	return nil
@@ -774,11 +758,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterListChannelMessages(fn func(ctx con
 func (ri *RuntimeGoInitializer) RegisterBeforeListFriends(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.ListFriendsRequest) (*api.ListFriendsRequest, error)) error {
 	ri.beforeReq.beforeListFriendsFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.ListFriendsRequest) (*api.ListFriendsRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeBefore, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "listfriends", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "listfriends", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -800,7 +783,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeListFriends(fn func(ctx context.Co
 func (ri *RuntimeGoInitializer) RegisterAfterListFriends(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, out *api.FriendList) error) error {
 	ri.afterReq.afterListFriendsFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.FriendList) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "listfriends", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "listfriends", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 	}
 	return nil
@@ -813,11 +796,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterListFriends(fn func(ctx context.Con
 func (ri *RuntimeGoInitializer) RegisterBeforeListFriendsOfFriends(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.ListFriendsOfFriendsRequest) (*api.ListFriendsOfFriendsRequest, error)) error {
 	ri.beforeReq.beforeListFriendsOfFriendsFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.ListFriendsOfFriendsRequest) (*api.ListFriendsOfFriendsRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeBefore, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "listfriendsoffriends", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "listfriendsoffriends", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -839,7 +821,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeListFriendsOfFriends(fn func(ctx c
 func (ri *RuntimeGoInitializer) RegisterAfterListFriendsOfFriends(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, out *api.FriendsOfFriendsList) error) error {
 	ri.afterReq.afterListFriendsOfFriendsFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.FriendsOfFriendsList) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "listfriendsoffriends", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "listfriendsoffriends", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 	}
 	return nil
@@ -852,11 +834,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterListFriendsOfFriends(fn func(ctx co
 func (ri *RuntimeGoInitializer) RegisterBeforeAddFriends(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.AddFriendsRequest) (*api.AddFriendsRequest, error)) error {
 	ri.beforeReq.beforeAddFriendsFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.AddFriendsRequest) (*api.AddFriendsRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeBefore, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "addfriends", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "addfriends", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -878,7 +859,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeAddFriends(fn func(ctx context.Con
 func (ri *RuntimeGoInitializer) RegisterAfterAddFriends(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.AddFriendsRequest) error) error {
 	ri.afterReq.afterAddFriendsFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.AddFriendsRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "addfriends", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "addfriends", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 	}
 	return nil
@@ -891,11 +872,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterAddFriends(fn func(ctx context.Cont
 func (ri *RuntimeGoInitializer) RegisterBeforeDeleteFriends(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.DeleteFriendsRequest) (*api.DeleteFriendsRequest, error)) error {
 	ri.beforeReq.beforeDeleteFriendsFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.DeleteFriendsRequest) (*api.DeleteFriendsRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeBefore, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "deletefriends", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "deletefriends", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -917,7 +897,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeDeleteFriends(fn func(ctx context.
 func (ri *RuntimeGoInitializer) RegisterAfterDeleteFriends(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.DeleteFriendsRequest) error) error {
 	ri.afterReq.afterDeleteFriendsFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.DeleteFriendsRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "deletefriends", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "deletefriends", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 	}
 	return nil
@@ -930,11 +910,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterDeleteFriends(fn func(ctx context.C
 func (ri *RuntimeGoInitializer) RegisterBeforeBlockFriends(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.BlockFriendsRequest) (*api.BlockFriendsRequest, error)) error {
 	ri.beforeReq.beforeBlockFriendsFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.BlockFriendsRequest) (*api.BlockFriendsRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeBefore, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "blockfriends", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "blockfriends", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -956,7 +935,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeBlockFriends(fn func(ctx context.C
 func (ri *RuntimeGoInitializer) RegisterAfterBlockFriends(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.BlockFriendsRequest) error) error {
 	ri.afterReq.afterBlockFriendsFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.BlockFriendsRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "blockfriends", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "blockfriends", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 	}
 	return nil
@@ -969,11 +948,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterBlockFriends(fn func(ctx context.Co
 func (ri *RuntimeGoInitializer) RegisterBeforeImportFacebookFriends(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.ImportFacebookFriendsRequest) (*api.ImportFacebookFriendsRequest, error)) error {
 	ri.beforeReq.beforeImportFacebookFriendsFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.ImportFacebookFriendsRequest) (*api.ImportFacebookFriendsRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeBefore, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "importfacebookfriends", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "importfacebookfriends", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -995,7 +973,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeImportFacebookFriends(fn func(ctx 
 func (ri *RuntimeGoInitializer) RegisterAfterImportFacebookFriends(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.ImportFacebookFriendsRequest) error) error {
 	ri.afterReq.afterImportFacebookFriendsFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.ImportFacebookFriendsRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "importfacebookfriends", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "importfacebookfriends", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 	}
 	return nil
@@ -1008,11 +986,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterImportFacebookFriends(fn func(ctx c
 func (ri *RuntimeGoInitializer) RegisterBeforeImportSteamFriends(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.ImportSteamFriendsRequest) (*api.ImportSteamFriendsRequest, error)) error {
 	ri.beforeReq.beforeImportSteamFriendsFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.ImportSteamFriendsRequest) (*api.ImportSteamFriendsRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeBefore, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "importsteamfriends", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "importsteamfriends", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -1034,7 +1011,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeImportSteamFriends(fn func(ctx con
 func (ri *RuntimeGoInitializer) RegisterAfterImportSteamFriends(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.ImportSteamFriendsRequest) error) error {
 	ri.afterReq.afterImportSteamFriendsFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.ImportSteamFriendsRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "importsteamfriends", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "importsteamfriends", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 	}
 	return nil
@@ -1047,11 +1024,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterImportSteamFriends(fn func(ctx cont
 func (ri *RuntimeGoInitializer) RegisterBeforeCreateGroup(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.CreateGroupRequest) (*api.CreateGroupRequest, error)) error {
 	ri.beforeReq.beforeCreateGroupFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.CreateGroupRequest) (*api.CreateGroupRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeBefore, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "creategroup", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "creategroup", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -1073,7 +1049,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeCreateGroup(fn func(ctx context.Co
 func (ri *RuntimeGoInitializer) RegisterAfterCreateGroup(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, out *api.Group, in *api.CreateGroupRequest) error) error {
 	ri.afterReq.afterCreateGroupFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, out *api.Group, in *api.CreateGroupRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "creategroup", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "creategroup", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, out, in)
 	}
 	return nil
@@ -1086,11 +1062,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterCreateGroup(fn func(ctx context.Con
 func (ri *RuntimeGoInitializer) RegisterBeforeUpdateGroup(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.UpdateGroupRequest) (*api.UpdateGroupRequest, error)) error {
 	ri.beforeReq.beforeUpdateGroupFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.UpdateGroupRequest) (*api.UpdateGroupRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeBefore, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "updategroup", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "updategroup", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -1112,7 +1087,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeUpdateGroup(fn func(ctx context.Co
 func (ri *RuntimeGoInitializer) RegisterAfterUpdateGroup(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.UpdateGroupRequest) error) error {
 	ri.afterReq.afterUpdateGroupFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.UpdateGroupRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "updategroup", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "updategroup", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 	}
 	return nil
@@ -1125,11 +1100,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterUpdateGroup(fn func(ctx context.Con
 func (ri *RuntimeGoInitializer) RegisterBeforeDeleteGroup(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.DeleteGroupRequest) (*api.DeleteGroupRequest, error)) error {
 	ri.beforeReq.beforeDeleteGroupFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.DeleteGroupRequest) (*api.DeleteGroupRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeBefore, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "deletegroup", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "deletegroup", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -1151,7 +1125,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeDeleteGroup(fn func(ctx context.Co
 func (ri *RuntimeGoInitializer) RegisterAfterDeleteGroup(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.DeleteGroupRequest) error) error {
 	ri.afterReq.afterDeleteGroupFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.DeleteGroupRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "deletegroup", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "deletegroup", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 	}
 	return nil
@@ -1164,11 +1138,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterDeleteGroup(fn func(ctx context.Con
 func (ri *RuntimeGoInitializer) RegisterBeforeJoinGroup(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.JoinGroupRequest) (*api.JoinGroupRequest, error)) error {
 	ri.beforeReq.beforeJoinGroupFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.JoinGroupRequest) (*api.JoinGroupRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeBefore, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "joingroup", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "joingroup", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -1190,7 +1163,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeJoinGroup(fn func(ctx context.Cont
 func (ri *RuntimeGoInitializer) RegisterAfterJoinGroup(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.JoinGroupRequest) error) error {
 	ri.afterReq.afterJoinGroupFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.JoinGroupRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "joingroup", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "joingroup", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 	}
 	return nil
@@ -1203,11 +1176,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterJoinGroup(fn func(ctx context.Conte
 func (ri *RuntimeGoInitializer) RegisterBeforeLeaveGroup(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.LeaveGroupRequest) (*api.LeaveGroupRequest, error)) error {
 	ri.beforeReq.beforeLeaveGroupFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.LeaveGroupRequest) (*api.LeaveGroupRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeBefore, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "leavegroup", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "leavegroup", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -1229,7 +1201,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeLeaveGroup(fn func(ctx context.Con
 func (ri *RuntimeGoInitializer) RegisterAfterLeaveGroup(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.LeaveGroupRequest) error) error {
 	ri.afterReq.afterLeaveGroupFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.LeaveGroupRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "leavegroup", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "leavegroup", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 	}
 	return nil
@@ -1242,11 +1214,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterLeaveGroup(fn func(ctx context.Cont
 func (ri *RuntimeGoInitializer) RegisterBeforeAddGroupUsers(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.AddGroupUsersRequest) (*api.AddGroupUsersRequest, error)) error {
 	ri.beforeReq.beforeAddGroupUsersFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.AddGroupUsersRequest) (*api.AddGroupUsersRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "addgroupusers", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "addgroupusers", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -1268,7 +1239,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeAddGroupUsers(fn func(ctx context.
 func (ri *RuntimeGoInitializer) RegisterAfterAddGroupUsers(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.AddGroupUsersRequest) error) error {
 	ri.afterReq.afterAddGroupUsersFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.AddGroupUsersRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "addgroupusers", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "addgroupusers", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 	}
 	return nil
@@ -1281,11 +1252,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterAddGroupUsers(fn func(ctx context.C
 func (ri *RuntimeGoInitializer) RegisterBeforeBanGroupUsers(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.BanGroupUsersRequest) (*api.BanGroupUsersRequest, error)) error {
 	ri.beforeReq.beforeBanGroupUsersFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.BanGroupUsersRequest) (*api.BanGroupUsersRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "bangroupusers", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "bangroupusers", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -1307,7 +1277,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeBanGroupUsers(fn func(ctx context.
 func (ri *RuntimeGoInitializer) RegisterAfterBanGroupUsers(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.BanGroupUsersRequest) error) error {
 	ri.afterReq.afterBanGroupUsersFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.BanGroupUsersRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "bangroupusers", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "bangroupusers", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 	}
 	return nil
@@ -1320,11 +1290,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterBanGroupUsers(fn func(ctx context.C
 func (ri *RuntimeGoInitializer) RegisterBeforeKickGroupUsers(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.KickGroupUsersRequest) (*api.KickGroupUsersRequest, error)) error {
 	ri.beforeReq.beforeKickGroupUsersFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.KickGroupUsersRequest) (*api.KickGroupUsersRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "kickgroupusers", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "kickgroupusers", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -1346,7 +1315,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeKickGroupUsers(fn func(ctx context
 func (ri *RuntimeGoInitializer) RegisterAfterKickGroupUsers(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.KickGroupUsersRequest) error) error {
 	ri.afterReq.afterKickGroupUsersFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.KickGroupUsersRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "kickgroupusers", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "kickgroupusers", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 	}
 	return nil
@@ -1359,11 +1328,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterKickGroupUsers(fn func(ctx context.
 func (ri *RuntimeGoInitializer) RegisterBeforePromoteGroupUsers(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.PromoteGroupUsersRequest) (*api.PromoteGroupUsersRequest, error)) error {
 	ri.beforeReq.beforePromoteGroupUsersFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.PromoteGroupUsersRequest) (*api.PromoteGroupUsersRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "promotegroupusers", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "promotegroupusers", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -1385,7 +1353,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforePromoteGroupUsers(fn func(ctx cont
 func (ri *RuntimeGoInitializer) RegisterAfterPromoteGroupUsers(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.PromoteGroupUsersRequest) error) error {
 	ri.afterReq.afterPromoteGroupUsersFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.PromoteGroupUsersRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "promotegroupusers", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "promotegroupusers", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 	}
 	return nil
@@ -1398,11 +1366,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterPromoteGroupUsers(fn func(ctx conte
 func (ri *RuntimeGoInitializer) RegisterBeforeDemoteGroupUsers(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.DemoteGroupUsersRequest) (*api.DemoteGroupUsersRequest, error)) error {
 	ri.beforeReq.beforeDemoteGroupUsersFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.DemoteGroupUsersRequest) (*api.DemoteGroupUsersRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "demotegroupusers", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "demotegroupusers", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -1424,7 +1391,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeDemoteGroupUsers(fn func(ctx conte
 func (ri *RuntimeGoInitializer) RegisterAfterDemoteGroupUsers(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.DemoteGroupUsersRequest) error) error {
 	ri.afterReq.afterDemoteGroupUsersFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.DemoteGroupUsersRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "demotegroupusers", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "demotegroupusers", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 	}
 	return nil
@@ -1437,11 +1404,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterDemoteGroupUsers(fn func(ctx contex
 func (ri *RuntimeGoInitializer) RegisterBeforeListGroupUsers(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.ListGroupUsersRequest) (*api.ListGroupUsersRequest, error)) error {
 	ri.beforeReq.beforeListGroupUsersFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.ListGroupUsersRequest) (*api.ListGroupUsersRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "listgroupusers", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "listgroupusers", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -1463,7 +1429,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeListGroupUsers(fn func(ctx context
 func (ri *RuntimeGoInitializer) RegisterAfterListGroupUsers(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, out *api.GroupUserList, in *api.ListGroupUsersRequest) error) error {
 	ri.afterReq.afterListGroupUsersFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, out *api.GroupUserList, in *api.ListGroupUsersRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "listgroupusers", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "listgroupusers", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, out, in)
 	}
 	return nil
@@ -1476,11 +1442,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterListGroupUsers(fn func(ctx context.
 func (ri *RuntimeGoInitializer) RegisterBeforeListUserGroups(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.ListUserGroupsRequest) (*api.ListUserGroupsRequest, error)) error {
 	ri.beforeReq.beforeListUserGroupsFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.ListUserGroupsRequest) (*api.ListUserGroupsRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "listusergroups", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "listusergroups", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -1502,7 +1467,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeListUserGroups(fn func(ctx context
 func (ri *RuntimeGoInitializer) RegisterAfterListUserGroups(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, out *api.UserGroupList, in *api.ListUserGroupsRequest) error) error {
 	ri.afterReq.afterListUserGroupsFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, out *api.UserGroupList, in *api.ListUserGroupsRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "listusergroups", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "listusergroups", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, out, in)
 	}
 	return nil
@@ -1515,11 +1480,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterListUserGroups(fn func(ctx context.
 func (ri *RuntimeGoInitializer) RegisterBeforeListGroups(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.ListGroupsRequest) (*api.ListGroupsRequest, error)) error {
 	ri.beforeReq.beforeListGroupsFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.ListGroupsRequest) (*api.ListGroupsRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "listgroups", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "listgroups", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -1541,7 +1505,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeListGroups(fn func(ctx context.Con
 func (ri *RuntimeGoInitializer) RegisterAfterListGroups(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, out *api.GroupList, in *api.ListGroupsRequest) error) error {
 	ri.afterReq.afterListGroupsFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, out *api.GroupList, in *api.ListGroupsRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "listgroups", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "listgroups", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, out, in)
 	}
 	return nil
@@ -1554,11 +1518,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterListGroups(fn func(ctx context.Cont
 func (ri *RuntimeGoInitializer) RegisterBeforeDeleteLeaderboardRecord(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.DeleteLeaderboardRecordRequest) (*api.DeleteLeaderboardRecordRequest, error)) error {
 	ri.beforeReq.beforeDeleteLeaderboardRecordFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.DeleteLeaderboardRecordRequest) (*api.DeleteLeaderboardRecordRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "deleteleaderboardrecord", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "deleteleaderboardrecord", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -1580,7 +1543,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeDeleteLeaderboardRecord(fn func(ct
 func (ri *RuntimeGoInitializer) RegisterAfterDeleteLeaderboardRecord(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.DeleteLeaderboardRecordRequest) error) error {
 	ri.afterReq.afterDeleteLeaderboardRecordFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.DeleteLeaderboardRecordRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "deleteleaderboardrecord", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "deleteleaderboardrecord", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 	}
 	return nil
@@ -1593,11 +1556,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterDeleteLeaderboardRecord(fn func(ctx
 func (ri *RuntimeGoInitializer) RegisterBeforeDeleteTournamentRecord(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.DeleteTournamentRecordRequest) (*api.DeleteTournamentRecordRequest, error)) error {
 	ri.beforeReq.beforeDeleteTournamentRecordFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.DeleteTournamentRecordRequest) (*api.DeleteTournamentRecordRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "deletetournamentrecord", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "deletetournamentrecord", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -1619,7 +1581,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeDeleteTournamentRecord(fn func(ctx
 func (ri *RuntimeGoInitializer) RegisterAfterDeleteTournamentRecord(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.DeleteTournamentRecordRequest) error) error {
 	ri.afterReq.afterDeleteTournamentRecordFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.DeleteTournamentRecordRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "deletetournamentrecord", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "deletetournamentrecord", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 	}
 	return nil
@@ -1632,11 +1594,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterDeleteTournamentRecord(fn func(ctx 
 func (ri *RuntimeGoInitializer) RegisterBeforeListLeaderboardRecords(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.ListLeaderboardRecordsRequest) (*api.ListLeaderboardRecordsRequest, error)) error {
 	ri.beforeReq.beforeListLeaderboardRecordsFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.ListLeaderboardRecordsRequest) (*api.ListLeaderboardRecordsRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "listleaderboardrecords", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "listleaderboardrecords", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -1658,7 +1619,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeListLeaderboardRecords(fn func(ctx
 func (ri *RuntimeGoInitializer) RegisterAfterListLeaderboardRecords(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, out *api.LeaderboardRecordList, in *api.ListLeaderboardRecordsRequest) error) error {
 	ri.afterReq.afterListLeaderboardRecordsFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, out *api.LeaderboardRecordList, in *api.ListLeaderboardRecordsRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "listleaderboardrecords", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "listleaderboardrecords", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, out, in)
 	}
 	return nil
@@ -1671,11 +1632,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterListLeaderboardRecords(fn func(ctx 
 func (ri *RuntimeGoInitializer) RegisterBeforeWriteLeaderboardRecord(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.WriteLeaderboardRecordRequest) (*api.WriteLeaderboardRecordRequest, error)) error {
 	ri.beforeReq.beforeWriteLeaderboardRecordFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.WriteLeaderboardRecordRequest) (*api.WriteLeaderboardRecordRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "writeleaderboardrecord", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "writeleaderboardrecord", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -1697,7 +1657,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeWriteLeaderboardRecord(fn func(ctx
 func (ri *RuntimeGoInitializer) RegisterAfterWriteLeaderboardRecord(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, out *api.LeaderboardRecord, in *api.WriteLeaderboardRecordRequest) error) error {
 	ri.afterReq.afterWriteLeaderboardRecordFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, out *api.LeaderboardRecord, in *api.WriteLeaderboardRecordRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "writeleaderboardrecord", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "writeleaderboardrecord", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, out, in)
 	}
 	return nil
@@ -1710,11 +1670,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterWriteLeaderboardRecord(fn func(ctx 
 func (ri *RuntimeGoInitializer) RegisterBeforeListLeaderboardRecordsAroundOwner(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.ListLeaderboardRecordsAroundOwnerRequest) (*api.ListLeaderboardRecordsAroundOwnerRequest, error)) error {
 	ri.beforeReq.beforeListLeaderboardRecordsAroundOwnerFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.ListLeaderboardRecordsAroundOwnerRequest) (*api.ListLeaderboardRecordsAroundOwnerRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "listleaderboardrecordsaroundowner", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "listleaderboardrecordsaroundowner", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -1736,7 +1695,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeListLeaderboardRecordsAroundOwner(
 func (ri *RuntimeGoInitializer) RegisterAfterListLeaderboardRecordsAroundOwner(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, out *api.LeaderboardRecordList, in *api.ListLeaderboardRecordsAroundOwnerRequest) error) error {
 	ri.afterReq.afterListLeaderboardRecordsAroundOwnerFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, out *api.LeaderboardRecordList, in *api.ListLeaderboardRecordsAroundOwnerRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "listleaderboardrecordsaroundowner", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "listleaderboardrecordsaroundowner", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, out, in)
 	}
 	return nil
@@ -1749,11 +1708,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterListLeaderboardRecordsAroundOwner(f
 func (ri *RuntimeGoInitializer) RegisterBeforeLinkApple(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.AccountApple) (*api.AccountApple, error)) error {
 	ri.beforeReq.beforeLinkAppleFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.AccountApple) (*api.AccountApple, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "linkapple", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "linkapple", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -1775,7 +1733,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeLinkApple(fn func(ctx context.Cont
 func (ri *RuntimeGoInitializer) RegisterAfterLinkApple(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.AccountApple) error) error {
 	ri.afterReq.afterLinkAppleFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.AccountApple) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "linkapple", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "linkapple", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 	}
 	return nil
@@ -1788,11 +1746,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterLinkApple(fn func(ctx context.Conte
 func (ri *RuntimeGoInitializer) RegisterBeforeLinkCustom(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.AccountCustom) (*api.AccountCustom, error)) error {
 	ri.beforeReq.beforeLinkCustomFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.AccountCustom) (*api.AccountCustom, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "linkcustom", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "linkcustom", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -1814,7 +1771,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeLinkCustom(fn func(ctx context.Con
 func (ri *RuntimeGoInitializer) RegisterAfterLinkCustom(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.AccountCustom) error) error {
 	ri.afterReq.afterLinkCustomFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.AccountCustom) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "linkcustom", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "linkcustom", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 	}
 	return nil
@@ -1827,11 +1784,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterLinkCustom(fn func(ctx context.Cont
 func (ri *RuntimeGoInitializer) RegisterBeforeLinkDevice(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.AccountDevice) (*api.AccountDevice, error)) error {
 	ri.beforeReq.beforeLinkDeviceFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.AccountDevice) (*api.AccountDevice, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "linkdevice", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "linkdevice", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -1853,7 +1809,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeLinkDevice(fn func(ctx context.Con
 func (ri *RuntimeGoInitializer) RegisterAfterLinkDevice(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.AccountDevice) error) error {
 	ri.afterReq.afterLinkDeviceFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.AccountDevice) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "linkdevice", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "linkdevice", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 	}
 	return nil
@@ -1866,11 +1822,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterLinkDevice(fn func(ctx context.Cont
 func (ri *RuntimeGoInitializer) RegisterBeforeLinkEmail(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.AccountEmail) (*api.AccountEmail, error)) error {
 	ri.beforeReq.beforeLinkEmailFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.AccountEmail) (*api.AccountEmail, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "linkemail", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "linkemail", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -1892,7 +1847,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeLinkEmail(fn func(ctx context.Cont
 func (ri *RuntimeGoInitializer) RegisterAfterLinkEmail(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.AccountEmail) error) error {
 	ri.afterReq.afterLinkEmailFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.AccountEmail) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "linkemail", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "linkemail", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 	}
 	return nil
@@ -1905,11 +1860,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterLinkEmail(fn func(ctx context.Conte
 func (ri *RuntimeGoInitializer) RegisterBeforeLinkFacebook(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.LinkFacebookRequest) (*api.LinkFacebookRequest, error)) error {
 	ri.beforeReq.beforeLinkFacebookFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.LinkFacebookRequest) (*api.LinkFacebookRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "linkfacebook", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "linkfacebook", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -1931,7 +1885,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeLinkFacebook(fn func(ctx context.C
 func (ri *RuntimeGoInitializer) RegisterAfterLinkFacebook(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.LinkFacebookRequest) error) error {
 	ri.afterReq.afterLinkFacebookFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.LinkFacebookRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "linkfacebook", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "linkfacebook", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 	}
 	return nil
@@ -1944,11 +1898,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterLinkFacebook(fn func(ctx context.Co
 func (ri *RuntimeGoInitializer) RegisterBeforeLinkFacebookInstantGame(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.AccountFacebookInstantGame) (*api.AccountFacebookInstantGame, error)) error {
 	ri.beforeReq.beforeLinkFacebookInstantGameFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.AccountFacebookInstantGame) (*api.AccountFacebookInstantGame, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "linkfacebookinstantgame", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "linkfacebookinstantgame", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -1970,7 +1923,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeLinkFacebookInstantGame(fn func(ct
 func (ri *RuntimeGoInitializer) RegisterAfterLinkFacebookInstantGame(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.AccountFacebookInstantGame) error) error {
 	ri.afterReq.afterLinkFacebookInstantGameFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.AccountFacebookInstantGame) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "linkfacebookinstantgame", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "linkfacebookinstantgame", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 	}
 	return nil
@@ -1983,11 +1936,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterLinkFacebookInstantGame(fn func(ctx
 func (ri *RuntimeGoInitializer) RegisterBeforeLinkGameCenter(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.AccountGameCenter) (*api.AccountGameCenter, error)) error {
 	ri.beforeReq.beforeLinkGameCenterFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.AccountGameCenter) (*api.AccountGameCenter, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "linkgamecenter", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "linkgamecenter", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -2009,7 +1961,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeLinkGameCenter(fn func(ctx context
 func (ri *RuntimeGoInitializer) RegisterAfterLinkGameCenter(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.AccountGameCenter) error) error {
 	ri.afterReq.afterLinkGameCenterFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.AccountGameCenter) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "linkgamecenter", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "linkgamecenter", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 	}
 	return nil
@@ -2022,11 +1974,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterLinkGameCenter(fn func(ctx context.
 func (ri *RuntimeGoInitializer) RegisterBeforeLinkGoogle(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.AccountGoogle) (*api.AccountGoogle, error)) error {
 	ri.beforeReq.beforeLinkGoogleFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.AccountGoogle) (*api.AccountGoogle, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "linkgoogle", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "linkgoogle", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -2048,7 +1999,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeLinkGoogle(fn func(ctx context.Con
 func (ri *RuntimeGoInitializer) RegisterAfterLinkGoogle(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.AccountGoogle) error) error {
 	ri.afterReq.afterLinkGoogleFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.AccountGoogle) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "linkgoogle", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "linkgoogle", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 	}
 	return nil
@@ -2061,11 +2012,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterLinkGoogle(fn func(ctx context.Cont
 func (ri *RuntimeGoInitializer) RegisterBeforeLinkSteam(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.LinkSteamRequest) (*api.LinkSteamRequest, error)) error {
 	ri.beforeReq.beforeLinkSteamFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.LinkSteamRequest) (*api.LinkSteamRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "linksteam", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "linksteam", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -2087,7 +2037,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeLinkSteam(fn func(ctx context.Cont
 func (ri *RuntimeGoInitializer) RegisterAfterLinkSteam(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.LinkSteamRequest) error) error {
 	ri.afterReq.afterLinkSteamFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.LinkSteamRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "linksteam", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "linksteam", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 	}
 	return nil
@@ -2100,11 +2050,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterLinkSteam(fn func(ctx context.Conte
 func (ri *RuntimeGoInitializer) RegisterBeforeListMatches(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.ListMatchesRequest) (*api.ListMatchesRequest, error)) error {
 	ri.beforeReq.beforeListMatchesFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.ListMatchesRequest) (*api.ListMatchesRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "listmatches", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "listmatches", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -2126,7 +2075,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeListMatches(fn func(ctx context.Co
 func (ri *RuntimeGoInitializer) RegisterAfterListMatches(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, out *api.MatchList, in *api.ListMatchesRequest) error) error {
 	ri.afterReq.afterListMatchesFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, out *api.MatchList, in *api.ListMatchesRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "listmatches", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "listmatches", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, out, in)
 	}
 	return nil
@@ -2139,11 +2088,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterListMatches(fn func(ctx context.Con
 func (ri *RuntimeGoInitializer) RegisterBeforeListNotifications(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.ListNotificationsRequest) (*api.ListNotificationsRequest, error)) error {
 	ri.beforeReq.beforeListNotificationsFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.ListNotificationsRequest) (*api.ListNotificationsRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "listnotifications", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "listnotifications", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -2165,7 +2113,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeListNotifications(fn func(ctx cont
 func (ri *RuntimeGoInitializer) RegisterAfterListNotifications(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, out *api.NotificationList, in *api.ListNotificationsRequest) error) error {
 	ri.afterReq.afterListNotificationsFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, out *api.NotificationList, in *api.ListNotificationsRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "listnotifications", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "listnotifications", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, out, in)
 	}
 	return nil
@@ -2178,11 +2126,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterListNotifications(fn func(ctx conte
 func (ri *RuntimeGoInitializer) RegisterBeforeDeleteNotifications(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.DeleteNotificationsRequest) (*api.DeleteNotificationsRequest, error)) error {
 	ri.beforeReq.beforeDeleteNotificationsFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.DeleteNotificationsRequest) (*api.DeleteNotificationsRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "deletenotifications", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "deletenotifications", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -2204,7 +2151,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeDeleteNotifications(fn func(ctx co
 func (ri *RuntimeGoInitializer) RegisterAfterDeleteNotifications(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.DeleteNotificationsRequest) error) error {
 	ri.afterReq.afterDeleteNotificationsFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.DeleteNotificationsRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "deletenotifications", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "deletenotifications", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 	}
 	return nil
@@ -2217,11 +2164,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterDeleteNotifications(fn func(ctx con
 func (ri *RuntimeGoInitializer) RegisterBeforeListStorageObjects(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.ListStorageObjectsRequest) (*api.ListStorageObjectsRequest, error)) error {
 	ri.beforeReq.beforeListStorageObjectsFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.ListStorageObjectsRequest) (*api.ListStorageObjectsRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "liststorageobjects", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "liststorageobjects", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -2243,7 +2189,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeListStorageObjects(fn func(ctx con
 func (ri *RuntimeGoInitializer) RegisterAfterListStorageObjects(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, out *api.StorageObjectList, in *api.ListStorageObjectsRequest) error) error {
 	ri.afterReq.afterListStorageObjectsFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, out *api.StorageObjectList, in *api.ListStorageObjectsRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "liststorageobjects", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "liststorageobjects", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, out, in)
 	}
 	return nil
@@ -2256,11 +2202,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterListStorageObjects(fn func(ctx cont
 func (ri *RuntimeGoInitializer) RegisterBeforeReadStorageObjects(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.ReadStorageObjectsRequest) (*api.ReadStorageObjectsRequest, error)) error {
 	ri.beforeReq.beforeReadStorageObjectsFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.ReadStorageObjectsRequest) (*api.ReadStorageObjectsRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "readstorageobjects", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "readstorageobjects", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -2282,7 +2227,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeReadStorageObjects(fn func(ctx con
 func (ri *RuntimeGoInitializer) RegisterAfterReadStorageObjects(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, out *api.StorageObjects, in *api.ReadStorageObjectsRequest) error) error {
 	ri.afterReq.afterReadStorageObjectsFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, out *api.StorageObjects, in *api.ReadStorageObjectsRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "readstorageobjects", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "readstorageobjects", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, out, in)
 	}
 	return nil
@@ -2295,11 +2240,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterReadStorageObjects(fn func(ctx cont
 func (ri *RuntimeGoInitializer) RegisterBeforeWriteStorageObjects(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.WriteStorageObjectsRequest) (*api.WriteStorageObjectsRequest, error)) error {
 	ri.beforeReq.beforeWriteStorageObjectsFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.WriteStorageObjectsRequest) (*api.WriteStorageObjectsRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "writestorageobjects", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "writestorageobjects", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -2321,7 +2265,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeWriteStorageObjects(fn func(ctx co
 func (ri *RuntimeGoInitializer) RegisterAfterWriteStorageObjects(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, out *api.StorageObjectAcks, in *api.WriteStorageObjectsRequest) error) error {
 	ri.afterReq.afterWriteStorageObjectsFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, out *api.StorageObjectAcks, in *api.WriteStorageObjectsRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "writestorageobjects", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "writestorageobjects", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, out, in)
 	}
 	return nil
@@ -2334,11 +2278,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterWriteStorageObjects(fn func(ctx con
 func (ri *RuntimeGoInitializer) RegisterBeforeDeleteStorageObjects(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.DeleteStorageObjectsRequest) (*api.DeleteStorageObjectsRequest, error)) error {
 	ri.beforeReq.beforeDeleteStorageObjectsFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.DeleteStorageObjectsRequest) (*api.DeleteStorageObjectsRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "deletestorageobjects", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "deletestorageobjects", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -2360,7 +2303,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeDeleteStorageObjects(fn func(ctx c
 func (ri *RuntimeGoInitializer) RegisterAfterDeleteStorageObjects(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.DeleteStorageObjectsRequest) error) error {
 	ri.afterReq.afterDeleteStorageObjectsFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.DeleteStorageObjectsRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "deletestorageobjects", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "deletestorageobjects", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 	}
 	return nil
@@ -2373,11 +2316,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterDeleteStorageObjects(fn func(ctx co
 func (ri *RuntimeGoInitializer) RegisterBeforeJoinTournament(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.JoinTournamentRequest) (*api.JoinTournamentRequest, error)) error {
 	ri.beforeReq.beforeJoinTournamentFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.JoinTournamentRequest) (*api.JoinTournamentRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "jointournament", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "jointournament", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -2399,7 +2341,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeJoinTournament(fn func(ctx context
 func (ri *RuntimeGoInitializer) RegisterAfterJoinTournament(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.JoinTournamentRequest) error) error {
 	ri.afterReq.afterJoinTournamentFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.JoinTournamentRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "jointournament", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "jointournament", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 	}
 	return nil
@@ -2412,11 +2354,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterJoinTournament(fn func(ctx context.
 func (ri *RuntimeGoInitializer) RegisterBeforeListTournamentRecords(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.ListTournamentRecordsRequest) (*api.ListTournamentRecordsRequest, error)) error {
 	ri.beforeReq.beforeListTournamentRecordsFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.ListTournamentRecordsRequest) (*api.ListTournamentRecordsRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "listtournamentrecords", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "listtournamentrecords", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -2438,7 +2379,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeListTournamentRecords(fn func(ctx 
 func (ri *RuntimeGoInitializer) RegisterAfterListTournamentRecords(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, out *api.TournamentRecordList, in *api.ListTournamentRecordsRequest) error) error {
 	ri.afterReq.afterListTournamentRecordsFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, out *api.TournamentRecordList, in *api.ListTournamentRecordsRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "listtournamentrecords", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "listtournamentrecords", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, out, in)
 	}
 	return nil
@@ -2451,11 +2392,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterListTournamentRecords(fn func(ctx c
 func (ri *RuntimeGoInitializer) RegisterBeforeListTournaments(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.ListTournamentsRequest) (*api.ListTournamentsRequest, error)) error {
 	ri.beforeReq.beforeListTournamentsFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.ListTournamentsRequest) (*api.ListTournamentsRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "listtournaments", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "listtournaments", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -2477,7 +2417,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeListTournaments(fn func(ctx contex
 func (ri *RuntimeGoInitializer) RegisterAfterListTournaments(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, out *api.TournamentList, in *api.ListTournamentsRequest) error) error {
 	ri.afterReq.afterListTournamentsFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, out *api.TournamentList, in *api.ListTournamentsRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "listtournaments", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "listtournaments", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, out, in)
 	}
 	return nil
@@ -2490,11 +2430,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterListTournaments(fn func(ctx context
 func (ri *RuntimeGoInitializer) RegisterBeforeWriteTournamentRecord(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.WriteTournamentRecordRequest) (*api.WriteTournamentRecordRequest, error)) error {
 	ri.beforeReq.beforeWriteTournamentRecordFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.WriteTournamentRecordRequest) (*api.WriteTournamentRecordRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "writetournamentrecord", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "writetournamentrecord", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -2516,7 +2455,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeWriteTournamentRecord(fn func(ctx 
 func (ri *RuntimeGoInitializer) RegisterAfterWriteTournamentRecord(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, out *api.LeaderboardRecord, in *api.WriteTournamentRecordRequest) error) error {
 	ri.afterReq.afterWriteTournamentRecordFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, out *api.LeaderboardRecord, in *api.WriteTournamentRecordRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "writetournamentrecord", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "writetournamentrecord", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, out, in)
 	}
 	return nil
@@ -2529,11 +2468,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterWriteTournamentRecord(fn func(ctx c
 func (ri *RuntimeGoInitializer) RegisterBeforeListTournamentRecordsAroundOwner(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.ListTournamentRecordsAroundOwnerRequest) (*api.ListTournamentRecordsAroundOwnerRequest, error)) error {
 	ri.beforeReq.beforeListTournamentRecordsAroundOwnerFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.ListTournamentRecordsAroundOwnerRequest) (*api.ListTournamentRecordsAroundOwnerRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "listtournamentrecordsaroundowner", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "listtournamentrecordsaroundowner", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -2555,7 +2493,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeListTournamentRecordsAroundOwner(f
 func (ri *RuntimeGoInitializer) RegisterAfterListTournamentRecordsAroundOwner(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, out *api.TournamentRecordList, in *api.ListTournamentRecordsAroundOwnerRequest) error) error {
 	ri.afterReq.afterListTournamentRecordsAroundOwnerFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, out *api.TournamentRecordList, in *api.ListTournamentRecordsAroundOwnerRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "listtournamentrecordsaroundowner", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "listtournamentrecordsaroundowner", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, out, in)
 	}
 	return nil
@@ -2568,11 +2506,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterListTournamentRecordsAroundOwner(fn
 func (ri *RuntimeGoInitializer) RegisterBeforeUnlinkApple(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.AccountApple) (*api.AccountApple, error)) error {
 	ri.beforeReq.beforeUnlinkAppleFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.AccountApple) (*api.AccountApple, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "unlinkapple", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "unlinkapple", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -2594,7 +2531,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeUnlinkApple(fn func(ctx context.Co
 func (ri *RuntimeGoInitializer) RegisterAfterUnlinkApple(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.AccountApple) error) error {
 	ri.afterReq.afterUnlinkAppleFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.AccountApple) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "unlinkapple", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "unlinkapple", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 	}
 	return nil
@@ -2607,11 +2544,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterUnlinkApple(fn func(ctx context.Con
 func (ri *RuntimeGoInitializer) RegisterBeforeUnlinkCustom(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.AccountCustom) (*api.AccountCustom, error)) error {
 	ri.beforeReq.beforeUnlinkCustomFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.AccountCustom) (*api.AccountCustom, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "unlinkcustom", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "unlinkcustom", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -2633,7 +2569,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeUnlinkCustom(fn func(ctx context.C
 func (ri *RuntimeGoInitializer) RegisterAfterUnlinkCustom(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.AccountCustom) error) error {
 	ri.afterReq.afterUnlinkCustomFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.AccountCustom) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "unlinkcustom", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "unlinkcustom", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 	}
 	return nil
@@ -2646,11 +2582,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterUnlinkCustom(fn func(ctx context.Co
 func (ri *RuntimeGoInitializer) RegisterBeforeUnlinkDevice(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.AccountDevice) (*api.AccountDevice, error)) error {
 	ri.beforeReq.beforeUnlinkDeviceFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.AccountDevice) (*api.AccountDevice, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "unlinkdevice", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "unlinkdevice", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -2672,7 +2607,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeUnlinkDevice(fn func(ctx context.C
 func (ri *RuntimeGoInitializer) RegisterAfterUnlinkDevice(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.AccountDevice) error) error {
 	ri.afterReq.afterUnlinkDeviceFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.AccountDevice) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "unlinkdevice", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "unlinkdevice", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 	}
 	return nil
@@ -2685,11 +2620,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterUnlinkDevice(fn func(ctx context.Co
 func (ri *RuntimeGoInitializer) RegisterBeforeUnlinkEmail(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.AccountEmail) (*api.AccountEmail, error)) error {
 	ri.beforeReq.beforeUnlinkEmailFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.AccountEmail) (*api.AccountEmail, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "unlinkemail", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "unlinkemail", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -2711,7 +2645,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeUnlinkEmail(fn func(ctx context.Co
 func (ri *RuntimeGoInitializer) RegisterAfterUnlinkEmail(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.AccountEmail) error) error {
 	ri.afterReq.afterUnlinkEmailFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.AccountEmail) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "unlinkemail", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "unlinkemail", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 	}
 	return nil
@@ -2724,11 +2658,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterUnlinkEmail(fn func(ctx context.Con
 func (ri *RuntimeGoInitializer) RegisterBeforeUnlinkFacebook(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.AccountFacebook) (*api.AccountFacebook, error)) error {
 	ri.beforeReq.beforeUnlinkFacebookFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.AccountFacebook) (*api.AccountFacebook, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "unlinkfacebook", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "unlinkfacebook", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -2750,7 +2683,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeUnlinkFacebook(fn func(ctx context
 func (ri *RuntimeGoInitializer) RegisterAfterUnlinkFacebook(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.AccountFacebook) error) error {
 	ri.afterReq.afterUnlinkFacebookFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.AccountFacebook) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "unlinkfacebook", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "unlinkfacebook", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 	}
 	return nil
@@ -2763,11 +2696,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterUnlinkFacebook(fn func(ctx context.
 func (ri *RuntimeGoInitializer) RegisterBeforeUnlinkFacebookInstantGame(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.AccountFacebookInstantGame) (*api.AccountFacebookInstantGame, error)) error {
 	ri.beforeReq.beforeUnlinkFacebookInstantGameFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.AccountFacebookInstantGame) (*api.AccountFacebookInstantGame, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "unlinkfacebookinstantgame", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "unlinkfacebookinstantgame", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -2789,7 +2721,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeUnlinkFacebookInstantGame(fn func(
 func (ri *RuntimeGoInitializer) RegisterAfterUnlinkFacebookInstantGame(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.AccountFacebookInstantGame) error) error {
 	ri.afterReq.afterUnlinkFacebookInstantGameFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.AccountFacebookInstantGame) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "unlinkfacebookinstantgame", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "unlinkfacebookinstantgame", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 	}
 	return nil
@@ -2802,11 +2734,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterUnlinkFacebookInstantGame(fn func(c
 func (ri *RuntimeGoInitializer) RegisterBeforeUnlinkGameCenter(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.AccountGameCenter) (*api.AccountGameCenter, error)) error {
 	ri.beforeReq.beforeUnlinkGameCenterFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.AccountGameCenter) (*api.AccountGameCenter, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "unlinkgamecenter", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "unlinkgamecenter", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -2828,7 +2759,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeUnlinkGameCenter(fn func(ctx conte
 func (ri *RuntimeGoInitializer) RegisterAfterUnlinkGameCenter(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.AccountGameCenter) error) error {
 	ri.afterReq.afterUnlinkGameCenterFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.AccountGameCenter) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "unlinkgamecenter", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "unlinkgamecenter", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 	}
 	return nil
@@ -2841,11 +2772,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterUnlinkGameCenter(fn func(ctx contex
 func (ri *RuntimeGoInitializer) RegisterBeforeUnlinkGoogle(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.AccountGoogle) (*api.AccountGoogle, error)) error {
 	ri.beforeReq.beforeUnlinkGoogleFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.AccountGoogle) (*api.AccountGoogle, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "unlinkgoogle", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "unlinkgoogle", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -2867,7 +2797,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeUnlinkGoogle(fn func(ctx context.C
 func (ri *RuntimeGoInitializer) RegisterAfterUnlinkGoogle(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.AccountGoogle) error) error {
 	ri.afterReq.afterUnlinkGoogleFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.AccountGoogle) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "unlinkgoogle", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "unlinkgoogle", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 	}
 	return nil
@@ -2880,11 +2810,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterUnlinkGoogle(fn func(ctx context.Co
 func (ri *RuntimeGoInitializer) RegisterBeforeUnlinkSteam(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.AccountSteam) (*api.AccountSteam, error)) error {
 	ri.beforeReq.beforeUnlinkSteamFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.AccountSteam) (*api.AccountSteam, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "unlinksteam", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "unlinksteam", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -2906,7 +2835,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeUnlinkSteam(fn func(ctx context.Co
 func (ri *RuntimeGoInitializer) RegisterAfterUnlinkSteam(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.AccountSteam) error) error {
 	ri.afterReq.afterUnlinkSteamFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.AccountSteam) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "unlinksteam", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "unlinksteam", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 	}
 	return nil
@@ -2919,11 +2848,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterUnlinkSteam(fn func(ctx context.Con
 func (ri *RuntimeGoInitializer) RegisterBeforeGetUsers(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.GetUsersRequest) (*api.GetUsersRequest, error)) error {
 	ri.beforeReq.beforeGetUsersFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.GetUsersRequest) (*api.GetUsersRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "getusers", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "getusers", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -2945,7 +2873,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeGetUsers(fn func(ctx context.Conte
 func (ri *RuntimeGoInitializer) RegisterAfterGetUsers(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, out *api.Users, in *api.GetUsersRequest) error) error {
 	ri.afterReq.afterGetUsersFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, out *api.Users, in *api.GetUsersRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "getusers", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "getusers", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, out, in)
 	}
 	return nil
@@ -2958,11 +2886,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterGetUsers(fn func(ctx context.Contex
 func (ri *RuntimeGoInitializer) RegisterBeforeValidatePurchaseApple(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.ValidatePurchaseAppleRequest) (*api.ValidatePurchaseAppleRequest, error)) error {
 	ri.beforeReq.beforeValidatePurchaseAppleFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.ValidatePurchaseAppleRequest) (*api.ValidatePurchaseAppleRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "validatepurchaseapple", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "validatepurchaseapple", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -2984,7 +2911,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeValidatePurchaseApple(fn func(ctx 
 func (ri *RuntimeGoInitializer) RegisterAfterValidatePurchaseApple(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, out *api.ValidatePurchaseResponse, in *api.ValidatePurchaseAppleRequest) error) error {
 	ri.afterReq.afterValidatePurchaseAppleFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, out *api.ValidatePurchaseResponse, in *api.ValidatePurchaseAppleRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "validatepurchaseapple", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "validatepurchaseapple", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, out, in)
 	}
 	return nil
@@ -2997,11 +2924,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterValidatePurchaseApple(fn func(ctx c
 func (ri *RuntimeGoInitializer) RegisterBeforeValidateSubscriptionApple(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.ValidateSubscriptionAppleRequest) (*api.ValidateSubscriptionAppleRequest, error)) error {
 	ri.beforeReq.beforeValidateSubscriptionAppleFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.ValidateSubscriptionAppleRequest) (*api.ValidateSubscriptionAppleRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "validatesubscriptionapple", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "validatesubscriptionapple", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -3023,7 +2949,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeValidateSubscriptionApple(fn func(
 func (ri *RuntimeGoInitializer) RegisterAfterValidateSubscriptionApple(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, out *api.ValidateSubscriptionResponse, in *api.ValidateSubscriptionAppleRequest) error) error {
 	ri.afterReq.afterValidateSubscriptionAppleFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, out *api.ValidateSubscriptionResponse, in *api.ValidateSubscriptionAppleRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "validatesubscriptionapple", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "validatesubscriptionapple", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, out, in)
 	}
 	return nil
@@ -3036,11 +2962,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterValidateSubscriptionApple(fn func(c
 func (ri *RuntimeGoInitializer) RegisterBeforeValidateSubscriptionGoogle(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.ValidateSubscriptionGoogleRequest) (*api.ValidateSubscriptionGoogleRequest, error)) error {
 	ri.beforeReq.beforeValidateSubscriptionGoogleFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.ValidateSubscriptionGoogleRequest) (*api.ValidateSubscriptionGoogleRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "validatesubscriptiongoogle", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "validatesubscriptiongoogle", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -3062,7 +2987,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeValidateSubscriptionGoogle(fn func
 func (ri *RuntimeGoInitializer) RegisterAfterValidateSubscriptionGoogle(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, out *api.ValidateSubscriptionResponse, in *api.ValidateSubscriptionGoogleRequest) error) error {
 	ri.afterReq.afterValidateSubscriptionGoogleFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, out *api.ValidateSubscriptionResponse, in *api.ValidateSubscriptionGoogleRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "validatesubscriptiongoogle", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "validatesubscriptiongoogle", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, out, in)
 	}
 	return nil
@@ -3075,11 +3000,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterValidateSubscriptionGoogle(fn func(
 func (ri *RuntimeGoInitializer) RegisterBeforeListSubscriptions(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.ListSubscriptionsRequest) (*api.ListSubscriptionsRequest, error)) error {
 	ri.beforeReq.beforeListSubscriptionsFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.ListSubscriptionsRequest) (*api.ListSubscriptionsRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "listsubscriptions", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "listsubscriptions", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -3101,7 +3025,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeListSubscriptions(fn func(ctx cont
 func (ri *RuntimeGoInitializer) RegisterAfterListSubscriptions(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, out *api.SubscriptionList, in *api.ListSubscriptionsRequest) error) error {
 	ri.afterReq.afterListSubscriptionsFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, out *api.SubscriptionList, in *api.ListSubscriptionsRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "listsubscriptions", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "listsubscriptions", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, out, in)
 	}
 	return nil
@@ -3114,11 +3038,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterListSubscriptions(fn func(ctx conte
 func (ri *RuntimeGoInitializer) RegisterBeforeGetSubscription(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.GetSubscriptionRequest) (*api.GetSubscriptionRequest, error)) error {
 	ri.beforeReq.beforeGetSubscriptionFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.GetSubscriptionRequest) (*api.GetSubscriptionRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "getsubscription", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "getsubscription", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -3140,7 +3063,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeGetSubscription(fn func(ctx contex
 func (ri *RuntimeGoInitializer) RegisterAfterGetSubscription(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, out *api.ValidatedSubscription, in *api.GetSubscriptionRequest) error) error {
 	ri.afterReq.afterGetSubscriptionFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, out *api.ValidatedSubscription, in *api.GetSubscriptionRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "getsubscription", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "getsubscription", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, out, in)
 	}
 	return nil
@@ -3153,11 +3076,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterGetSubscription(fn func(ctx context
 func (ri *RuntimeGoInitializer) RegisterBeforeValidatePurchaseGoogle(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.ValidatePurchaseGoogleRequest) (*api.ValidatePurchaseGoogleRequest, error)) error {
 	ri.beforeReq.beforeValidatePurchaseGoogleFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.ValidatePurchaseGoogleRequest) (*api.ValidatePurchaseGoogleRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "validatepurchasegoogle", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "validatepurchasegoogle", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -3179,7 +3101,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeValidatePurchaseGoogle(fn func(ctx
 func (ri *RuntimeGoInitializer) RegisterAfterValidatePurchaseGoogle(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, out *api.ValidatePurchaseResponse, in *api.ValidatePurchaseGoogleRequest) error) error {
 	ri.afterReq.afterValidatePurchaseGoogleFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, out *api.ValidatePurchaseResponse, in *api.ValidatePurchaseGoogleRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "validatepurchasegoogle", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "validatepurchasegoogle", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, out, in)
 	}
 	return nil
@@ -3192,11 +3114,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterValidatePurchaseGoogle(fn func(ctx 
 func (ri *RuntimeGoInitializer) RegisterBeforeValidatePurchaseHuawei(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.ValidatePurchaseHuaweiRequest) (*api.ValidatePurchaseHuaweiRequest, error)) error {
 	ri.beforeReq.beforeValidatePurchaseHuaweiFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.ValidatePurchaseHuaweiRequest) (*api.ValidatePurchaseHuaweiRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "validatepurchasehuawei", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "validatepurchasehuawei", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -3218,7 +3139,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeValidatePurchaseHuawei(fn func(ctx
 func (ri *RuntimeGoInitializer) RegisterAfterValidatePurchaseHuawei(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, out *api.ValidatePurchaseResponse, in *api.ValidatePurchaseHuaweiRequest) error) error {
 	ri.afterReq.afterValidatePurchaseHuaweiFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, out *api.ValidatePurchaseResponse, in *api.ValidatePurchaseHuaweiRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "validatepurchasehuawei", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "validatepurchasehuawei", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, out, in)
 	}
 	return nil
@@ -3231,11 +3152,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterValidatePurchaseHuawei(fn func(ctx 
 func (ri *RuntimeGoInitializer) RegisterBeforeValidatePurchaseFacebookInstant(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.ValidatePurchaseFacebookInstantRequest) (*api.ValidatePurchaseFacebookInstantRequest, error)) error {
 	ri.beforeReq.beforeValidatePurchaseFacebookInstantFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.ValidatePurchaseFacebookInstantRequest) (*api.ValidatePurchaseFacebookInstantRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "validatepurchasefacebookinstant", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "validatepurchasefacebookinstant", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -3257,7 +3177,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeValidatePurchaseFacebookInstant(fn
 func (ri *RuntimeGoInitializer) RegisterAfterValidatePurchaseFacebookInstant(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, out *api.ValidatePurchaseResponse, in *api.ValidatePurchaseFacebookInstantRequest) error) error {
 	ri.afterReq.afterValidatePurchaseFacebookInstantFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, out *api.ValidatePurchaseResponse, in *api.ValidatePurchaseFacebookInstantRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "validatepurchasefacebookinstant", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "validatepurchasefacebookinstant", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, out, in)
 	}
 	return nil
@@ -3266,11 +3186,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterValidatePurchaseFacebookInstant(fn 
 func (ri *RuntimeGoInitializer) RegisterBeforeValidatePurchaseSamsung(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.ValidatePurchaseSamsungRequest) (*api.ValidatePurchaseSamsungRequest, error)) error {
 	ri.beforeReq.beforeValidatePurchaseSamsungFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.ValidatePurchaseSamsungRequest) (*api.ValidatePurchaseSamsungRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeBefore, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "validatepurchasesamsung", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "validatepurchasesamsung", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					return result, runtimeErr, codes.Internal
 				}
@@ -3286,7 +3205,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeValidatePurchaseSamsung(fn func(ct
 func (ri *RuntimeGoInitializer) RegisterAfterValidatePurchaseSamsung(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, out *api.ValidatePurchaseResponse, in *api.ValidatePurchaseSamsungRequest) error) error {
 	ri.afterReq.afterValidatePurchaseSamsungFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, out *api.ValidatePurchaseResponse, in *api.ValidatePurchaseSamsungRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "validatepurchasesamsung", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "validatepurchasesamsung", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, out, in)
 	}
 	return nil
@@ -3299,11 +3218,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterValidatePurchaseSamsung(fn func(ctx
 func (ri *RuntimeGoInitializer) RegisterBeforeEvent(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.Event) (*api.Event, error)) error {
 	ri.beforeReq.beforeEventFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.Event) (*api.Event, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "event", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "event", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -3325,7 +3243,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeEvent(fn func(ctx context.Context,
 func (ri *RuntimeGoInitializer) RegisterAfterEvent(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.Event) error) error {
 	ri.afterReq.afterEventFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.Event) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "event", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "event", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 	}
 	return nil
@@ -3338,11 +3256,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterEvent(fn func(ctx context.Context, 
 func (ri *RuntimeGoInitializer) RegisterBeforeGetMatchmakerStats(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule) error) error {
 	ri.beforeReq.beforeGetMatchmakerStatsFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string) (error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "getmatchmakerstats", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "getmatchmakerstats", "mode": RuntimeExecutionModeBefore.String()}
 		fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return runtimeErr, codes.Internal
@@ -3364,7 +3281,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeGetMatchmakerStats(fn func(ctx con
 func (ri *RuntimeGoInitializer) RegisterAfterGetMatchmakerStats(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, out *api.MatchmakerStats) error) error {
 	ri.afterReq.afterGetMatchmakerStatsFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, out *api.MatchmakerStats) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "getmatchmakerstats", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "getmatchmakerstats", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, out)
 	}
 	return nil
@@ -3377,11 +3294,10 @@ func (ri *RuntimeGoInitializer) RegisterAfterGetMatchmakerStats(fn func(ctx cont
 func (ri *RuntimeGoInitializer) RegisterBeforeListParties(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.ListPartiesRequest) (*api.ListPartiesRequest, error)) error {
 	ri.beforeReq.beforeListPartiesFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.ListPartiesRequest) (*api.ListPartiesRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "listparties", "mode": RuntimeExecutionModeBefore.String()}
+		loggerFields := map[string]any{"api_id": "listparties", "mode": RuntimeExecutionModeBefore.String()}
 		result, fnErr := fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -3403,7 +3319,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeListParties(fn func(ctx context.Co
 func (ri *RuntimeGoInitializer) RegisterAfterListParties(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, out *api.PartyList, in *api.ListPartiesRequest) error) error {
 	ri.afterReq.afterListPartiesFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, out *api.PartyList, in *api.ListPartiesRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "listparties", "mode": RuntimeExecutionModeAfter.String()}
+		loggerFields := map[string]any{"api_id": "listparties", "mode": RuntimeExecutionModeAfter.String()}
 		return fn(ctx, RuntimeLoggerWithTraceId(ctx, ri.logger.WithFields(loggerFields)), ri.db, ri.nk, out, in)
 	}
 	return nil
@@ -3688,11 +3604,10 @@ func (ri *RuntimeGoInitializer) RegisterConsoleHttp(pathPattern string, handler 
 func (ri *RuntimeGoInitializer) RegisterBeforeAny(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.AnyRequest) (*api.AnyRequest, error)) error {
 	ri.beforeReq.beforeAnyFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.AnyRequest) (*api.AnyRequest, error, codes.Code) {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "any", "mode": RuntimeExecutionModeBefore.String(), "cid": in.GetCid(), "name": in.GetName()}
+		loggerFields := map[string]any{"api_id": "any", "mode": RuntimeExecutionModeBefore.String(), "cid": in.GetCid(), "name": in.GetName()}
 		result, fnErr := fn(ctx, ri.logger.WithFields(loggerFields), ri.db, ri.nk, in)
 		if fnErr != nil {
-			var runtimeErr *runtime.Error
-			if errors.As(fnErr, &runtimeErr) {
+			if runtimeErr, ok := errors.AsType[*runtime.Error](fnErr); ok {
 				if runtimeErr.Code <= 0 || runtimeErr.Code >= 17 {
 					// If error is present but code is invalid then default to 13 (Internal) as the error code.
 					return result, runtimeErr, codes.Internal
@@ -3710,7 +3625,7 @@ func (ri *RuntimeGoInitializer) RegisterBeforeAny(fn func(ctx context.Context, l
 func (ri *RuntimeGoInitializer) RegisterAfterAny(fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, out *api.AnyResponseWriter, in *api.AnyRequest) error) error {
 	ri.afterReq.afterAnyFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, out *api.AnyResponseWriter, in *api.AnyRequest) error {
 		ctx = NewRuntimeGoContext(ctx, ri.node, ri.version, ri.env, RuntimeExecutionModeAfter, nil, nil, traceID, expiry, userID, username, vars, "", clientIP, clientPort, "")
-		loggerFields := map[string]interface{}{"api_id": "any", "mode": RuntimeExecutionModeAfter.String(), "cid": in.GetCid(), "name": in.GetName()}
+		loggerFields := map[string]any{"api_id": "any", "mode": RuntimeExecutionModeAfter.String(), "cid": in.GetCid(), "name": in.GetName()}
 		return fn(ctx, ri.logger.WithFields(loggerFields), ri.db, ri.nk, out, in)
 	}
 	return nil

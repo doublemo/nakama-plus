@@ -194,7 +194,7 @@ func NewRuntimeJavascriptMatchCore(logger *zap.Logger, module string, db *sql.DB
 	return core, nil
 }
 
-func (rm *RuntimeJavaScriptMatchCore) MatchInit(presenceList *MatchPresenceList, deferMessageFn RuntimeMatchDeferMessageFunction, params map[string]interface{}) (interface{}, int, error) {
+func (rm *RuntimeJavaScriptMatchCore) MatchInit(presenceList *MatchPresenceList, deferMessageFn RuntimeMatchDeferMessageFunction, params map[string]any) (any, int, error) {
 	args := []goja.Value{rm.ctx, rm.loggerModule, rm.nakamaModule, rm.vm.ToValue(params)}
 
 	retVal, err := rm.initFn(goja.Null(), args...)
@@ -202,7 +202,7 @@ func (rm *RuntimeJavaScriptMatchCore) MatchInit(presenceList *MatchPresenceList,
 		return nil, 0, err
 	}
 
-	retMap, ok := retVal.Export().(map[string]interface{})
+	retMap, ok := retVal.Export().(map[string]any)
 	if !ok {
 		return nil, 0, errors.New("matchInit is expected to return an object with 'state', 'tickRate' and 'label' properties")
 	}
@@ -250,7 +250,7 @@ func (rm *RuntimeJavaScriptMatchCore) MatchInit(presenceList *MatchPresenceList,
 	return state, int(rate), nil
 }
 
-func (rm *RuntimeJavaScriptMatchCore) MatchJoinAttempt(tick int64, state interface{}, userID, sessionID uuid.UUID, username string, sessionExpiry int64, vars map[string]string, clientIP, clientPort, node string, metadata map[string]string) (interface{}, bool, string, error) {
+func (rm *RuntimeJavaScriptMatchCore) MatchJoinAttempt(tick int64, state any, userID, sessionID uuid.UUID, username string, sessionExpiry int64, vars map[string]string, clientIP, clientPort, node string, metadata map[string]string) (any, bool, string, error) {
 	// Setup presence
 	presenceObj := rm.vm.NewObject()
 	_ = presenceObj.Set("userId", userID.String())
@@ -292,7 +292,7 @@ func (rm *RuntimeJavaScriptMatchCore) MatchJoinAttempt(tick int64, state interfa
 		return nil, false, "", nil
 	}
 
-	retMap, ok := retVal.Export().(map[string]interface{})
+	retMap, ok := retVal.Export().(map[string]any)
 	if !ok {
 		return nil, false, "", errors.New("matchJoinAttempt is expected to return an object with 'state' and 'accept' properties")
 	}
@@ -328,10 +328,10 @@ func (rm *RuntimeJavaScriptMatchCore) MatchJoinAttempt(tick int64, state interfa
 	return newState, allow, rejectMsg, nil
 }
 
-func (rm *RuntimeJavaScriptMatchCore) MatchJoin(tick int64, state interface{}, joins []*MatchPresence) (interface{}, error) {
-	presences := make([]interface{}, 0, len(joins))
+func (rm *RuntimeJavaScriptMatchCore) MatchJoin(tick int64, state any, joins []*MatchPresence) (any, error) {
+	presences := make([]any, 0, len(joins))
 	for _, p := range joins {
-		presenceMap := make(map[string]interface{}, 5)
+		presenceMap := make(map[string]any, 5)
 		presenceMap["userId"] = p.UserID.String()
 		presenceMap["sessionId"] = p.SessionID.String()
 		presenceMap["username"] = p.Username
@@ -356,7 +356,7 @@ func (rm *RuntimeJavaScriptMatchCore) MatchJoin(tick int64, state interface{}, j
 		return nil, nil
 	}
 
-	retMap, ok := retVal.Export().(map[string]interface{})
+	retMap, ok := retVal.Export().(map[string]any)
 	if !ok {
 		return nil, errors.New("matchJoin is expected to return an object with 'state' property")
 	}
@@ -372,10 +372,10 @@ func (rm *RuntimeJavaScriptMatchCore) MatchJoin(tick int64, state interface{}, j
 	return newState, nil
 }
 
-func (rm *RuntimeJavaScriptMatchCore) MatchLeave(tick int64, state interface{}, leaves []*MatchPresence) (interface{}, error) {
-	presences := make([]interface{}, 0, len(leaves))
+func (rm *RuntimeJavaScriptMatchCore) MatchLeave(tick int64, state any, leaves []*MatchPresence) (any, error) {
+	presences := make([]any, 0, len(leaves))
 	for _, p := range leaves {
-		presenceMap := make(map[string]interface{}, 5)
+		presenceMap := make(map[string]any, 5)
 		presenceMap["userId"] = p.UserID.String()
 		presenceMap["sessionId"] = p.SessionID.String()
 		presenceMap["username"] = p.Username
@@ -401,7 +401,7 @@ func (rm *RuntimeJavaScriptMatchCore) MatchLeave(tick int64, state interface{}, 
 		return nil, nil
 	}
 
-	retMap, ok := retVal.Export().(map[string]interface{})
+	retMap, ok := retVal.Export().(map[string]any)
 	if !ok {
 		return nil, errors.New("matchLeave is expected to return an object with 'state' property")
 	}
@@ -417,19 +417,19 @@ func (rm *RuntimeJavaScriptMatchCore) MatchLeave(tick int64, state interface{}, 
 	return newState, nil
 }
 
-func (rm *RuntimeJavaScriptMatchCore) MatchLoop(tick int64, state interface{}, inputCh <-chan *MatchDataMessage) (interface{}, error) {
+func (rm *RuntimeJavaScriptMatchCore) MatchLoop(tick int64, state any, inputCh <-chan *MatchDataMessage) (any, error) {
 	size := len(inputCh)
-	inputs := make([]interface{}, 0, size)
-	for i := 0; i < size; i++ {
+	inputs := make([]any, 0, size)
+	for range size {
 		msg := <-inputCh
 
-		presenceMap := make(map[string]interface{}, 5)
+		presenceMap := make(map[string]any, 5)
 		presenceMap["userId"] = msg.UserID.String()
 		presenceMap["sessionId"] = msg.SessionID.String()
 		presenceMap["username"] = msg.Username
 		presenceMap["node"] = msg.Node
 
-		msgMap := make(map[string]interface{}, 5)
+		msgMap := make(map[string]any, 5)
 		msgMap["sender"] = presenceMap
 		msgMap["opCode"] = msg.OpCode
 		if msg.Data == nil {
@@ -458,7 +458,7 @@ func (rm *RuntimeJavaScriptMatchCore) MatchLoop(tick int64, state interface{}, i
 		return nil, nil
 	}
 
-	retMap, ok := retVal.Export().(map[string]interface{})
+	retMap, ok := retVal.Export().(map[string]any)
 	if !ok {
 		return nil, errors.New("matchLoop is expected to return an object with 'state' property")
 	}
@@ -474,7 +474,7 @@ func (rm *RuntimeJavaScriptMatchCore) MatchLoop(tick int64, state interface{}, i
 	return newState, nil
 }
 
-func (rm *RuntimeJavaScriptMatchCore) MatchTerminate(tick int64, state interface{}, graceSeconds int) (interface{}, error) {
+func (rm *RuntimeJavaScriptMatchCore) MatchTerminate(tick int64, state any, graceSeconds int) (any, error) {
 	pointerizeSlices(state)
 	stateObject := rm.vm.NewObject()
 	for k, v := range state.(map[string]any) {
@@ -486,7 +486,7 @@ func (rm *RuntimeJavaScriptMatchCore) MatchTerminate(tick int64, state interface
 		return nil, err
 	}
 
-	retMap, ok := retVal.Export().(map[string]interface{})
+	retMap, ok := retVal.Export().(map[string]any)
 	if !ok {
 		return nil, errors.New("matchTerminate is expected to return an object with 'state' property")
 	}
@@ -506,7 +506,7 @@ func (rm *RuntimeJavaScriptMatchCore) MatchTerminate(tick int64, state interface
 	return newState, nil
 }
 
-func (rm *RuntimeJavaScriptMatchCore) MatchSignal(tick int64, state interface{}, data string) (interface{}, string, error) {
+func (rm *RuntimeJavaScriptMatchCore) MatchSignal(tick int64, state any, data string) (any, string, error) {
 	pointerizeSlices(state)
 	stateObject := rm.vm.NewObject()
 	for k, v := range state.(map[string]any) {
@@ -518,7 +518,7 @@ func (rm *RuntimeJavaScriptMatchCore) MatchSignal(tick int64, state interface{},
 		return nil, "", err
 	}
 
-	retMap, ok := retVal.Export().(map[string]interface{})
+	retMap, ok := retVal.Export().(map[string]any)
 	if !ok {
 		return nil, "", errors.New("matchSignal is expected to return an object with 'state' property")
 	}
@@ -547,7 +547,7 @@ func (rm *RuntimeJavaScriptMatchCore) MatchSignal(tick int64, state interface{},
 	return newState, responseData, nil
 }
 
-func (rm *RuntimeJavaScriptMatchCore) GetState(state interface{}) (string, error) {
+func (rm *RuntimeJavaScriptMatchCore) GetState(state any) (string, error) {
 	stateBytes, err := json.Marshal(RuntimeJsConvertJsValue(state))
 	if err != nil {
 		return "", err
@@ -682,7 +682,7 @@ func (rm *RuntimeJavaScriptMatchCore) validateBroadcast(r *goja.Runtime, f goja.
 	if !goja.IsUndefined(sender) && !goja.IsNull(sender) {
 		presence = &rtapi.UserPresence{}
 
-		senderMap, ok := sender.Export().(map[string]interface{})
+		senderMap, ok := sender.Export().(map[string]any)
 		if !ok {
 			panic(r.NewTypeError("expects sender to be an object"))
 		}

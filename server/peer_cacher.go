@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/dgraph-io/ristretto"
+	"github.com/dgraph-io/ristretto/v2"
 	"github.com/doublemo/nakama-common/runtime"
 	store_etcd "github.com/doublemo/nakama-plus/v3/internal/gocache/store/etcd"
 	"github.com/eko/gocache/lib/v4/cache"
@@ -71,7 +71,7 @@ const (
 
 func NewPeerCacher(logger *zap.Logger, etcdClient *clientv3.Client, node string, config *PeerCacherConfig) *PeerCacher {
 	storeEtcd := store_etcd.NewEtcd(etcdClient, config.Prefix, store.WithExpiration(24*time.Hour*30))
-	ristrettoClient, err := ristretto.NewCache(&ristretto.Config{
+	ristrettoClient, err := ristretto.NewCache(&ristretto.Config[string, []byte]{
 		NumCounters: config.NumCounters,
 		MaxCost:     config.MaxCost,
 		BufferItems: config.BufferItems, // number of keys per Get buffer.
@@ -86,7 +86,7 @@ func NewPeerCacher(logger *zap.Logger, etcdClient *clientv3.Client, node string,
 		ctx:         ctx,
 		ctxCancelFn: cancel,
 		node:        node,
-		chain: marshaler.New(cache.NewChain[any](
+		chain: marshaler.New(cache.NewChain(
 			cache.New[any](storeRistretto),
 			cache.New[any](storeEtcd),
 		)),
@@ -104,13 +104,7 @@ func NewPeerCacher(logger *zap.Logger, etcdClient *clientv3.Client, node string,
 		if value.Node == node {
 			return
 		}
-
-		if value.Opts == nil {
-			value.Opts = &runtime.PeerCacheOptions{}
-		}
-
-		value.Opts.MemoryOnly = true
-		s.set(string(evt.Kv.Key), value)
+		s.setMemoryOnly(string(evt.Kv.Key), value)
 	})
 
 	storeEtcd.OnDelete(func(evt *clientv3.Event) {
@@ -171,6 +165,32 @@ func (s *PeerCacher) set(key string, value PeerCacheValue) error {
 		}
 	}
 	return s.chain.Set(s.ctx, key, value, storeOptions...)
+}
+
+func (s *PeerCacher) setMemoryOnly(key string, value PeerCacheValue) error {
+	storeOptions := make([]store.Option, 0)
+	if o := value.Opts; o != nil {
+		if o.ClientSideCacheExpiration.Seconds() > 0 {
+			storeOptions = append(storeOptions, store.WithClientSideCaching(o.ClientSideCacheExpiration))
+		}
+
+		if o.SynchronousSet {
+			storeOptions = append(storeOptions, store.WithSynchronousSet())
+		}
+
+		if o.Cost > 0 {
+			storeOptions = append(storeOptions, store.WithCost(o.Cost))
+		}
+
+		if o.Expiration.Seconds() > 0 {
+			storeOptions = append(storeOptions, store.WithExpiration(o.Expiration))
+		}
+
+		if len(o.Tags) > 0 {
+			storeOptions = append(storeOptions, store.WithTags(o.Tags))
+		}
+	}
+	return s.storeRistretto.Set(s.ctx, key, value, storeOptions...)
 }
 
 func (s *PeerCacher) Delete(key string) error {

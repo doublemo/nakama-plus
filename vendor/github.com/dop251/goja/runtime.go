@@ -143,6 +143,8 @@ type global struct {
 	weakMapAdder  *Object
 	mapAdder      *Object
 	setAdder      *Object
+	setHas        *Object
+	setValues     *Object
 	arrayValues   *Object
 	arrayToString *Object
 
@@ -193,9 +195,8 @@ type Runtime struct {
 
 	fieldNameMapper FieldNameMapper
 
-	vm    *vm
-	hash  *maphash.Hash
-	idSeq uint64
+	vm   *vm
+	hash *maphash.Hash
 
 	jobQueue []func()
 
@@ -465,14 +466,12 @@ func (r *Runtime) typeErrorResult(throw bool, args ...interface{}) {
 	}
 }
 
-func (r *Runtime) newError(typ *Object, format string, args ...interface{}) Value {
-	var msg string
-	if len(args) > 0 {
-		msg = fmt.Sprintf(format, args...)
-	} else {
-		msg = format
-	}
+func (r *Runtime) newError(typ *Object, msg string) Value {
 	return r.builtin_new(typ, []Value{newStringValue(msg)})
+}
+
+func (r *Runtime) newErrorf(typ *Object, format string, args ...interface{}) Value {
+	return r.builtin_new(typ, []Value{newStringValue(fmt.Sprintf(format, args...))})
 }
 
 func (r *Runtime) throwReferenceError(name unistring.String) {
@@ -480,10 +479,10 @@ func (r *Runtime) throwReferenceError(name unistring.String) {
 }
 
 func (r *Runtime) newReferenceError(name unistring.String) Value {
-	return r.newError(r.getReferenceError(), "%s is not defined", name)
+	return r.newErrorf(r.getReferenceError(), "%s is not defined", name)
 }
 
-func (r *Runtime) newSyntaxError(msg string, offset int) Value {
+func (r *Runtime) newSyntaxError(msg string) Value {
 	return r.builtin_new(r.getSyntaxError(), []Value{newStringValue(msg)})
 }
 
@@ -1280,11 +1279,11 @@ func (r *Runtime) toIndex(v Value) int {
 	num := v.ToInteger()
 	if num >= 0 && num < maxInt {
 		if bits.UintSize == 32 && num >= math.MaxInt32 {
-			panic(r.newError(r.getRangeError(), "Index %s overflows int", v.String()))
+			panic(r.newErrorf(r.getRangeError(), "Index %s overflows int", v.String()))
 		}
 		return int(num)
 	}
-	panic(r.newError(r.getRangeError(), "Invalid index %s", v.String()))
+	panic(r.newErrorf(r.getRangeError(), "Invalid index %s", v.String()))
 }
 
 func (r *Runtime) toBoolean(b bool) Value {
@@ -2199,7 +2198,7 @@ func (r *Runtime) toReflectValue(v Value, dst reflect.Value, ctx *objectExportCt
 		}
 	case reflect.Struct:
 		if o, ok := v.(*Object); ok {
-			t := reflect.PtrTo(typ)
+			t := reflect.PointerTo(typ)
 			if v, exists := ctx.getTyped(o, t); exists {
 				dst.Set(reflect.ValueOf(v).Elem())
 				return nil
@@ -2796,7 +2795,11 @@ func (ir *iteratorRecord) close() {
 // When using outside of Runtime.Run (i.e. when calling directly from Go code, not from a JS function implemented
 // in Go) it must be enclosed in Try. See the example.
 func (r *Runtime) ForOf(iterable Value, step func(curValue Value) (continueIteration bool)) {
-	iter := r.getIterator(iterable, nil)
+	r.forOfMethod(iterable, nil, step)
+}
+
+func (r *Runtime) forOfMethod(iterable Value, method func(FunctionCall) Value, step func(curValue Value) (continueIteration bool)) {
+	iter := r.getIterator(iterable, method)
 	for {
 		value, ex := iter.step()
 		if ex != nil {
@@ -2929,19 +2932,6 @@ func growCap(newSize, oldSize, oldCap int) int {
 			return cap
 		}
 	}
-}
-
-func (r *Runtime) genId() (ret uint64) {
-	if r.hash == nil {
-		h := r.getHash()
-		r.idSeq = h.Sum64()
-	}
-	if r.idSeq == 0 {
-		r.idSeq = 1
-	}
-	ret = r.idSeq
-	r.idSeq++
-	return
 }
 
 func (r *Runtime) setGlobal(name unistring.String, v Value, strict bool) {

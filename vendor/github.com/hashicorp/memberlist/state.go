@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2013, 2026
 // SPDX-License-Identifier: MPL-2.0
 
 package memberlist
@@ -13,7 +13,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/hashicorp/go-metrics/compat"
+	metrics "github.com/hashicorp/go-metrics"
 )
 
 type NodeStateType int
@@ -252,9 +252,8 @@ START:
 
 	// Determine if we should probe this node
 	skip := false
-	var node nodeState
+	node := *m.nodes[m.probeIndex]
 
-	node = *m.nodes[m.probeIndex]
 	if node.Name == m.config.Name {
 		skip = true
 	} else if node.DeadOrLeft() {
@@ -391,7 +390,7 @@ func (m *Memberlist) probeNode(node *nodeState) {
 	// Wait for response or round-trip-time.
 	select {
 	case v := <-ackCh:
-		if v.Complete == true {
+		if v.Complete {
 			if m.config.Ping != nil {
 				rtt := v.Timestamp.Sub(sent)
 				m.config.Ping.NotifyPingComplete(&node.Node, rtt, v.Payload)
@@ -401,7 +400,7 @@ func (m *Memberlist) probeNode(node *nodeState) {
 
 		// As an edge case, if we get a timeout, we need to re-enqueue it
 		// here to break out of the select below.
-		if v.Complete == false {
+		if !v.Complete {
 			ackCh <- v
 		}
 	case <-time.After(m.config.ProbeTimeout):
@@ -484,11 +483,9 @@ HANDLE_REMOTE_FAILURE:
 	// channel here because we want to issue a warning below if that's the
 	// *only* way we hear back from the peer, so we have to let this time
 	// out first to allow the normal UDP-based acks to come in.
-	select {
-	case v := <-ackCh:
-		if v.Complete == true {
-			return
-		}
+	v := <-ackCh
+	if v.Complete {
+		return
 	}
 
 	// Finally, poll the fallback channel. The timeouts are set such that
@@ -552,7 +549,7 @@ func (m *Memberlist) Ping(node string, addr net.Addr) (time.Duration, error) {
 	// Wait for response or timeout.
 	select {
 	case v := <-ackCh:
-		if v.Complete == true {
+		if v.Complete {
 			return v.Timestamp.Sub(sent), nil
 		}
 	case <-time.After(m.config.ProbeTimeout):
@@ -582,7 +579,7 @@ func (m *Memberlist) resetNodes() {
 	m.nodes = m.nodes[0:deadIdx]
 
 	// Update numNodes after we've trimmed the dead nodes
-	atomic.StoreUint32(&m.numNodes, uint32(deadIdx))
+	m.numNodes.Store(uint32(deadIdx))
 
 	// Shuffle live nodes
 	shuffleNodes(m.nodes)
@@ -715,9 +712,8 @@ func (m *Memberlist) verifyProtocol(remote []pushNodeState) error {
 			continue
 		}
 
-		// Skip nodes that don't have versions set, it just means
-		// their version is zero.
-		if len(rn.Vsn) == 0 {
+		// Skip nodes that don't have proper version info
+		if len(rn.Vsn) < 5 {
 			continue
 		}
 
@@ -766,7 +762,7 @@ func (m *Memberlist) verifyProtocol(remote []pushNodeState) error {
 	// node in the cluster satisifies this.
 	for _, n := range remote {
 		var nPCur, nDCur uint8
-		if len(n.Vsn) > 0 {
+		if len(n.Vsn) >= 6 {
 			nPCur = n.Vsn[2]
 			nDCur = n.Vsn[5]
 		}
@@ -811,17 +807,17 @@ func (m *Memberlist) nextSeqNo() uint32 {
 
 // nextIncarnation returns the next incarnation number in a thread safe way
 func (m *Memberlist) nextIncarnation() uint32 {
-	return atomic.AddUint32(&m.incarnation, 1)
+	return m.incarnation.Add(1)
 }
 
 // skipIncarnation adds the positive offset to the incarnation number.
 func (m *Memberlist) skipIncarnation(offset uint32) uint32 {
-	return atomic.AddUint32(&m.incarnation, offset)
+	return m.incarnation.Add(offset)
 }
 
 // estNumNodes is used to get the current estimate of the number of nodes
 func (m *Memberlist) estNumNodes() int {
-	return int(atomic.LoadUint32(&m.numNodes))
+	return int(m.numNodes.Load())
 }
 
 type ackMessage struct {
@@ -849,14 +845,8 @@ func (m *Memberlist) setProbeChannels(seqNo uint32, ackCh chan ackMessage, nackC
 		}
 	}
 
-	// Add the handlers
-	ah := &ackHandler{ackFn, nackFn, nil}
-	m.ackLock.Lock()
-	m.ackHandlers[seqNo] = ah
-	m.ackLock.Unlock()
-
-	// Setup a reaping routing
-	ah.timer = time.AfterFunc(timeout, func() {
+	// Add the handler, with a reaping routine
+	ah := &ackHandler{ackFn, nackFn, time.AfterFunc(timeout, func() {
 		m.ackLock.Lock()
 		delete(m.ackHandlers, seqNo)
 		m.ackLock.Unlock()
@@ -864,7 +854,11 @@ func (m *Memberlist) setProbeChannels(seqNo uint32, ackCh chan ackMessage, nackC
 		case ackCh <- ackMessage{false, nil, time.Now()}:
 		default:
 		}
-	})
+	})}
+
+	m.ackLock.Lock()
+	m.ackHandlers[seqNo] = ah
+	m.ackLock.Unlock()
 }
 
 // setAckHandler is used to attach a handler to be invoked when an ack with a
@@ -1037,7 +1031,7 @@ func (m *Memberlist) aliveNode(a *alive, notify chan struct{}, bootstrap bool) {
 		m.nodes[offset], m.nodes[n] = m.nodes[n], m.nodes[offset]
 
 		// Update numNodes after we've added a new node
-		atomic.AddUint32(&m.numNodes, 1)
+		m.numNodes.Add(1)
 	} else {
 		// Check if this address is different than the existing node unless the old node is dead.
 		if !bytes.Equal([]byte(state.Addr), a.Addr) || state.Port != a.Port {
@@ -1122,7 +1116,7 @@ func (m *Memberlist) aliveNode(a *alive, notify chan struct{}, bootstrap bool) {
 		m.encodeBroadcastNotify(a.Node, aliveMsg, a, notify)
 
 		// Update protocol versions if it arrived
-		if len(a.Vsn) > 0 {
+		if len(a.Vsn) >= 6 {
 			state.PMin = a.Vsn[0]
 			state.PMax = a.Vsn[1]
 			state.PCur = a.Vsn[2]
@@ -1231,7 +1225,7 @@ func (m *Memberlist) suspectNode(s *suspect) {
 
 		m.nodeLock.Lock()
 		state, ok := m.nodeMap[s.Node]
-		timeout := ok && state.State == StateSuspect && state.StateChange == changeTime
+		timeout := ok && state.State == StateSuspect && state.StateChange.Equal(changeTime)
 		if timeout {
 			d = &dead{Incarnation: state.Incarnation, Node: state.Name, From: m.config.Name}
 		}

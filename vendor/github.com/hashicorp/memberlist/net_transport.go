@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2013, 2026
 // SPDX-License-Identifier: MPL-2.0
 
 package memberlist
@@ -13,7 +13,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/hashicorp/go-metrics/compat"
+	metrics "github.com/hashicorp/go-metrics"
 	sockaddr "github.com/hashicorp/go-sockaddr"
 )
 
@@ -54,7 +54,7 @@ type NetTransport struct {
 	wg           sync.WaitGroup
 	tcpListeners []*net.TCPListener
 	udpListeners []*net.UDPConn
-	shutdown     int32
+	shutdown     atomic.Int32
 
 	metricLabels []metrics.Label
 }
@@ -67,7 +67,7 @@ func NewNetTransport(config *NetTransportConfig) (*NetTransport, error) {
 	// If we reject the empty list outright we can assume that there's at
 	// least one listener of each type later during operation.
 	if len(config.BindAddrs) == 0 {
-		return nil, fmt.Errorf("At least one bind address is required")
+		return nil, fmt.Errorf("at least one bind address is required")
 	}
 
 	// Build out the new transport.
@@ -83,7 +83,7 @@ func NewNetTransport(config *NetTransportConfig) (*NetTransport, error) {
 	// Clean up listeners if there's an error.
 	defer func() {
 		if !ok {
-			t.Shutdown()
+			_ = t.Shutdown()
 		}
 	}()
 
@@ -95,7 +95,7 @@ func NewNetTransport(config *NetTransportConfig) (*NetTransport, error) {
 		tcpAddr := &net.TCPAddr{IP: ip, Port: port}
 		tcpLn, err := net.ListenTCP("tcp", tcpAddr)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to start TCP listener on %q port %d: %v", addr, port, err)
+			return nil, fmt.Errorf("failed to start TCP listener on %q port %d: %v", addr, port, err)
 		}
 		t.tcpListeners = append(t.tcpListeners, tcpLn)
 
@@ -109,10 +109,10 @@ func NewNetTransport(config *NetTransportConfig) (*NetTransport, error) {
 		udpAddr := &net.UDPAddr{IP: ip, Port: port}
 		udpLn, err := net.ListenUDP("udp", udpAddr)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to start UDP listener on %q port %d: %v", addr, port, err)
+			return nil, fmt.Errorf("failed to start UDP listener on %q port %d: %v", addr, port, err)
 		}
 		if err := setUDPRecvBuf(udpLn); err != nil {
-			return nil, fmt.Errorf("Failed to resize UDP buffer: %v", err)
+			return nil, fmt.Errorf("failed to resize UDP buffer: %v", err)
 		}
 		t.udpListeners = append(t.udpListeners, udpLn)
 	}
@@ -144,7 +144,7 @@ func (t *NetTransport) FinalAdvertiseAddr(ip string, port int) (net.IP, int, err
 		// If they've supplied an address, use that.
 		advertiseAddr = net.ParseIP(ip)
 		if advertiseAddr == nil {
-			return nil, 0, fmt.Errorf("Failed to parse advertise address %q", ip)
+			return nil, 0, fmt.Errorf("failed to parse advertise address %q", ip)
 		}
 
 		// Ensure IPv4 conversion if necessary.
@@ -159,15 +159,15 @@ func (t *NetTransport) FinalAdvertiseAddr(ip string, port int) (net.IP, int, err
 			var err error
 			ip, err = sockaddr.GetPrivateIP()
 			if err != nil {
-				return nil, 0, fmt.Errorf("Failed to get interface addresses: %v", err)
+				return nil, 0, fmt.Errorf("failed to get interface addresses: %v", err)
 			}
 			if ip == "" {
-				return nil, 0, fmt.Errorf("No private IP address found, and explicit IP not provided")
+				return nil, 0, fmt.Errorf("no private IP address found, and explicit IP not provided")
 			}
 
 			advertiseAddr = net.ParseIP(ip)
 			if advertiseAddr == nil {
-				return nil, 0, fmt.Errorf("Failed to parse advertise address: %q", ip)
+				return nil, 0, fmt.Errorf("failed to parse advertise address: %q", ip)
 			}
 		} else {
 			// Use the IP that we're bound to, based on the first
@@ -213,7 +213,9 @@ func (t *NetTransport) PacketCh() <-chan *Packet {
 // See IngestionAwareTransport.
 func (t *NetTransport) IngestPacket(conn net.Conn, addr net.Addr, now time.Time, shouldClose bool) error {
 	if shouldClose {
-		defer conn.Close()
+		defer func() {
+			_ = conn.Close()
+		}()
 	}
 
 	// Copy everything from the stream into packet buffer.
@@ -266,14 +268,14 @@ func (t *NetTransport) IngestStream(conn net.Conn) error {
 // See Transport.
 func (t *NetTransport) Shutdown() error {
 	// This will avoid log spam about errors when we shut down.
-	atomic.StoreInt32(&t.shutdown, 1)
+	t.shutdown.Store(1)
 
 	// Rip through all the connections and shut them down.
 	for _, conn := range t.tcpListeners {
-		conn.Close()
+		_ = conn.Close()
 	}
 	for _, conn := range t.udpListeners {
-		conn.Close()
+		_ = conn.Close()
 	}
 
 	// Block until all the listener threads have died.
@@ -298,7 +300,7 @@ func (t *NetTransport) tcpListen(tcpLn *net.TCPListener) {
 	for {
 		conn, err := tcpLn.AcceptTCP()
 		if err != nil {
-			if s := atomic.LoadInt32(&t.shutdown); s == 1 {
+			if s := t.shutdown.Load(); s == 1 {
 				break
 			}
 
@@ -334,7 +336,7 @@ func (t *NetTransport) udpListen(udpLn *net.UDPConn) {
 		n, addr, err := udpLn.ReadFrom(buf)
 		ts := time.Now()
 		if err != nil {
-			if s := atomic.LoadInt32(&t.shutdown); s == 1 {
+			if s := t.shutdown.Load(); s == 1 {
 				break
 			}
 
