@@ -9,7 +9,7 @@ require (
 	github.com/dgraph-io/ristretto/v2 v2.4.2
 	github.com/dgryski/dgoogauth v0.0.0-20190221195224-5a805980a5f3
 	github.com/dop251/goja v0.0.0-20260917113740-793a2a65c13b
-	github.com/doublemo/nakama-common v1.47.0
+	github.com/doublemo/nakama-common v1.48.0
 	github.com/doublemo/nakama-kit v1.4.2
 	github.com/eko/gocache/lib/v4 v4.4.0
 	github.com/eko/gocache/store/ristretto/v4 v4.3.8

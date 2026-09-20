@@ -114,6 +114,7 @@ const (
 	Console_ResetUserMfa_FullMethodName               = "/nakama.console.Console/ResetUserMfa"
 	Console_UnbanAccount_FullMethodName               = "/nakama.console.Console/UnbanAccount"
 	Console_UnlinkCustom_FullMethodName               = "/nakama.console.Console/UnlinkCustom"
+	Console_Unlink_FullMethodName                     = "/nakama.console.Console/Unlink"
 	Console_UnlinkDevice_FullMethodName               = "/nakama.console.Console/UnlinkDevice"
 	Console_UnlinkEmail_FullMethodName                = "/nakama.console.Console/UnlinkEmail"
 	Console_UnlinkApple_FullMethodName                = "/nakama.console.Console/UnlinkApple"
@@ -284,6 +285,8 @@ type ConsoleClient interface {
 	UnbanAccount(ctx context.Context, in *AccountId, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	// Unlink the custom ID from a user account.
 	UnlinkCustom(ctx context.Context, in *AccountId, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	// Unlink an authentication provider identity from a user account.
+	Unlink(ctx context.Context, in *UnlinkRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	// Unlink the device ID from a user account.
 	UnlinkDevice(ctx context.Context, in *UnlinkDeviceRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	// Unlink the email from a user account.
@@ -1085,6 +1088,16 @@ func (c *consoleClient) UnlinkCustom(ctx context.Context, in *AccountId, opts ..
 	return out, nil
 }
 
+func (c *consoleClient) Unlink(ctx context.Context, in *UnlinkRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, Console_Unlink_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *consoleClient) UnlinkDevice(ctx context.Context, in *UnlinkDeviceRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(emptypb.Empty)
@@ -1406,6 +1419,8 @@ type ConsoleServer interface {
 	UnbanAccount(context.Context, *AccountId) (*emptypb.Empty, error)
 	// Unlink the custom ID from a user account.
 	UnlinkCustom(context.Context, *AccountId) (*emptypb.Empty, error)
+	// Unlink an authentication provider identity from a user account.
+	Unlink(context.Context, *UnlinkRequest) (*emptypb.Empty, error)
 	// Unlink the device ID from a user account.
 	UnlinkDevice(context.Context, *UnlinkDeviceRequest) (*emptypb.Empty, error)
 	// Unlink the email from a user account.
@@ -1674,6 +1689,9 @@ func (UnimplementedConsoleServer) UnbanAccount(context.Context, *AccountId) (*em
 }
 func (UnimplementedConsoleServer) UnlinkCustom(context.Context, *AccountId) (*emptypb.Empty, error) {
 	return nil, status.Error(codes.Unimplemented, "method UnlinkCustom not implemented")
+}
+func (UnimplementedConsoleServer) Unlink(context.Context, *UnlinkRequest) (*emptypb.Empty, error) {
+	return nil, status.Error(codes.Unimplemented, "method Unlink not implemented")
 }
 func (UnimplementedConsoleServer) UnlinkDevice(context.Context, *UnlinkDeviceRequest) (*emptypb.Empty, error) {
 	return nil, status.Error(codes.Unimplemented, "method UnlinkDevice not implemented")
@@ -3115,6 +3133,24 @@ func _Console_UnlinkCustom_Handler(srv interface{}, ctx context.Context, dec fun
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Console_Unlink_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UnlinkRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ConsoleServer).Unlink(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Console_Unlink_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ConsoleServer).Unlink(ctx, req.(*UnlinkRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Console_UnlinkDevice_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(UnlinkDeviceRequest)
 	if err := dec(in); err != nil {
@@ -3731,6 +3767,10 @@ var Console_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UnlinkCustom",
 			Handler:    _Console_UnlinkCustom_Handler,
+		},
+		{
+			MethodName: "Unlink",
+			Handler:    _Console_Unlink_Handler,
 		},
 		{
 			MethodName: "UnlinkDevice",

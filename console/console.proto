@@ -505,6 +505,14 @@
      option (google.api.http).post = "/v2/console/account/{id}/unlink/custom";
    }
 
+   // Unlink an authentication provider identity from a user account.
+  rpc Unlink (UnlinkRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      post: "/v2/console/account/{id}/unlink",
+      body: "*"
+    };
+  }
+
    // Unlink the device ID from a user account.
    rpc UnlinkDevice (UnlinkDeviceRequest) returns (google.protobuf.Empty) {
      option (google.api.http) = {
@@ -1390,6 +1398,14 @@ message StorageIndex {
    string device_id = 2;
  }
 
+ // Unlink an authentication provider identity from a user account.
+message UnlinkRequest {
+  // User ID to unlink from.
+  string id = 1;
+  // Name of the provider to unlink.
+  string provider = 2;
+}
+
  // Update user account information.
  message UpdateAccountRequest {
    // User ID to update.
@@ -1533,29 +1549,35 @@ message User {
    repeated ServiceStatus services = 3;
  }
 
- // Runtime information
- message RuntimeInfo {
-   // Module information
-   message ModuleInfo {
-     // Module path
-     string path = 1;
-     // Module last modified date
-     google.protobuf.Timestamp mod_time = 2;
-   }
+// Runtime information
+message RuntimeInfo {
+  // Module information
+  message ModuleInfo {
+    // Module path
+    string path = 1;
+    // Module last modified date
+    google.protobuf.Timestamp mod_time = 2;
+  }
 
-   // Lua registered RPC functions
-   repeated string lua_rpc_functions = 1;
-   // Go registered RPC functions
-   repeated string go_rpc_functions = 2;
-   // JavaScript registered RPC functions
-   repeated string js_rpc_functions = 3;
-   // Go loaded modules
-   repeated ModuleInfo go_modules = 4;
-   // Lua loaded modules
-   repeated ModuleInfo lua_modules = 5;
-   // JavaScript loaded modules
-   repeated ModuleInfo js_modules = 6;
- }
+  // Lua registered RPC functions
+  repeated string lua_rpc_functions = 1;
+  // Go registered RPC functions
+  repeated string go_rpc_functions = 2;
+  // JavaScript registered RPC functions
+  repeated string js_rpc_functions = 3;
+  // Go loaded modules
+  repeated ModuleInfo go_modules = 4;
+  // Lua loaded modules
+  repeated ModuleInfo lua_modules = 5;
+  // JavaScript loaded modules
+  repeated ModuleInfo js_modules = 6;
+  // Lua registered authentication providers
+  repeated string lua_authenticate_providers = 7;
+  // Go registered authentication providers
+  repeated string go_authenticate_providers = 8;
+  // JavaScript registered authentication providers
+  repeated string js_authenticate_providers = 9;
+}
 
  // An individual update to a user's wallet.
  message WalletLedger {
