@@ -13,8 +13,8 @@ import (
 type (
 	BinaryLog interface {
 		GetVersion() int64
-		GetVersionByNode(node string) int64
-		SetVersionByNode(node string, ver int64)
+		GetVersionByNode(node string, stream peerLogStream) int64
+		SetVersionByNode(node string, stream peerLogStream, ver int64)
 		RefreshVersion() int64
 	}
 
@@ -23,16 +23,43 @@ type (
 		node   string
 
 		version      *atomic.Int64
-		nodesVersion *MapOf[string, int64]
+		nodesVersion *MapOf[peerLogSource, int64]
 	}
 )
+
+type peerLogStream uint8
+
+const (
+	peerLogOther peerLogStream = iota
+	peerLogPresenceMatchmaker
+	peerLogParty
+)
+
+type peerLogSource struct {
+	node   string
+	stream peerLogStream
+}
+
+func binaryLogStream(log *pb.BinaryLog) peerLogStream {
+	switch log.GetPayload().(type) {
+	case *pb.BinaryLog_Track, *pb.BinaryLog_Untrack, *pb.BinaryLog_UpdateTrack,
+		*pb.BinaryLog_MatchmakerAdd, *pb.BinaryLog_MatchmakerRemoveSession,
+		*pb.BinaryLog_MatchmakerRemoveSessionAll, *pb.BinaryLog_MatchmakerRemoveParty,
+		*pb.BinaryLog_MatchmakerRemovePartyAll:
+		return peerLogPresenceMatchmaker
+	case *pb.BinaryLog_PartyCreate, *pb.BinaryLog_PartyClose:
+		return peerLogParty
+	default:
+		return peerLogOther
+	}
+}
 
 func NewLocalBinaryLog(logger *zap.Logger, name string) *LocalBinaryLog {
 	return &LocalBinaryLog{
 		logger:       logger,
 		node:         name,
-		version:      atomic.NewInt64(0),
-		nodesVersion: &MapOf[string, int64]{},
+		version:      atomic.NewInt64(time.Now().UnixNano()),
+		nodesVersion: &MapOf[peerLogSource, int64]{},
 	}
 }
 
@@ -41,29 +68,38 @@ func (b *LocalBinaryLog) GetVersion() int64 {
 }
 
 func (b *LocalBinaryLog) RefreshVersion() int64 {
-	b.version.Store(time.Now().UTC().UnixNano())
-	return b.version.Load()
+	for {
+		previous := b.version.Load()
+		version := max(time.Now().UnixNano(), previous+1)
+		if b.version.CompareAndSwap(previous, version) {
+			return version
+		}
+	}
 }
 
-func (b *LocalBinaryLog) GetVersionByNode(node string) int64 {
-	ver, ok := b.nodesVersion.Load(node)
-	if !ok {
-		return 0
-	}
+func (b *LocalBinaryLog) GetVersionByNode(node string, stream peerLogStream) int64 {
+	ver, _ := b.nodesVersion.Load(peerLogSource{node: node, stream: stream})
 	return ver
 }
 
-func (b *LocalBinaryLog) SetVersionByNode(node string, ver int64) {
-	b.nodesVersion.Store(node, ver)
+func (b *LocalBinaryLog) SetVersionByNode(node string, stream peerLogStream, ver int64) {
+	b.nodesVersion.Store(peerLogSource{node: node, stream: stream}, ver)
 }
 
 func (s *LocalPeer) handleBinaryLog(v *pb.BinaryLog) {
+	s.replicationMu.Lock()
+	defer s.replicationMu.Unlock()
+
+	if v.GetNode() == "" || v.GetNode() == s.endpoint.Name() {
+		return
+	}
 	logFields := []zap.Field{
 		zap.String("node", v.Node),
 		zap.Int64("version", v.Version),
 	}
 
-	if lastVersion := s.binaryLog.GetVersionByNode(v.Node); lastVersion >= v.Version {
+	stream := binaryLogStream(v)
+	if lastVersion := s.binaryLog.GetVersionByNode(v.Node, stream); lastVersion >= v.Version {
 		s.logger.Debug("Skip log", append(logFields, zap.Int64("lastVersion", lastVersion))...)
 		return
 	}
@@ -80,8 +116,16 @@ func (s *LocalPeer) handleBinaryLog(v *pb.BinaryLog) {
 		s.logger.Debug("processed untrack log", append(logFields, zap.Any("payload", payload.Untrack))...)
 	case *pb.BinaryLog_MatchmakerAdd:
 		extract := pb2MatchmakerExtract(payload.MatchmakerAdd)
-		_, _, err := s.matchmaker.Add(s.ctx, extract.Presences, extract.SessionID, extract.PartyId, extract.Query, extract.MinCount, extract.MaxCount, extract.CountMultiple, extract.StringProperties, extract.NumericProperties)
+		if extract == nil || extract.Ticket == "" {
+			// Legacy senders omit the ticket ID. Their owner snapshot supplies it.
+			return
+		}
+		extract.Node = v.Node
+		err := s.matchmaker.Insert([]*MatchmakerExtract{extract})
 		s.handleMatchmakerResult("MatchmakerAdd", err, extract, logFields)
+		if err != nil {
+			return
+		}
 
 	case *pb.BinaryLog_MatchmakerRemoveSession:
 		extract := payload.MatchmakerRemoveSession
@@ -111,10 +155,18 @@ func (s *LocalPeer) handleBinaryLog(v *pb.BinaryLog) {
 		s.matchmaker.Remove(payload.MatchmakerRemove.Ticket)
 		s.logger.Debug("processed matchmaker remove", append(logFields, zap.String("ticket", strings.Join(payload.MatchmakerRemove.Ticket, ",")))...)
 	case *pb.BinaryLog_PartyCreate:
-		s.partyRegistry.(*LocalPartyRegistry).handleFromRemotePartyCreate(pb2partyIndex(payload.PartyCreate))
+		entry, err := pb2partyIndex(payload.PartyCreate, v.Node)
+		if err != nil {
+			s.logger.Warn("Invalid party in remote binary log", append(logFields, zap.Error(err))...)
+			return
+		}
+		s.partyRegistry.(*LocalPartyRegistry).handleFromRemotePartyCreate(entry)
 		s.logger.Debug("processed party create", append(logFields, zap.Any("payload", payload.PartyCreate))...)
 
 	case *pb.BinaryLog_PartyClose:
+		if _, owner, _ := strings.Cut(payload.PartyClose, "."); owner != v.Node {
+			return
+		}
 		s.partyRegistry.(*LocalPartyRegistry).handleFromRemotePartyClose(payload.PartyClose)
 		s.logger.Debug("processed party close", append(logFields, zap.String("id", payload.PartyClose))...)
 
@@ -225,7 +277,7 @@ func (s *LocalPeer) handleBinaryLog(v *pb.BinaryLog) {
 			s.logger.Debug("processed leaderboard LeaderboardRemove", append(logFields, zap.String("id", leaderboard.Id))...)
 		}
 	}
-	s.binaryLog.SetVersionByNode(v.Node, v.Version)
+	s.binaryLog.SetVersionByNode(v.Node, stream, v.Version)
 }
 
 func (s *LocalPeer) handleMatchmakerResult(operation string, err error, payload interface{}, baseFields []zap.Field) {

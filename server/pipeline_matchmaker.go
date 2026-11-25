@@ -86,7 +86,7 @@ func (p *Pipeline) matchmakerAdd(ctx context.Context, logger *zap.Logger, sessio
 	}}
 
 	// Run matchmaker add.
-	ticket, _, err := p.matchmaker.Add(ctx, presences, session.ID().String(), "", query, minCount, maxCount, countMultiple, incoming.StringProperties, incoming.NumericProperties)
+	ticket, createdAt, err := p.matchmaker.Add(ctx, presences, session.ID().String(), "", query, minCount, maxCount, countMultiple, incoming.StringProperties, incoming.NumericProperties)
 	if err != nil {
 		logger.Error("Error adding to matchmaker", zap.Error(err))
 		_ = session.Send(&rtapi.Envelope{Cid: envelope.Cid, Message: &rtapi.Envelope_Error{Error: &rtapi.Error{
@@ -108,6 +108,8 @@ func (p *Pipeline) matchmakerAdd(ctx context.Context, logger *zap.Logger, sessio
 			CountMultiple:     countMultiple,
 			StringProperties:  incoming.StringProperties,
 			NumericProperties: incoming.NumericProperties,
+			Ticket:            ticket,
+			CreatedAt:         createdAt,
 		}))
 	}
 

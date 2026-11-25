@@ -21,12 +21,12 @@ import (
 	"github.com/doublemo/nakama-plus/v3/internal/worker"
 	"github.com/gofrs/uuid/v5"
 	"github.com/hashicorp/memberlist"
-	uberatomic "go.uber.org/atomic"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -124,7 +124,8 @@ type (
 		protojsonMarshaler     *protojson.MarshalOptions
 		protojsonUnmarshaler   *protojson.UnmarshalOptions
 		db                     *sql.DB
-		partyIndexOffset       *uberatomic.Int64
+		binaryLogBroadcastMu   sync.Mutex
+		replicationMu          sync.Mutex
 		createTime             time.Time
 
 		once sync.Once
@@ -157,6 +158,7 @@ func NewLocalPeer(db *sql.DB, logger *zap.Logger, name string, metadata map[stri
 		leaderboardCache:       leaderboardCache,
 		leaderboardRankCache:   leaderboardRankCache,
 		leaderboardScheduler:   leaderboardScheduler,
+		binaryLog:              NewLocalBinaryLog(logger, name),
 		inbox:                  NewPeerInbox(),
 		msgChan:                make(chan *peerMsg, c.BroadcastQueueSize),
 		binaryLogBroadcastChan: make(chan *binaryLogMsg, 16),
@@ -166,7 +168,6 @@ func NewLocalPeer(db *sql.DB, logger *zap.Logger, name string, metadata map[stri
 		protojsonUnmarshaler:   protojsonUnmarshaler,
 		db:                     db,
 		runtime:                runtime,
-		partyIndexOffset:       uberatomic.NewInt64(0),
 		createTime:             createTime,
 	}
 
@@ -178,7 +179,6 @@ func NewLocalPeer(db *sql.DB, logger *zap.Logger, name string, metadata map[stri
 
 	s.endpoint.BindMemberlistNode(m.LocalNode())
 	s.memberlist = m
-	s.binaryLog = NewLocalBinaryLog(logger, name)
 
 	s.transmitLimitedQueue = &memberlist.TransmitLimitedQueue{
 		NumNodes: func() int {
@@ -258,97 +258,55 @@ func (s *LocalPeer) GetBroadcasts(overhead, limit int) [][]byte {
 // data can be sent here. See MergeRemoteState as well. The `join`
 // boolean indicates this is for a join instead of a push/pull.
 func (s *LocalPeer) LocalState(join bool) []byte {
-	state := &pb.State{
-		Node:  s.endpoint.Name(),
-		Nodes: make([]*pb.StateNode, 0),
-	}
-
-	nodesMap := make(map[string]int)
-	state.Nodes = append(state.Nodes, &pb.StateNode{
-		Node:            s.endpoint.Name(),
-		Version:         s.binaryLog.GetVersion(),
-		Presences:       make([]*pb.Presence, 0),
-		Matchmaker:      make([]*pb.MatchmakerExtract, 0),
-		PartyIndexEntry: make([]*pb.Party_IndexEntry, 0),
-	})
-	nodesMap[s.endpoint.Name()] = 0
-	presencesMap := make(map[uuid.UUID]int)
+	node := s.endpoint.Name()
+	// Read the version before collecting data so a concurrent mutation can still
+	// be applied from its delta or from a subsequent snapshot.
+	local := &pb.StateNode{Node: node, Version: s.binaryLog.GetVersion()}
 	s.tracker.Range(func(sessionID uuid.UUID, presences []*Presence) bool {
+		byUser := make(map[uuid.UUID]*pb.Presence)
 		for _, presence := range presences {
-			presenceStream := &pb.PresenceStream{
-				Mode:       uint32(presence.Stream.Mode),
-				Subject:    presence.Stream.Subject.String(),
-				Subcontext: presence.Stream.Subcontext.String(),
-				Label:      presence.Stream.Label,
+			if presence.ID.Node != node {
+				continue
 			}
-
-			presenceMeta := &pb.PresenceMeta{
+			p := byUser[presence.UserID]
+			if p == nil {
+				p = &pb.Presence{Node: node, SessionID: sessionID.String(), UserID: presence.UserID.String()}
+				byUser[presence.UserID] = p
+				local.Presences = append(local.Presences, p)
+			}
+			p.Stream = append(p.Stream, presenceStream2PB(presence.Stream))
+			p.Meta = append(p.Meta, &pb.PresenceMeta{
 				SessionFormat: uint32(presence.Meta.Format),
 				Hidden:        presence.Meta.Hidden,
 				Persistence:   presence.Meta.Persistence,
 				Username:      presence.Meta.Username,
 				Status:        presence.Meta.Status,
 				Reason:        atomic.LoadUint32(&presence.Meta.Reason),
-			}
-
-			nodeIdx, ok := nodesMap[presence.GetNodeId()]
-			if !ok {
-				state.Nodes = append(state.Nodes, &pb.StateNode{
-					Node:       presence.GetNodeId(),
-					Version:    s.binaryLog.GetVersionByNode(presence.GetNodeId()),
-					Presences:  make([]*pb.Presence, 0),
-					Matchmaker: make([]*pb.MatchmakerExtract, 0),
-				})
-				nodeIdx = len(state.Nodes) - 1
-				nodesMap[presence.GetNodeId()] = nodeIdx
-			}
-
-			idx, ok := presencesMap[presence.ID.SessionID]
-			if ok {
-				state.Nodes[nodeIdx].Presences[idx].Stream = append(state.Nodes[nodeIdx].Presences[idx].Stream, presenceStream)
-				state.Nodes[nodeIdx].Presences[idx].Meta = append(state.Nodes[nodeIdx].Presences[idx].Meta, presenceMeta)
-				continue
-			}
-
-			p := &pb.Presence{
-				SessionID: presence.GetSessionId(),
-				UserID:    presence.GetUserId(),
-				Stream:    []*pb.PresenceStream{presenceStream},
-				Meta:      []*pb.PresenceMeta{presenceMeta},
-				Node:      presence.GetNodeId(),
-			}
-			state.Nodes[nodeIdx].Presences = append(state.Nodes[nodeIdx].Presences, p)
-			presencesMap[presence.ID.SessionID] = len(state.Nodes[nodeIdx].Presences) - 1
+			})
 		}
 		return true
 	})
 
 	for _, extract := range s.matchmaker.Extract() {
-		state.Nodes[0].Matchmaker = append(state.Nodes[0].Matchmaker, matchmakerExtract2pb(extract))
+		local.Matchmaker = append(local.Matchmaker, matchmakerExtract2pb(extract))
 	}
 
-	if partyIndexs, err := s.partyRegistry.Extract(s.ctx, int(s.partyIndexOffset.Load()), 10000); err != nil {
-		s.logger.Warn("Failed to get party index", zap.Error(err))
-		s.partyIndexOffset.Store(0)
-	} else {
-		for _, index := range partyIndexs {
-			state.Nodes[0].PartyIndexEntry = append(state.Nodes[0].PartyIndexEntry, partyIndex2pb(index))
-		}
-
-		indexSize := len(partyIndexs)
-		if indexSize == 0 {
-			s.partyIndexOffset.Store(0)
-		} else {
-			s.partyIndexOffset.Store(int64(indexSize) + 10000)
-		}
+	parties, err := s.partyRegistry.ExtractLocal(s.ctx)
+	if err != nil {
+		s.logger.Warn("Failed to get local party index", zap.Error(err))
+		return nil
+	}
+	for _, entry := range parties {
+		local.PartyIndexEntry = append(local.PartyIndexEntry, partyIndex2pb(entry))
 	}
 
+	state := &pb.State{Node: node, Nodes: []*pb.StateNode{local}}
 	bytes, err := proto.Marshal(state)
 	if err != nil {
 		s.logger.Warn("Failed to marshal LocalState", zap.Error(err))
 		return nil
 	}
-	return bytes
+	return protowire.AppendVarint(protowire.AppendTag(bytes, peerStateCompleteField, protowire.VarintType), 1)
 }
 
 // MergeRemoteState is invoked after a TCP Push/Pull. This is the
@@ -486,6 +444,12 @@ func (s *LocalPeer) NotifyLeave(node *memberlist.Node) {
 						zap.Any("error", r))
 				}
 			}()
+
+			s.replicationMu.Lock()
+			defer s.replicationMu.Unlock()
+			if _, rejoined := s.members.Load(node.Name); rejoined {
+				return
+			}
 
 			// Clean up tracking data
 			nodeMap := map[string]bool{node.Name: true}
@@ -851,6 +815,11 @@ func (s *LocalPeer) Request(ctx context.Context, endpoint Endpoint, msg *pb.Peer
 }
 
 func (s *LocalPeer) BinaryLogBroadcast(b *pb.BinaryLog, toQueue bool) {
+	s.binaryLogBroadcastMu.Lock()
+	defer s.binaryLogBroadcastMu.Unlock()
+	b.Node = s.endpoint.Name()
+	b.Version = s.binaryLog.RefreshVersion()
+
 	select {
 	case s.binaryLogBroadcastChan <- &binaryLogMsg{toQueue: toQueue, msg: b}:
 		// Binary log queued successfully
@@ -1081,8 +1050,6 @@ func (s *LocalPeer) processBinaryLogBroadcast() {
 				return
 			}
 
-			m.msg.Node = s.endpoint.Name()
-			m.msg.Version = s.binaryLog.RefreshVersion()
 			frame := &pb.Frame{
 				Id:        uuid.Must(uuid.NewV4()).String(),
 				Inbox:     "",
@@ -1243,35 +1210,80 @@ func (s *LocalPeer) onMergeRemoteState(buf []byte, join bool) {
 		return
 	}
 
-	nodeNames := make(map[string]bool)
-	nodeMap := make(map[string]*pb.StateNode)
-	currentNode := s.endpoint.Name()
-	for _, stateNode := range state.GetNodes() {
-		if stateNode.Node == currentNode {
+	node := state.GetNode()
+	if node == "" || node == s.endpoint.Name() {
+		return
+	}
+	for _, snapshot := range state.GetNodes() {
+		if snapshot.GetNode() != node {
 			continue
 		}
+		s.replicationMu.Lock()
+		defer s.replicationMu.Unlock()
+		s.mergeOwnerSnapshot(snapshot, peerStateIsComplete(&state))
+		return
+	}
+}
 
-		if stateNode.Version <= s.binaryLog.GetVersionByNode(stateNode.Node) {
-			continue
+// Field 100 of the State wire message marks a snapshot with a complete Party
+// index. Older peers omit it and can send a partial or mixed-owner index.
+const peerStateCompleteField protowire.Number = 100
+
+func peerStateIsComplete(state *pb.State) bool {
+	for data := state.ProtoReflect().GetUnknown(); len(data) > 0; {
+		num, typ, n := protowire.ConsumeTag(data)
+		if n < 0 {
+			return false
 		}
-		nodeNames[stateNode.Node] = true
-		nodeMap[stateNode.Node] = stateNode
+		data = data[n:]
+		if num == peerStateCompleteField && typ == protowire.VarintType {
+			value, n := protowire.ConsumeVarint(data)
+			return n > 0 && value == 1
+		}
+		n = protowire.ConsumeFieldValue(num, typ, data)
+		if n < 0 {
+			return false
+		}
+		data = data[n:]
+	}
+	return false
+}
+
+func (s *LocalPeer) mergeOwnerSnapshot(snapshot *pb.StateNode, complete bool) {
+	node, version := snapshot.GetNode(), snapshot.GetVersion()
+	// Equal versions can still contain a change whose delta was dropped or
+	// arrived out of order. Older snapshots cannot replace newer deltas.
+	if complete && version >= s.binaryLog.GetVersionByNode(node, peerLogParty) {
+		if err := s.partyRegistry.SyncData(s.ctx, node, snapshot.GetPartyIndexEntry()); err != nil {
+			s.logger.Warn("Failed to reconcile remote party index", zap.String("node", node), zap.Error(err))
+		} else {
+			s.binaryLog.SetVersionByNode(node, peerLogParty, version)
+		}
+	}
+	if version < s.binaryLog.GetVersionByNode(node, peerLogPresenceMatchmaker) {
+		return
 	}
 
-	s.tracker.ClearTrackByNode(nodeNames)
-	s.matchmaker.RemoveAll(nodeNames)
-	for node, stateNode := range nodeMap {
-		s.binaryLog.SetVersionByNode(node, stateNode.Version)
-		s.tracker.MergeRemoteState(node, stateNode.GetPresences())
-
-		matchmakerExtracts := make([]*MatchmakerExtract, len(stateNode.GetMatchmaker()))
-		for k, v := range stateNode.GetMatchmaker() {
-			matchmakerExtracts[k] = pb2MatchmakerExtract(v)
+	for _, presence := range snapshot.GetPresences() {
+		if presence.GetNode() != node || len(presence.GetStream()) != len(presence.GetMeta()) {
+			s.logger.Warn("Invalid presence in remote snapshot", zap.String("node", node))
+			return
 		}
-		s.matchmaker.Insert(matchmakerExtracts)
-		s.partyRegistry.SyncData(s.ctx, node, stateNode.GetPartyIndexEntry())
-		s.logger.Debug("processed MergeRemoteState", zap.String("node", node), zap.Any("state", stateNode))
 	}
+	extracts := make([]*MatchmakerExtract, 0, len(snapshot.GetMatchmaker()))
+	for _, extract := range snapshot.GetMatchmaker() {
+		if extract.GetNode() != node || extract.GetTicket() == "" {
+			s.logger.Warn("Invalid matchmaker owner in remote snapshot", zap.String("node", node))
+			return
+		}
+		extracts = append(extracts, pb2MatchmakerExtract(extract))
+	}
+	if err := s.matchmaker.ReplaceFromNode(node, extracts); err != nil {
+		s.logger.Warn("Failed to reconcile remote matchmaker", zap.String("node", node), zap.Error(err))
+		return
+	}
+	s.tracker.MergeRemoteState(node, snapshot.GetPresences())
+	s.binaryLog.SetVersionByNode(node, peerLogPresenceMatchmaker, version)
 }
 
 func (s *LocalPeer) onResponseWriter(frame *pb.Frame) {

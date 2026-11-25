@@ -70,6 +70,7 @@ type PartyRegistry interface {
 	LabelUpdate(id uuid.UUID, node, label string, open, hidden bool, maxSize int, createTime time.Time) error
 
 	Extract(ctx context.Context, offset, limit int) ([]*PartyIndexEntry, error)
+	ExtractLocal(ctx context.Context) ([]*PartyIndexEntry, error)
 	SyncData(ctx context.Context, nodeName string, data []*pb.Party_IndexEntry) error
 }
 
@@ -178,15 +179,13 @@ func (p *LocalPartyRegistry) Init(matchmaker Matchmaker, tracker Tracker, stream
 
 func (p *LocalPartyRegistry) processUpdates(batch *index.Batch) {
 	p.pendingUpdatesMutex.Lock()
+	defer p.pendingUpdatesMutex.Unlock()
 	if len(p.pendingUpdates) == 0 {
-		p.pendingUpdatesMutex.Unlock()
 		return
 	}
-	pendingUpdates := p.pendingUpdates
-	p.pendingUpdates = make(map[string]*PartyIndexEntry, len(pendingUpdates)+10)
-	p.pendingUpdatesMutex.Unlock()
+	defer batch.Reset()
 
-	for id, op := range pendingUpdates {
+	for id, op := range p.pendingUpdates {
 		if op == nil {
 			batch.Delete(bluge.Identifier(id))
 			continue
@@ -194,14 +193,16 @@ func (p *LocalPartyRegistry) processUpdates(batch *index.Batch) {
 		doc, err := MapPartyIndexEntry(id, op)
 		if err != nil {
 			p.logger.Error("error mapping party index entry to doc: %v", zap.Error(err))
+			return
 		}
 		batch.Update(bluge.Identifier(id), doc)
 	}
 
 	if err := p.indexWriter.Batch(batch); err != nil {
 		p.logger.Error("error processing party label updates", zap.Error(err))
+		return
 	}
-	batch.Reset()
+	clear(p.pendingUpdates)
 }
 
 func (p *LocalPartyRegistry) Create(open, hidden bool, maxSize int, presence *rtapi.UserPresence, label string) (*PartyHandler, error) {

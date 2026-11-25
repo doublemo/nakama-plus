@@ -16,23 +16,23 @@ func (t *LocalTracker) SetPeer(peer Peer) {
 
 func (t *LocalTracker) Range(fn func(sessionID uuid.UUID, presences []*Presence) bool) {
 	t.RLock()
-	for sesionID, bySession := range t.presencesBySession {
+	defer t.RUnlock()
+	for sessionID, bySession := range t.presencesBySession {
 		presences := make([]*Presence, 0, len(bySession))
 		for _, v := range bySession {
 			presences = append(presences, v)
 		}
 
-		t.RUnlock()
-		if !fn(sesionID, presences) {
+		if !fn(sessionID, presences) {
 			return
 		}
-		t.RLock()
 	}
-	t.RUnlock()
 }
 
 func (t *LocalTracker) MergeRemoteState(fromNode string, presences []*pb.Presence) {
 	t.Lock()
+	defer t.Unlock()
+	t.clearTrackByNodeLocked(map[string]bool{fromNode: true})
 	for _, presence := range presences {
 		sessionID := uuid.FromStringOrNil(presence.GetSessionID())
 		userID := uuid.FromStringOrNil(presence.GetUserID())
@@ -71,7 +71,6 @@ func (t *LocalTracker) MergeRemoteState(fromNode string, presences []*pb.Presenc
 			}
 		}
 	}
-	t.Unlock()
 }
 
 func (t *LocalTracker) ClearRemoteTrack() {
@@ -116,11 +115,15 @@ func (t *LocalTracker) ClearRemoteTrack() {
 
 func (t *LocalTracker) ClearTrackByNode(nodes map[string]bool) {
 	t.Lock()
+	t.clearTrackByNodeLocked(nodes)
+	t.Unlock()
+}
+
+func (t *LocalTracker) clearTrackByNodeLocked(nodes map[string]bool) {
 	for sessionID, bySession := range t.presencesBySession {
-		deleted := false
 		for pc := range bySession {
 			if !nodes[pc.ID.Node] {
-				break
+				continue
 			}
 
 			// Update the tracking for stream.
@@ -144,14 +147,13 @@ func (t *LocalTracker) ClearTrackByNode(nodes map[string]bool) {
 				}
 			}
 			t.count.Dec()
-			deleted = true
+			delete(bySession, pc)
 		}
 
-		if deleted {
+		if len(bySession) == 0 {
 			delete(t.presencesBySession, sessionID)
 		}
 	}
-	t.Unlock()
 }
 
 func (t *LocalTracker) TrackPeer(sessionID uuid.UUID, userID uuid.UUID, ops []*TrackerOp) {

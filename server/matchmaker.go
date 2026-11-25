@@ -181,6 +181,7 @@ type Matchmaker interface {
 	OnStatsUpdate(fn func(stats *api.MatchmakerStats))
 	Add(ctx context.Context, presences []*MatchmakerPresence, sessionID, partyId, query string, minCount, maxCount, countMultiple int, stringProperties map[string]string, numericProperties map[string]float64) (string, int64, error)
 	Insert(extracts []*MatchmakerExtract) error
+	ReplaceFromNode(node string, extracts []*MatchmakerExtract) error
 	Extract() []*MatchmakerExtract
 	RemoveSession(sessionID, ticket string) error
 	RemoveSessionAll(sessionID string) error
@@ -686,10 +687,18 @@ func (m *LocalMatchmaker) Add(ctx context.Context, presences []*MatchmakerPresen
 }
 
 func (m *LocalMatchmaker) Insert(extracts []*MatchmakerExtract) error {
-	if m.stopped.Load() {
+	if len(extracts) == 0 {
 		return nil
 	}
-	if len(extracts) == 0 {
+	return m.insert(extracts, "")
+}
+
+func (m *LocalMatchmaker) ReplaceFromNode(node string, extracts []*MatchmakerExtract) error {
+	return m.insert(extracts, node)
+}
+
+func (m *LocalMatchmaker) insert(extracts []*MatchmakerExtract, replaceNode string) error {
+	if m.stopped.Load() {
 		return nil
 	}
 
@@ -697,15 +706,18 @@ func (m *LocalMatchmaker) Insert(extracts []*MatchmakerExtract) error {
 	indexes := make(map[string]*MatchmakerIndex, len(extracts))
 
 	for _, extract := range extracts {
+		if _, duplicate := indexes[extract.Ticket]; duplicate {
+			return runtime.ErrMatchmakerIndex
+		}
 		parsedQuery, err := ParseQueryString(extract.Query)
 		if err != nil {
 			m.logger.Error("error parsing matchmaker query", zap.Error(err), zap.String("query", extract.Query))
-			continue
+			return runtime.ErrMatchmakerQueryInvalid
 		}
 		if parsedQuery, ok := parsedQuery.(ValidatableQuery); ok {
 			if parsedQuery.Validate() != nil {
 				m.logger.Error("error validating matchmaker query", zap.String("query", extract.Query))
-				continue
+				return runtime.ErrMatchmakerQueryInvalid
 			}
 		}
 
@@ -721,7 +733,7 @@ func (m *LocalMatchmaker) Insert(extracts []*MatchmakerExtract) error {
 		for _, presence := range extract.Presences {
 			if _, found := sessionIDs[presence.SessionId]; found {
 				m.logger.Error("error checking matchmaker session duplicates", zap.String("session_id", presence.SessionId))
-				continue
+				return runtime.ErrMatchmakerDuplicateSession
 			}
 			sessionIDs[presence.SessionId] = struct{}{}
 		}
@@ -751,10 +763,10 @@ func (m *LocalMatchmaker) Insert(extracts []*MatchmakerExtract) error {
 			matchmakerIndexDoc, err := MapMatchmakerIndex(extract.Ticket, index)
 			if err != nil {
 				m.logger.Error("error mapping matchmaker index document", zap.Error(err))
-				continue
+				return runtime.ErrMatchmakerIndex
 			}
 
-			batch.Insert(matchmakerIndexDoc)
+			batch.Update(bluge.Identifier(extract.Ticket), matchmakerIndexDoc)
 		}
 
 		index.Entries = make([]*MatchmakerEntry, 0, len(extract.Presences))
@@ -773,16 +785,40 @@ func (m *LocalMatchmaker) Insert(extracts []*MatchmakerExtract) error {
 	}
 
 	m.Lock()
+	defer m.Unlock()
+
+	var replaced []string
+	if replaceNode != "" {
+		for ticket, index := range m.indexes {
+			if index.Node != replaceNode {
+				continue
+			}
+			replaced = append(replaced, ticket)
+			if _, ok := indexes[ticket]; !ok && m.runtime.matchmakerProcessorFunction == nil {
+				batch.Delete(bluge.Identifier(ticket))
+			}
+		}
+	}
+	for ticket, index := range indexes {
+		if current := m.indexes[ticket]; current != nil && current.Node != index.Node {
+			return runtime.ErrMatchmakerIndex
+		}
+	}
 
 	if m.runtime.matchmakerProcessorFunction == nil {
 		// Index not used when custom matchmaking processor is registered.
 		if err := m.indexWriter.Batch(batch); err != nil {
-			m.Unlock()
 			m.logger.Error("error indexing matchmaker entries", zap.Error(err))
 			return runtime.ErrMatchmakerIndex
 		}
 	}
+	for _, ticket := range replaced {
+		m.removeTicketLocked(ticket, m.indexes[ticket])
+	}
 	for ticket, index := range indexes {
+		if current := m.indexes[ticket]; current != nil {
+			m.removeTicketLocked(ticket, current)
+		}
 		m.indexes[ticket] = index
 
 		if m.runtime.matchmakerProcessorFunction == nil {
@@ -809,9 +845,29 @@ func (m *LocalMatchmaker) Insert(extracts []*MatchmakerExtract) error {
 		}
 	}
 
-	m.Unlock()
-
 	return nil
+}
+
+func (m *LocalMatchmaker) removeTicketLocked(ticket string, index *MatchmakerIndex) {
+	delete(m.indexes, ticket)
+	delete(m.activeIndexes, ticket)
+	if m.runtime.matchmakerProcessorFunction == nil {
+		m.revCache.Delete(ticket)
+	}
+	if index.PartyId != "" {
+		partyTickets := m.partyTickets[index.PartyId]
+		delete(partyTickets, ticket)
+		if len(partyTickets) == 0 {
+			delete(m.partyTickets, index.PartyId)
+		}
+	}
+	for sessionID := range index.SessionIDs {
+		sessionTickets := m.sessionTickets[sessionID]
+		delete(sessionTickets, ticket)
+		if len(sessionTickets) == 0 {
+			delete(m.sessionTickets, sessionID)
+		}
+	}
 }
 
 func (m *LocalMatchmaker) Extract() []*MatchmakerExtract {

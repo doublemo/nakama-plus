@@ -644,7 +644,7 @@ func (p *PartyHandler) MatchmakerAdd(sessionID, node, query string, minCount, ma
 
 	p.RUnlock()
 
-	ticket, _, err := p.matchmaker.Add(p.ctx, presences, "", p.IDStr, query, minCount, maxCount, countMultiple, stringProperties, numericProperties)
+	ticket, createdAt, err := p.matchmaker.Add(p.ctx, presences, "", p.IDStr, query, minCount, maxCount, countMultiple, stringProperties, numericProperties)
 	if err != nil {
 		return "", nil, err
 	}
@@ -660,6 +660,8 @@ func (p *PartyHandler) MatchmakerAdd(sessionID, node, query string, minCount, ma
 			CountMultiple:     countMultiple,
 			StringProperties:  stringProperties,
 			NumericProperties: numericProperties,
+			Ticket:            ticket,
+			CreatedAt:         createdAt,
 		}))
 	}
 	return ticket, memberPresenceIDs, nil
