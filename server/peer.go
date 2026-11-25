@@ -107,6 +107,7 @@ type (
 		runtime                *Runtime
 		metrics                Metrics
 		sessionRegistry        SessionRegistry
+		streamManager          StreamManager
 		messageRouter          MessageRouter
 		tracker                Tracker
 		matchRegistry          MatchRegistry
@@ -151,6 +152,7 @@ func NewLocalPeer(db *sql.DB, logger *zap.Logger, name string, metadata map[stri
 		serviceRegistry:        kit.NewLocalServiceRegistry(ctx, logger, name),
 		metrics:                metrics,
 		sessionRegistry:        sessionRegistry,
+		streamManager:          NewLocalStreamManager(config, sessionRegistry, tracker),
 		matchRegistry:          matchRegistry,
 		matchmaker:             matchmaker,
 		partyRegistry:          partyRegistry,
@@ -771,11 +773,10 @@ func (s *LocalPeer) Request(ctx context.Context, endpoint Endpoint, msg *pb.Peer
 	}
 
 	replyChan := make(chan *pb.Frame, 1)
-	s.inbox.Register(request.Inbox, replyChan)
-	defer func() {
-		s.inbox.Deregister(request.Inbox)
-		close(replyChan)
-	}()
+	if err := s.inbox.Register(request.Inbox, replyChan); err != nil {
+		return nil, err
+	}
+	defer s.inbox.Deregister(request.Inbox)
 
 	// Send request with error handling
 	if err := s.memberlist.SendReliable(endpoint.MemberlistNode(), b); err != nil {
@@ -785,11 +786,7 @@ func (s *LocalPeer) Request(ctx context.Context, endpoint Endpoint, msg *pb.Peer
 
 	// Wait for response with proper timeout handling
 	select {
-	case response, ok := <-replyChan:
-		if !ok {
-			return nil, status.Error(codes.Internal, "reply channel closed unexpectedly")
-		}
-
+	case response := <-replyChan:
 		envelope := response.GetEnvelope()
 		if envelope == nil {
 			return nil, status.Error(codes.InvalidArgument, "received invalid response format")
@@ -1186,7 +1183,13 @@ func (s *LocalPeer) onNotifyMsg(msg []byte) {
 		cid := v.Envelope.GetCid()
 		switch cid {
 		case "REQ", "":
-			s.onRequest(&frame)
+			switch v.Envelope.Payload.(type) {
+			case *pb.Peer_Envelope_PartyAccept, *pb.Peer_Envelope_PartyRemove:
+				// These requests can wait for a second peer. Keep processing its reply.
+				s.wk.Submit(func() { s.onRequest(&frame) })
+			default:
+				s.onRequest(&frame)
+			}
 
 		case "RESP":
 			s.onResponseWriter(&frame)

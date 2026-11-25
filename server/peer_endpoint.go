@@ -293,7 +293,7 @@ func (endpoint *PeerEndpoint) MarshalJSON() ([]byte, error) {
 func (endpoint *PeerEndpoint) MarshalProtoBuffer() ([]byte, error) {
 	md := &pb.NodeMeta{
 		Name:        endpoint.Name(),
-		Vars:        make(map[string]string),
+		Vars:        map[string]string{partyStreamCapability: "1"},
 		Role:        kit.SERVICE_NAME,
 		Status:      pb.NodeMeta_Status(endpoint.Status()),
 		Weight:      endpoint.Weight(),

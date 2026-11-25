@@ -50,6 +50,17 @@ func (s *LocalPeer) onRequest(frame *pb.Frame) {
 	if request == nil {
 		return
 	}
+	if operation := request.GetContext()[partyStreamCapability]; operation != "" {
+		if _, ok := s.members.Load(frame.GetNode()); !ok || frame.GetInbox() == "" || request.GetCid() != "REQ" || request.GetPayload() != nil {
+			return
+		}
+		if err := s.applyPartyStreamChange(frame.GetNode(), request.GetContext()); err != nil {
+			w(&pb.Peer_Envelope{Payload: newEnvelopeError(err)})
+		} else {
+			w(&pb.Peer_Envelope{Context: map[string]string{partyStreamCapability: "ok"}})
+		}
+		return
+	}
 
 	s.logger.Debug("onRequest", zap.Any("request", request), zap.String("node", frame.Node))
 	switch request.Payload.(type) {

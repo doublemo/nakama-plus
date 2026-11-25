@@ -124,7 +124,7 @@ func (m *PartyPresenceList) Leave(leaves []*Presence) ([]*Presence, []*Presence)
 			delete(m.reservedMap, leave.ID.SessionID)
 			reservations = append(reservations, leave)
 		}
-		if _, ok := m.presenceMap[leave.ID.SessionID]; ok {
+		if node, ok := m.presenceMap[leave.ID.SessionID]; ok && node == leave.ID.Node {
 			for i, presence := range m.presences {
 				if presence.Presence.ID.SessionID == leave.ID.SessionID && presence.Presence.ID.Node == leave.ID.Node {
 					copy(m.presences[i:], m.presences[i+1:])
@@ -148,6 +148,13 @@ func (m *PartyPresenceList) Leave(leaves []*Presence) ([]*Presence, []*Presence)
 
 func (m *PartyPresenceList) List() []*PartyPresenceListItem {
 	return m.presencesRead.Load().([]*PartyPresenceListItem)
+}
+
+func (m *PartyPresenceList) Contains(id PresenceID) bool {
+	m.RLock()
+	defer m.RUnlock()
+	node, ok := m.presenceMap[id.SessionID]
+	return ok && node == id.Node
 }
 
 func (m *PartyPresenceList) Size() int {

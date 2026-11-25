@@ -28,8 +28,13 @@ import (
 )
 
 type PartyJoinRequest struct {
-	Presence     *Presence
-	UserPresence *rtapi.UserPresence
+	Presence          *Presence
+	UserPresence      *rtapi.UserPresence
+	acceptUnconfirmed bool
+}
+
+type partyMemberChange struct {
+	left bool
 }
 
 type PartyLeader struct {
@@ -54,14 +59,15 @@ type PartyHandler struct {
 	MaxSize    int
 	Stream     PresenceStream
 
-	stopped               bool
-	tick                  *atomic.Int64
-	lastIdleCheckTick     *atomic.Int64
-	ctx                   context.Context
-	ctxCancelFn           context.CancelFunc
-	expectedInitialLeader *Presence
-	leader                *PartyLeader
-	joinRequests          []*PartyJoinRequest
+	stopped           bool
+	tick              *atomic.Int64
+	lastIdleCheckTick *atomic.Int64
+	ctx               context.Context
+	ctxCancelFn       context.CancelFunc
+	leader            *PartyLeader
+	joinRequests      []*PartyJoinRequest
+	memberChanges     map[uuid.UUID]*partyMemberChange
+	confirmedMembers  map[uuid.UUID]struct{}
 
 	members *PartyPresenceList
 	peer    Peer
@@ -101,17 +107,18 @@ func NewPartyHandler(logger *zap.Logger, partyRegistry PartyRegistry, matchmaker
 		MaxSize:    maxSize,
 		Stream:     stream,
 
-		stopped:               false,
-		tick:                  &atomic.Int64{},
-		lastIdleCheckTick:     &atomic.Int64{},
-		ctx:                   ctx,
-		ctxCancelFn:           ctxCancelFn,
-		expectedInitialLeader: leaderPresence,
+		stopped:           false,
+		tick:              &atomic.Int64{},
+		lastIdleCheckTick: &atomic.Int64{},
+		ctx:               ctx,
+		ctxCancelFn:       ctxCancelFn,
 		leader: &PartyLeader{
 			PresenceID:   &leaderPresence.ID,
 			UserPresence: presence,
 		},
-		joinRequests: make([]*PartyJoinRequest, 0, maxSize),
+		joinRequests:     make([]*PartyJoinRequest, 0, maxSize),
+		memberChanges:    make(map[uuid.UUID]*partyMemberChange),
+		confirmedMembers: map[uuid.UUID]struct{}{leaderPresence.ID.SessionID: {}},
 
 		members: NewPartyPresenceList(maxSize),
 		peer:    peer,
@@ -176,9 +183,11 @@ func (p *PartyHandler) JoinRequest(presence *Presence) (bool, error) {
 		}
 	}
 	// Check if party already has this user.
-	if _, ok := p.members.presenceMap[presence.UserID]; ok {
-		p.Unlock()
-		return false, runtime.ErrPartyJoinRequestAlreadyMember
+	for _, member := range p.members.List() {
+		if member.Presence.UserID == presence.UserID {
+			p.Unlock()
+			return false, runtime.ErrPartyJoinRequestAlreadyMember
+		}
 	}
 
 	joinRequest := &PartyJoinRequest{
@@ -210,97 +219,61 @@ func (p *PartyHandler) JoinRequest(presence *Presence) (bool, error) {
 }
 
 func (p *PartyHandler) Join(presences []*Presence) {
-	if len(presences) == 0 {
-		return
-	}
-
 	p.Lock()
 	if p.stopped {
 		p.Unlock()
 		return
 	}
 
-	p.tick.Add(1)
-
-	// Assign the party leader if this is the first join.
-	var initialLeader *Presence
-	if p.expectedInitialLeader != nil {
-		initialLeader = p.expectedInitialLeader
-		p.expectedInitialLeader = nil
-	}
-	if p.leader == nil {
-		if initialLeader != nil {
-			p.leader = &PartyLeader{
-				PresenceID: &initialLeader.ID,
-				UserPresence: &rtapi.UserPresence{
-					UserId:    initialLeader.GetUserId(),
-					SessionId: initialLeader.GetSessionId(),
-					Username:  initialLeader.GetUsername(),
-				},
-			}
-		} else {
-			// If the expected initial leader was not assigned, select the first joiner. Also
-			// covers the party leader leaving at some point during the lifecycle of the party.
-			p.leader = &PartyLeader{
-				PresenceID: &presences[0].ID,
-				UserPresence: &rtapi.UserPresence{
-					UserId:    presences[0].GetUserId(),
-					SessionId: presences[0].GetSessionId(),
-					Username:  presences[0].GetUsername(),
-				},
-			}
-		}
-	}
-
-	_, err := p.members.Join(presences)
-	if err != nil {
-		p.Unlock()
-		// Should not happen, this process is just a confirmation.
-		p.logger.Error("error in party join", zap.Error(err))
-		return
-	}
-
-	presenceIDs := make(map[*PresenceID]*rtapi.Envelope, len(presences))
+	confirmed := make([]*Presence, 0, len(presences))
 	for _, presence := range presences {
-		currentPresence := presence
-		memberUserPresence := &rtapi.UserPresence{
-			UserId:    presence.GetUserId(),
-			SessionId: presence.GetSessionId(),
-			Username:  presence.GetUsername(),
-		}
-
-		// Prepare message to be sent to the new presences.
-		if initialLeader != nil && presence == initialLeader {
-			// The party creator has already received this message in the pipeline, do not send it to them again.
+		sessionID := presence.ID.SessionID
+		if _, changing := p.memberChanges[sessionID]; changing {
 			continue
 		}
-		presenceIDs[&currentPresence.ID] = &rtapi.Envelope{
-			Message: &rtapi.Envelope_Party{
-				Party: &rtapi.Party{
-					PartyId: p.IDStr,
-					Open:    p.Open,
-					MaxSize: int32(p.MaxSize),
-					Self:    memberUserPresence,
-					Leader:  p.leader.UserPresence,
-					// Presences assigned below.
-				},
-			},
+		if _, alreadyConfirmed := p.confirmedMembers[sessionID]; alreadyConfirmed {
+			continue
 		}
+		// The party host has already admitted members through JoinRequest or
+		// Accept. Delayed tracker events should only confirm that admission.
+		if !p.members.Contains(presence.ID) {
+			continue
+		}
+		p.confirmedMembers[sessionID] = struct{}{}
+		confirmed = append(confirmed, presence)
 	}
-
-	members := p.members.List()
-
+	if len(confirmed) == 0 {
+		p.Unlock()
+		return
+	}
+	p.tick.Add(1)
+	if p.leader == nil {
+		id, user := p.members.Oldest()
+		p.leader = &PartyLeader{PresenceID: id, UserPresence: user}
+	}
+	members, leader, open := p.members.List(), p.leader.UserPresence, p.Open
 	p.Unlock()
 
 	memberUserPresences := make([]*rtapi.UserPresence, 0, len(members))
 	for _, member := range members {
 		memberUserPresences = append(memberUserPresences, member.UserPresence)
 	}
-
-	// Send party info to the new joiners.
-	for presenceID, envelope := range presenceIDs {
-		envelope.GetParty().Presences = memberUserPresences
-		p.router.SendToPresenceIDs(p.logger, []*PresenceID{presenceID}, envelope, true)
+	for _, presence := range confirmed {
+		envelope := &rtapi.Envelope{Message: &rtapi.Envelope_Party{
+			Party: &rtapi.Party{
+				PartyId: p.IDStr,
+				Open:    open,
+				MaxSize: int32(p.MaxSize),
+				Self: &rtapi.UserPresence{
+					UserId:    presence.GetUserId(),
+					SessionId: presence.GetSessionId(),
+					Username:  presence.GetUsername(),
+				},
+				Leader:    leader,
+				Presences: memberUserPresences,
+			},
+		}}
+		p.router.SendToPresenceIDs(p.logger, []*PresenceID{&presence.ID}, envelope, true)
 	}
 }
 
@@ -317,12 +290,20 @@ func (p *PartyHandler) Leave(presences []*Presence) {
 
 	p.tick.Add(1)
 
+	for _, presence := range presences {
+		if change := p.memberChanges[presence.ID.SessionID]; change != nil {
+			change.left = true
+		}
+	}
 	presences, _ = p.members.Leave(presences)
 	if len(presences) == 0 {
 		p.Unlock()
 		return
 	}
 
+	for _, presence := range presences {
+		delete(p.confirmedMembers, presence.ID.SessionID)
+	}
 	// Remove the leader if they've left.
 	for _, presence := range presences {
 		if p.leader != nil && p.leader.PresenceID.SessionID == presence.ID.SessionID && p.leader.PresenceID.Node == presence.ID.Node {
@@ -418,67 +399,87 @@ func (p *PartyHandler) Promote(sessionID, node string, presence *rtapi.UserPrese
 }
 
 func (p *PartyHandler) Accept(sessionID, node string, presence *rtapi.UserPresence, singleParty bool) error {
+	return p.accept(p.ctx, sessionID, node, presence, singleParty)
+}
+
+func (p *PartyHandler) accept(ctx context.Context, sessionID, node string, presence *rtapi.UserPresence, singleParty bool) error {
 	p.Lock()
 	if p.stopped {
 		p.Unlock()
 		return runtime.ErrPartyClosed
 	}
-
-	// Only the party leader may promote.
 	if p.leader == nil || p.leader.UserPresence.SessionId != sessionID || p.leader.PresenceID.Node != node {
 		p.Unlock()
 		return runtime.ErrPartyNotLeader
 	}
 	p.tick.Add(1)
 
-	// Check if there's room to accept the new party member.
-	if p.members.Size() >= p.MaxSize {
-		p.Unlock()
-		return runtime.ErrPartyFull
-	}
-
-	// Check if the presence has actually requested to join.
-	var idx int
-	var joinRequestPresence *Presence
-	for i, joinRequest := range p.joinRequests {
-		if joinRequest.UserPresence.SessionId == presence.SessionId && joinRequest.UserPresence.UserId == presence.UserId && joinRequest.UserPresence.Username == presence.Username {
-			idx = i
-			joinRequestPresence = joinRequest.Presence
+	var pending *PartyJoinRequest
+	for _, request := range p.joinRequests {
+		if samePartyUser(request.UserPresence, presence) {
+			pending = request
 			break
 		}
 	}
-	if joinRequestPresence == nil {
+	if pending == nil {
+		for _, member := range p.members.List() {
+			if samePartyUser(member.UserPresence, presence) {
+				p.Unlock()
+				return nil
+			}
+		}
 		p.Unlock()
 		return runtime.ErrPartyNotRequest
 	}
 
-	if err := p.members.Reserve(joinRequestPresence); err != nil {
+	target := pending.Presence
+	id := target.ID.SessionID
+	if p.memberChanges[id] != nil {
+		p.Unlock()
+		return runtime.ErrPartyAcceptRequest
+	}
+	if err := p.members.Reserve(target); err != nil {
 		p.Unlock()
 		return err
 	}
-
-	copy(p.joinRequests[idx:], p.joinRequests[idx+1:])
-	p.joinRequests[len(p.joinRequests)-1] = nil
-	p.joinRequests = p.joinRequests[:len(p.joinRequests)-1]
-
+	change := &partyMemberChange{}
+	p.memberChanges[id] = change
 	p.Unlock()
 
-	// Add the presence to the party stream, which will trigger the Join() hook above.
-	success, _, err := p.streamManager.UserJoin(p.Stream, joinRequestPresence.UserID, joinRequestPresence.ID.SessionID, false, false, "")
-	if err != nil || !success {
-		p.members.Release(joinRequestPresence)
+	err := p.joinPartyStream(ctx, target, singleParty)
+
+	p.Lock()
+	delete(p.memberChanges, id)
+	if err != nil {
+		p.members.Release(target)
+		if target.ID.Node != p.Node && partyStreamChangeUncertain(err) {
+			pending.acceptUnconfirmed = true
+		}
+		p.Unlock()
+		p.logger.Debug("Failed to accept party member", zap.String("node", target.ID.Node), zap.Error(err))
 		return runtime.ErrPartyAcceptRequest
 	}
-	if _, err = p.members.Join([]*Presence{joinRequestPresence}); err != nil {
+	if p.stopped || change.left {
+		p.members.Release(target)
+		stopped := p.stopped
+		p.Unlock()
+		// The stream changed while the owner closed the party or the member left.
+		_ = p.leavePartyStream(context.WithoutCancel(ctx), target)
+		if stopped {
+			return runtime.ErrPartyClosed
+		}
+		return runtime.ErrPartyAcceptRequest
+	}
+	if _, err := p.members.Join([]*Presence{target}); err != nil {
+		p.members.Release(target)
+		p.Unlock()
+		_ = p.leavePartyStream(context.WithoutCancel(ctx), target)
 		return err
 	}
+	p.removeJoinRequestLocked(pending)
+	p.Unlock()
 
-	if singleParty {
-		// Kick the user from any other parties they may be part of.
-		p.tracker.UntrackLocalByModes(joinRequestPresence.ID.SessionID, partyStreamMode, p.Stream)
-	}
-
-	// The party membership has changed, stop any ongoing matchmaking processes.
+	p.Join([]*Presence{target})
 	_ = p.matchmaker.RemovePartyAll(p.IDStr)
 	if p.peer != nil {
 		p.peer.MatchmakerRemovePartyAll(p.IDStr)
@@ -487,75 +488,126 @@ func (p *PartyHandler) Accept(sessionID, node string, presence *rtapi.UserPresen
 }
 
 func (p *PartyHandler) Remove(sessionID, node string, presence *rtapi.UserPresence) error {
+	return p.remove(p.ctx, sessionID, node, presence)
+}
+
+func (p *PartyHandler) remove(ctx context.Context, sessionID, node string, presence *rtapi.UserPresence) error {
 	p.Lock()
 	if p.stopped {
 		p.Unlock()
 		return runtime.ErrPartyClosed
 	}
-
-	// Only the party leader may remove.
 	if p.leader == nil || p.leader.UserPresence.SessionId != sessionID || p.leader.PresenceID.Node != node {
 		p.Unlock()
 		return runtime.ErrPartyNotLeader
 	}
 	p.tick.Add(1)
-
-	// Check if the leader is attempting to remove its own presence.
-	if p.leader.UserPresence.SessionId == presence.SessionId && p.leader.UserPresence.UserId == presence.UserId && p.leader.UserPresence.Username == presence.Username {
+	if samePartyUser(p.leader.UserPresence, presence) {
 		p.Unlock()
 		return runtime.ErrPartyRemoveSelf
 	}
 
-	presences := p.members.List()
-
-	// Remove the party member, if found.
-	var removeMember *PartyPresenceListItem
-	for _, item := range presences {
-		if item.UserPresence.SessionId == presence.SessionId && item.UserPresence.UserId == presence.UserId && item.UserPresence.Username == presence.Username {
-			removeMember = item
+	var target *Presence
+	for _, member := range p.members.List() {
+		if samePartyUser(member.UserPresence, presence) {
+			target = member.Presence
 			break
 		}
 	}
-	if removeMember == nil {
-		// Wasn't a party member, check if it's actually a rejected join request.
-		for i, joinRequest := range p.joinRequests {
-			if joinRequest.UserPresence.SessionId == presence.SessionId && joinRequest.UserPresence.UserId == presence.UserId && joinRequest.UserPresence.Username == presence.Username {
-				// Rejected join requests do not require stream removal, they were never part of the stream to begin with.
-				copy(p.joinRequests[i:], p.joinRequests[i+1:])
-				p.joinRequests[len(p.joinRequests)-1] = nil
-				p.joinRequests = p.joinRequests[:len(p.joinRequests)-1]
-
-				p.Unlock()
-				return nil
+	var pending *PartyJoinRequest
+	if target == nil {
+		for _, request := range p.joinRequests {
+			if samePartyUser(request.UserPresence, presence) {
+				pending, target = request, request.Presence
+				break
 			}
 		}
 	}
-
-	p.Unlock()
-
-	if removeMember == nil {
+	if target == nil {
+		p.Unlock()
 		return runtime.ErrPartyNotMember
 	}
 
-	// The party membership has changed, stop any ongoing matchmaking processes.
-	_ = p.matchmaker.RemovePartyAll(p.IDStr)
-	if p.peer != nil {
-		p.peer.MatchmakerRemovePartyAll(p.IDStr)
-	}
-
-	p.members.Leave([]*Presence{removeMember.Presence})
-
-	// Remove the presence from the party stream, which will trigger the Leave() hook above.
-	err := p.streamManager.UserLeave(p.Stream, removeMember.Presence.UserID, removeMember.PresenceID.SessionID)
-	if err != nil {
+	id := target.ID.SessionID
+	if p.memberChanges[id] != nil {
+		p.Unlock()
 		return runtime.ErrPartyRemove
 	}
+	if pending != nil && !pending.acceptUnconfirmed {
+		p.removeJoinRequestLocked(pending)
+		p.Unlock()
+		return nil
+	}
+	change := &partyMemberChange{}
+	p.memberChanges[id] = change
+	p.Unlock()
 
-	p.router.SendToPresenceIDs(p.logger, []*PresenceID{removeMember.PresenceID}, &rtapi.Envelope{Message: &rtapi.Envelope_PartyClose{PartyClose: &rtapi.PartyClose{
-		PartyId: p.IDStr,
-	}}}, true)
+	err := p.leavePartyStream(ctx, target)
+	p.Lock()
+	if err != nil && !change.left {
+		delete(p.memberChanges, id)
+		p.Unlock()
+		p.logger.Debug("Failed to remove party member", zap.String("node", target.ID.Node), zap.Error(err))
+		return runtime.ErrPartyRemove
+	}
+	if pending != nil {
+		p.removeJoinRequestLocked(pending)
+	}
+	p.Unlock()
 
+	if target.ID.Node != p.Node {
+		p.tracker.Untrack(id, p.Stream, target.UserID, target.ID.Node)
+	}
+	p.Leave([]*Presence{target})
+	p.Lock()
+	delete(p.memberChanges, id)
+	p.Unlock()
+
+	if pending == nil {
+		p.router.SendToPresenceIDs(p.logger, []*PresenceID{&target.ID}, &rtapi.Envelope{Message: &rtapi.Envelope_PartyClose{PartyClose: &rtapi.PartyClose{
+			PartyId: p.IDStr,
+		}}}, true)
+	}
 	return nil
+}
+
+func (p *PartyHandler) joinPartyStream(ctx context.Context, target *Presence, singleParty bool) error {
+	if target.ID.Node != p.Node {
+		return requestPartyStreamChange(ctx, p.peer, p.ID, target, true, singleParty)
+	}
+	ok, _, err := p.streamManager.UserJoin(p.Stream, target.UserID, target.ID.SessionID, false, false, "")
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return runtime.ErrPartyAcceptRequest
+	}
+	if singleParty {
+		p.tracker.UntrackByModes(target.ID.SessionID, partyStreamMode, p.Stream)
+	}
+	return nil
+}
+
+func (p *PartyHandler) leavePartyStream(ctx context.Context, target *Presence) error {
+	if target.ID.Node != p.Node {
+		return requestPartyStreamChange(ctx, p.peer, p.ID, target, false, false)
+	}
+	return p.streamManager.UserLeave(p.Stream, target.UserID, target.ID.SessionID)
+}
+
+func (p *PartyHandler) removeJoinRequestLocked(request *PartyJoinRequest) {
+	for i, pending := range p.joinRequests {
+		if pending == request {
+			copy(p.joinRequests[i:], p.joinRequests[i+1:])
+			p.joinRequests[len(p.joinRequests)-1] = nil
+			p.joinRequests = p.joinRequests[:len(p.joinRequests)-1]
+			return
+		}
+	}
+}
+
+func samePartyUser(a, b *rtapi.UserPresence) bool {
+	return a.GetSessionId() == b.GetSessionId() && a.GetUserId() == b.GetUserId() && a.GetUsername() == b.GetUsername()
 }
 
 func (p *PartyHandler) Close(sessionID, node string) error {

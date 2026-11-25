@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"sync"
 	"time"
 
@@ -355,6 +356,9 @@ func (p *LocalPartyRegistry) PartyAccept(ctx context.Context, id uuid.UUID, node
 		if !ok {
 			return ErrPartyNotFound
 		}
+		if needsRemotePartyStream(endpoint, node, presence) {
+			return runtime.ErrPartyAcceptRequest
+		}
 
 		//remote node
 		_, err := peer.Request(ctx, endpoint, &pb.Peer_Envelope{
@@ -376,7 +380,7 @@ func (p *LocalPartyRegistry) PartyAccept(ctx context.Context, id uuid.UUID, node
 		return ErrPartyNotFound
 	}
 
-	return ph.Accept(sessionID, fromNode, presence, p.config.GetSession().SingleParty)
+	return ph.accept(ctx, sessionID, fromNode, presence, p.config.GetSession().SingleParty)
 }
 
 func (p *LocalPartyRegistry) PartyRemove(ctx context.Context, id uuid.UUID, node, sessionID, fromNode string, presence *rtapi.UserPresence) error {
@@ -384,6 +388,19 @@ func (p *LocalPartyRegistry) PartyRemove(ctx context.Context, id uuid.UUID, node
 		peer, endpoint, ok := p.getEndpoint(node)
 		if !ok {
 			return ErrPartyNotFound
+		}
+		if needsRemotePartyStream(endpoint, node, presence) {
+			// An old host can still reject a pending request. It cannot safely
+			// remove a member whose stream is on another node.
+			pending, err := p.PartyJoinRequestList(ctx, id, node, sessionID, fromNode)
+			if err != nil {
+				return err
+			}
+			if !slices.ContainsFunc(pending, func(request *rtapi.UserPresence) bool {
+				return samePartyUser(request, presence)
+			}) {
+				return runtime.ErrPartyRemove
+			}
 		}
 
 		//remote node
@@ -406,7 +423,11 @@ func (p *LocalPartyRegistry) PartyRemove(ctx context.Context, id uuid.UUID, node
 		return ErrPartyNotFound
 	}
 
-	return ph.Remove(sessionID, fromNode, presence)
+	return ph.remove(ctx, sessionID, fromNode, presence)
+}
+
+func needsRemotePartyStream(endpoint Endpoint, host string, presence *rtapi.UserPresence) bool {
+	return endpoint.GetMetadata(partyStreamCapability) != "1" && HashFromId(uuid.FromStringOrNil(presence.GetSessionId())) != NodeToHash(host)
 }
 
 func (p *LocalPartyRegistry) PartyClose(ctx context.Context, id uuid.UUID, node, sessionID, fromNode string) error {
@@ -655,6 +676,10 @@ func (p *LocalPartyRegistry) LabelUpdate(id uuid.UUID, node, label string, open,
 	p.pendingUpdates[idStr] = entry
 	p.pendingUpdatesMutex.Unlock()
 
+	if peer, ok := p.getPeer(); ok {
+		// The existing create event is an index upsert on receiving nodes.
+		peer.PartyCreate(entry)
+	}
 	return nil
 }
 

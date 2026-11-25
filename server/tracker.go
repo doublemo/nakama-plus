@@ -414,7 +414,7 @@ func (t *LocalTracker) Untrack(sessionID uuid.UUID, stream PresenceStream, userI
 		node = otherNode[0]
 	}
 
-	pc := presenceCompact{ID: PresenceID{Node: t.name, SessionID: sessionID}, Stream: stream, UserID: userID}
+	pc := presenceCompact{ID: PresenceID{Node: node, SessionID: sessionID}, Stream: stream, UserID: userID}
 	t.Lock()
 
 	bySession, anyTracked := t.presencesBySession[sessionID]
