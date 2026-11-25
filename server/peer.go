@@ -1223,9 +1223,20 @@ func (s *LocalPeer) onMergeRemoteState(buf []byte, join bool) {
 		}
 		s.replicationMu.Lock()
 		defer s.replicationMu.Unlock()
+		if !s.replicationSourcePresent(node) {
+			return
+		}
 		s.mergeOwnerSnapshot(snapshot, peerStateIsComplete(&state))
 		return
 	}
+}
+
+func (s *LocalPeer) replicationSourcePresent(node string) bool {
+	if s.members == nil {
+		return true
+	}
+	_, present := s.members.Load(node)
+	return present
 }
 
 // Field 100 of the State wire message marks a snapshot with a complete Party
@@ -1285,7 +1296,10 @@ func (s *LocalPeer) mergeOwnerSnapshot(snapshot *pb.StateNode, complete bool) {
 		s.logger.Warn("Failed to reconcile remote matchmaker", zap.String("node", node), zap.Error(err))
 		return
 	}
-	s.tracker.MergeRemoteState(node, snapshot.GetPresences())
+	if !s.tracker.MergeRemoteState(node, snapshot.GetPresences()) {
+		s.logger.Warn("Failed to apply remote presence snapshot", zap.String("node", node))
+		return
+	}
 	s.binaryLog.SetVersionByNode(node, peerLogPresenceMatchmaker, version)
 }
 
@@ -1299,31 +1313,23 @@ func (s *LocalPeer) onResponseWriter(frame *pb.Frame) {
 
 func (s *LocalPeer) onBan(node string, presence *pb.BanValue) {}
 
-func (s *LocalPeer) onTrack(node string, presence *pb.Presence) {
-	if node == s.endpoint.Name() {
-		return
+func (s *LocalPeer) applyTrackLog(node string, presence *pb.Presence, update bool) bool {
+	if !s.replicationSourcePresent(node) {
+		return false
 	}
-
-	ops := make([]*TrackerOp, len(presence.Stream))
-	for k, v := range presence.Stream {
-		ops[k] = &TrackerOp{
-			Stream: pb2PresenceStream(v),
-			Meta:   pb2PresenceMeta(presence.Meta[k]),
+	sessionID, userID, ops, ok := decodeTrackerPresence(presence)
+	if !ok || (presence.GetNode() != "" && presence.GetNode() != node) {
+		return false
+	}
+	if !update {
+		return s.tracker.TrackMulti(s.ctx, sessionID, ops, userID, node)
+	}
+	for _, op := range ops {
+		if !s.tracker.Update(s.ctx, sessionID, op.Stream, userID, op.Meta, node) {
+			return false
 		}
 	}
-
-	sessionID := uuid.FromStringOrNil(presence.SessionID)
-	userID := uuid.FromStringOrNil(presence.UserID)
-	if sessionID.IsNil() || userID.IsNil() {
-		s.logger.Warn("onTrack sessionID/userID is nil", zap.String("SessionID", presence.SessionID), zap.String("userID", presence.UserID), zap.String("node", node))
-		return
-	}
-
-	ok := s.tracker.TrackMulti(s.ctx, sessionID, ops, userID, node)
-	if !ok {
-		s.logger.Warn("TrackMulti failed", zap.String("SessionID", presence.SessionID), zap.String("userID", presence.UserID), zap.String("node", node))
-		return
-	}
+	return true
 }
 
 func (s *LocalPeer) onUntrack(node string, presence *pb.UntrackValue) {

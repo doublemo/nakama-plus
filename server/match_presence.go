@@ -173,7 +173,7 @@ func (m *MatchPresenceList) Leave(leaves []*MatchPresence) []*MatchPresence {
 	processed := make([]*MatchPresence, 0, len(leaves))
 	m.Lock()
 	for _, leave := range leaves {
-		if _, ok := m.presenceMap[leave.SessionID]; ok {
+		if node, ok := m.presenceMap[leave.SessionID]; ok && node == leave.Node {
 			for i, presence := range m.presences {
 				if presence.PresenceID.SessionID == leave.SessionID && presence.PresenceID.Node == leave.Node {
 					m.presences[i] = m.presences[len(m.presences)-1]

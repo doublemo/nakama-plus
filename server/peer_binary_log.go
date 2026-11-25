@@ -115,9 +115,21 @@ func (s *LocalPeer) handleBinaryLog(v *pb.BinaryLog) {
 		s.onBan(v.Node, payload.Ban)
 		s.logger.Debug("processed ban log", append(logFields, zap.Any("payload", payload.Ban))...)
 	case *pb.BinaryLog_Track:
-		s.onTrack(v.Node, payload.Track)
+		if !s.applyTrackLog(v.Node, payload.Track, false) {
+			s.logger.Warn("Failed to apply track log", logFields...)
+			return
+		}
 		s.logger.Debug("processed track log", append(logFields, zap.Any("payload", payload.Track))...)
+	case *pb.BinaryLog_UpdateTrack:
+		if !s.applyTrackLog(v.Node, payload.UpdateTrack, true) {
+			s.logger.Warn("Failed to apply update track log", logFields...)
+			return
+		}
+		s.logger.Debug("processed update track log", append(logFields, zap.Any("payload", payload.UpdateTrack))...)
 	case *pb.BinaryLog_Untrack:
+		if !s.replicationSourcePresent(v.Node) {
+			return
+		}
 		s.onUntrack(v.Node, payload.Untrack)
 		s.logger.Debug("processed untrack log", append(logFields, zap.Any("payload", payload.Untrack))...)
 	case *pb.BinaryLog_MatchmakerAdd:

@@ -555,7 +555,7 @@ func (mh *MatchHandler) QueueLeave(leaves []*MatchPresence) bool {
 				mh.JoinMarkerList.Mark(leave.SessionID)
 			}
 
-			state, err := mh.Core.MatchLeave(mh.tick, mh.state, leaves)
+			state, err := mh.Core.MatchLeave(mh.tick, mh.state, processed)
 			if err != nil {
 				mh.Stop()
 				mh.disconnectClients()

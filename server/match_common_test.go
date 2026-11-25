@@ -262,7 +262,7 @@ func (s *testTracker) ListPresenceIDByStream(stream PresenceStream) []*PresenceI
 
 func (s *testTracker) ListPresenceIDByStreams(fill map[PresenceStream][]*PresenceID)  {}
 func (s *testTracker) Range(fn func(sessionID uuid.UUID, presences []*Presence) bool) {}
-func (s *testTracker) MergeRemoteState(node string, presences []*pb.Presence)         {}
+func (s *testTracker) MergeRemoteState(node string, presences []*pb.Presence) bool    { return true }
 func (s *testTracker) ClearTrackByNode(nodes map[string]bool)                         {}
 func (s *testTracker) ClearRemoteTrack()                                              {}
 func (s *testTracker) SetPeer(peer Peer)                                              {}

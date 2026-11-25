@@ -1,8 +1,6 @@
 package server
 
 import (
-	syncAtomic "sync/atomic"
-
 	"github.com/doublemo/nakama-common/runtime"
 	"github.com/doublemo/nakama-kit/pb"
 	"github.com/gofrs/uuid/v5"
@@ -29,131 +27,106 @@ func (t *LocalTracker) Range(fn func(sessionID uuid.UUID, presences []*Presence)
 	}
 }
 
-func (t *LocalTracker) MergeRemoteState(fromNode string, presences []*pb.Presence) {
+func (t *LocalTracker) MergeRemoteState(fromNode string, presences []*pb.Presence) bool {
+	incoming := make(map[presenceCompact]*Presence)
+	for _, presence := range presences {
+		sessionID, userID, ops, ok := decodeTrackerPresence(presence)
+		if !ok || presence.GetNode() != fromNode {
+			return false
+		}
+		id := PresenceID{Node: fromNode, SessionID: sessionID}
+		for _, op := range ops {
+			key := presenceCompact{ID: id, Stream: op.Stream, UserID: userID}
+			incoming[key] = &Presence{ID: id, Stream: op.Stream, UserID: userID, Meta: op.Meta}
+		}
+	}
+
 	t.Lock()
 	defer t.Unlock()
-	t.clearTrackByNodeLocked(map[string]bool{fromNode: true})
-	for _, presence := range presences {
-		sessionID := uuid.FromStringOrNil(presence.GetSessionID())
-		userID := uuid.FromStringOrNil(presence.GetUserID())
-		for k, v := range presence.Stream {
-			stream := pb2PresenceStream(v)
-			meta := pb2PresenceMeta(presence.Meta[k])
-			pc := presenceCompact{ID: PresenceID{Node: presence.Node, SessionID: sessionID}, Stream: stream, UserID: userID}
-			p := &Presence{ID: PresenceID{Node: presence.Node, SessionID: sessionID}, Stream: stream, UserID: userID, Meta: meta}
-
-			if bySession, anyTracked := t.presencesBySession[sessionID]; anyTracked {
-				if _, alreadyTracked := bySession[pc]; !alreadyTracked {
-					bySession[pc] = p
-				} else {
-					continue
+	var joins, leaves, updatedJoins, updatedLeaves []*Presence
+	for _, bySession := range t.presencesBySession {
+		for key, current := range bySession {
+			if key.ID.Node != fromNode {
+				continue
+			}
+			next := incoming[key]
+			delete(incoming, key)
+			if next == nil {
+				t.removePresenceLocked(key)
+				if !current.Meta.Hidden {
+					leaves = append(leaves, presenceWithReason(current, runtime.PresenceReasonLeave))
 				}
-			} else {
-				bySession = make(map[presenceCompact]*Presence)
-				bySession[pc] = p
-				t.presencesBySession[sessionID] = bySession
-			}
-			t.count.Inc()
-
-			// Update tracking for stream.
-			byStreamMode, ok := t.presencesByStream[stream.Mode]
-			if !ok {
-				byStreamMode = make(map[PresenceStream]map[presenceCompact]*Presence)
-				t.presencesByStream[stream.Mode] = byStreamMode
-			}
-
-			if byStream, ok := byStreamMode[stream]; !ok {
-				byStream = make(map[presenceCompact]*Presence)
-				byStream[pc] = p
-				byStreamMode[stream] = byStream
-			} else {
-				byStream[pc] = p
-			}
-		}
-	}
-}
-
-func (t *LocalTracker) ClearRemoteTrack() {
-	t.Lock()
-	for sessionID, bySession := range t.presencesBySession {
-		deleted := false
-		for pc := range bySession {
-			if pc.ID.Node == t.name {
-				break
-			}
-
-			// Update the tracking for stream.
-			if byStreamMode := t.presencesByStream[pc.Stream.Mode]; len(byStreamMode) == 1 {
-				// This is the only stream for this stream mode.
-				if byStream := byStreamMode[pc.Stream]; len(byStream) == 1 {
-					// This was the only presence in the only stream for this stream mode, discard the whole list.
-					delete(t.presencesByStream, pc.Stream.Mode)
-				} else {
-					// There were other presences for the stream, drop just this one.
-					delete(byStream, pc)
-				}
-			} else {
-				// There are other streams for this stream mode.
-				if byStream := byStreamMode[pc.Stream]; len(byStream) == 1 {
-					// This was the only presence for the stream, discard the whole list.
-					delete(byStreamMode, pc.Stream)
-				} else {
-					// There were other presences for the stream, drop just this one.
-					delete(byStream, pc)
-				}
-			}
-			t.count.Dec()
-			deleted = true
-		}
-
-		if deleted {
-			delete(t.presencesBySession, sessionID)
-		}
-	}
-	t.Unlock()
-}
-
-func (t *LocalTracker) ClearTrackByNode(nodes map[string]bool) {
-	t.Lock()
-	t.clearTrackByNodeLocked(nodes)
-	t.Unlock()
-}
-
-func (t *LocalTracker) clearTrackByNodeLocked(nodes map[string]bool) {
-	for sessionID, bySession := range t.presencesBySession {
-		for pc := range bySession {
-			if !nodes[pc.ID.Node] {
 				continue
 			}
 
-			// Update the tracking for stream.
-			if byStreamMode := t.presencesByStream[pc.Stream.Mode]; len(byStreamMode) == 1 {
-				// This is the only stream for this stream mode.
-				if byStream := byStreamMode[pc.Stream]; len(byStream) == 1 {
-					// This was the only presence in the only stream for this stream mode, discard the whole list.
-					delete(t.presencesByStream, pc.Stream.Mode)
-				} else {
-					// There were other presences for the stream, drop just this one.
-					delete(byStream, pc)
-				}
-			} else {
-				// There are other streams for this stream mode.
-				if byStream := byStreamMode[pc.Stream]; len(byStream) == 1 {
-					// This was the only presence for the stream, discard the whole list.
-					delete(byStreamMode, pc.Stream)
-				} else {
-					// There were other presences for the stream, drop just this one.
-					delete(byStream, pc)
-				}
+			oldMeta, newMeta := current.Meta, next.Meta
+			oldMeta.Reason, newMeta.Reason = 0, 0
+			if oldMeta == newMeta {
+				continue
 			}
-			t.count.Dec()
-			delete(bySession, pc)
-		}
-
-		if len(bySession) == 0 {
-			delete(t.presencesBySession, sessionID)
+			t.storePresenceLocked(key, next)
+			switch {
+			case oldMeta.Hidden && !newMeta.Hidden:
+				joins = append(joins, presenceWithReason(next, runtime.PresenceReasonJoin))
+			case !oldMeta.Hidden && newMeta.Hidden:
+				leaves = append(leaves, presenceWithReason(current, runtime.PresenceReasonLeave))
+			case !oldMeta.Hidden && !newMeta.Hidden:
+				updatedJoins = append(updatedJoins, presenceWithReason(next, runtime.PresenceReasonUpdate))
+				updatedLeaves = append(updatedLeaves, presenceWithReason(current, runtime.PresenceReasonUpdate))
+			}
 		}
 	}
+	for key, presence := range incoming {
+		t.storePresenceLocked(key, presence)
+		if !presence.Meta.Hidden {
+			joins = append(joins, presenceWithReason(presence, runtime.PresenceReasonJoin))
+		}
+	}
+	t.queueEventLocked(joins, leaves, true)
+	t.queueEventLocked(updatedJoins, updatedLeaves, false)
+	return true
+}
+
+func decodeTrackerPresence(presence *pb.Presence) (sessionID, userID uuid.UUID, ops []*TrackerOp, ok bool) {
+	sessionID = uuid.FromStringOrNil(presence.GetSessionID())
+	userID = uuid.FromStringOrNil(presence.GetUserID())
+	streams, metas := presence.GetStream(), presence.GetMeta()
+	if sessionID.IsNil() || userID.IsNil() || len(streams) == 0 || len(streams) != len(metas) {
+		return sessionID, userID, nil, false
+	}
+	ops = make([]*TrackerOp, len(streams))
+	for i, stream := range streams {
+		if stream == nil || metas[i] == nil || stream.GetMode() > 255 {
+			return sessionID, userID, nil, false
+		}
+		ops[i] = &TrackerOp{Stream: pb2PresenceStream(stream), Meta: pb2PresenceMeta(metas[i])}
+	}
+	return sessionID, userID, ops, true
+}
+
+func (t *LocalTracker) ClearRemoteTrack() {
+	t.clearTrackedNodes(func(node string) bool { return node != t.name })
+}
+
+func (t *LocalTracker) ClearTrackByNode(nodes map[string]bool) {
+	t.clearTrackedNodes(func(node string) bool { return nodes[node] })
+}
+
+func (t *LocalTracker) clearTrackedNodes(shouldClear func(string) bool) {
+	t.Lock()
+	defer t.Unlock()
+	var leaves []*Presence
+	for _, bySession := range t.presencesBySession {
+		for key, presence := range bySession {
+			if shouldClear(key.ID.Node) {
+				t.removePresenceLocked(key)
+				if !presence.Meta.Hidden {
+					leaves = append(leaves, presenceWithReason(presence, runtime.PresenceReasonDisconnect))
+				}
+			}
+		}
+	}
+	t.queueEventLocked(nil, leaves, true)
 }
 
 func (t *LocalTracker) TrackPeer(sessionID uuid.UUID, userID uuid.UUID, ops []*TrackerOp) {
@@ -169,6 +142,7 @@ func (t *LocalTracker) TrackPeer(sessionID uuid.UUID, userID uuid.UUID, ops []*T
 	for k, v := range ops {
 		presence.Stream[k] = presenceStream2PB(v.Stream)
 		presence.Meta[k] = presenceMeta2PB(v.Meta)
+		presence.Meta[k].Reason = uint32(runtime.PresenceReasonJoin)
 	}
 
 	t.peer.BinaryLogBroadcast(&pb.BinaryLog{
@@ -209,6 +183,7 @@ func (t *LocalTracker) UpdateTrackPeer(sessionID uuid.UUID, userID uuid.UUID, op
 		UserID:    userID.String(),
 		Stream:    make([]*pb.PresenceStream, size),
 		Meta:      make([]*pb.PresenceMeta, size),
+		Node:      t.name,
 	}
 
 	for k, v := range ops {
@@ -223,72 +198,14 @@ func (t *LocalTracker) UpdateTrackPeer(sessionID uuid.UUID, userID uuid.UUID, op
 }
 
 func (t *LocalTracker) UntrackByModes(sessionID uuid.UUID, modes map[uint8]struct{}, skipStream PresenceStream) {
-	leaves := make([]*Presence, 0, 1)
-
-	t.Lock()
-	bySession, anyTracked := t.presencesBySession[sessionID]
-	if !anyTracked {
-		t.Unlock()
+	if !t.untrackByModes(sessionID, modes, skipStream) {
 		return
 	}
-
-	for pc, p := range bySession {
-		if _, found := modes[pc.Stream.Mode]; !found {
-			// Not a stream mode we need to check.
-			continue
-		}
-		if pc.Stream == skipStream {
-			// Skip this stream based on input.
-			continue
-		}
-
-		// Update the tracking for session.
-		if len(bySession) == 1 {
-			// This was the only presence for the session, discard the whole list.
-			delete(t.presencesBySession, sessionID)
-		} else {
-			// There were other presences for the session, drop just this one.
-			delete(bySession, pc)
-		}
-		t.count.Dec()
-
-		// Update the tracking for stream.
-		if byStreamMode := t.presencesByStream[pc.Stream.Mode]; len(byStreamMode) == 1 {
-			// This is the only stream for this stream mode.
-			if byStream := byStreamMode[pc.Stream]; len(byStream) == 1 {
-				// This was the only presence in the only stream for this stream mode, discard the whole list.
-				delete(t.presencesByStream, pc.Stream.Mode)
-			} else {
-				// There were other presences for the stream, drop just this one.
-				delete(byStream, pc)
-			}
-		} else {
-			// There are other streams for this stream mode.
-			if byStream := byStreamMode[pc.Stream]; len(byStream) == 1 {
-				// This was the only presence for the stream, discard the whole list.
-				delete(byStreamMode, pc.Stream)
-			} else {
-				// There were other presences for the stream, drop just this one.
-				delete(byStream, pc)
-			}
-		}
-
-		if !p.Meta.Hidden {
-			syncAtomic.StoreUint32(&p.Meta.Reason, uint32(runtime.PresenceReasonLeave))
-			leaves = append(leaves, p)
-		}
+	wireModes := make([]uint32, 0, len(modes))
+	for mode := range modes {
+		wireModes = append(wireModes, uint32(mode))
 	}
-	t.Unlock()
-
-	if len(leaves) > 0 {
-		t.queueEvent(nil, leaves)
-	}
-
-	wmodes := make([]uint32, 0, len(modes))
-	for k := range modes {
-		wmodes = append(wmodes, uint32(k))
-	}
-	t.UntrackPeer(sessionID, uuid.Nil, nil, wmodes, 0, &skipStream)
+	t.UntrackPeer(sessionID, uuid.Nil, nil, wireModes, 0, &skipStream)
 }
 
 func (t *LocalTracker) ListLocalPresenceIDByStream(stream PresenceStream) []*PresenceID {
