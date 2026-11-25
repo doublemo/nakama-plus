@@ -202,7 +202,7 @@ func main() {
 		startupLogger.Fatal("Failed initializing runtime modules", zap.Error(err))
 	}
 
-	matchmaker := server.NewLocalMatchmaker(logger, startupLogger, config, router, metrics, runtime)
+	matchmaker := server.NewLocalMatchmaker(db, logger, startupLogger, config, router, metrics, runtime)
 	tracker.SetPartyJoinListener(partyRegistry.Join)
 	tracker.SetPartyLeaveListener(partyRegistry.Leave)
 	storageIndex.RegisterFilters(runtime)

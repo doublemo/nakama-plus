@@ -14,15 +14,7 @@ func (s *LocalPeer) MatchmakerAdd(extract *pb.MatchmakerExtract) {
 	}, true)
 }
 func (s *LocalPeer) MatchmakerRemoveSession(sessionID, ticket string) {
-	s.BinaryLogBroadcast(&pb.BinaryLog{
-		Node: s.endpoint.Name(),
-		Payload: &pb.BinaryLog_MatchmakerRemoveSession{
-			MatchmakerRemoveSession: &pb.MatchmakerExtract{
-				SessionId: sessionID,
-				Ticket:    ticket,
-			},
-		},
-	}, true)
+	s.MatchmakerRemove([]string{ticket})
 }
 
 func (s *LocalPeer) MatchmakerRemoveSessionAll(sessionID string) {
@@ -35,15 +27,7 @@ func (s *LocalPeer) MatchmakerRemoveSessionAll(sessionID string) {
 }
 
 func (s *LocalPeer) MatchmakerRemoveParty(partyID, ticket string) {
-	s.BinaryLogBroadcast(&pb.BinaryLog{
-		Node: s.endpoint.Name(),
-		Payload: &pb.BinaryLog_MatchmakerRemoveParty{
-			MatchmakerRemoveParty: &pb.MatchmakerExtract{
-				PartyId: partyID,
-				Ticket:  ticket,
-			},
-		},
-	}, true)
+	s.MatchmakerRemove([]string{ticket})
 }
 
 func (s *LocalPeer) MatchmakerRemovePartyAll(partyID string) {

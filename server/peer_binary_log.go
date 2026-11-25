@@ -97,6 +97,12 @@ func (s *LocalPeer) handleBinaryLog(v *pb.BinaryLog) {
 		zap.String("node", v.Node),
 		zap.Int64("version", v.Version),
 	}
+	if removed := v.GetMatchmakerRemove(); removed != nil {
+		// Terminal ticket IDs are never reused, so these removals can be
+		// applied regardless of delivery order or duplicates.
+		s.matchmaker.Remove(removed.Ticket)
+		return
+	}
 
 	stream := binaryLogStream(v)
 	if lastVersion := s.binaryLog.GetVersionByNode(v.Node, stream); lastVersion >= v.Version {
@@ -151,9 +157,6 @@ func (s *LocalPeer) handleBinaryLog(v *pb.BinaryLog) {
 		s.matchmaker.RemoveAll(map[string]bool{payload.MatchmakerRemoveAll.Node: true})
 		s.logger.Debug("processed matchmaker remove all", append(logFields, zap.String("targetNode", payload.MatchmakerRemoveAll.Node))...)
 
-	case *pb.BinaryLog_MatchmakerRemove:
-		s.matchmaker.Remove(payload.MatchmakerRemove.Ticket)
-		s.logger.Debug("processed matchmaker remove", append(logFields, zap.String("ticket", strings.Join(payload.MatchmakerRemove.Ticket, ",")))...)
 	case *pb.BinaryLog_PartyCreate:
 		entry, err := pb2partyIndex(payload.PartyCreate, v.Node)
 		if err != nil {

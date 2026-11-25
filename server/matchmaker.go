@@ -16,8 +16,10 @@ package server
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"maps"
+	"slices"
 	"sync"
 	"time"
 
@@ -247,6 +249,7 @@ type LocalMatchmaker struct {
 	router  MessageRouter
 	metrics Metrics
 	runtime *Runtime
+	tickets matchmakerTicketStore
 
 	active      *atomic.Uint32
 	stopped     *atomic.Bool
@@ -274,7 +277,7 @@ type LocalMatchmaker struct {
 	revThresholdFn func() *time.Timer
 }
 
-func NewLocalMatchmaker(logger, startupLogger *zap.Logger, config Config, router MessageRouter, metrics Metrics, runtime *Runtime) Matchmaker {
+func NewLocalMatchmaker(db *sql.DB, logger, startupLogger *zap.Logger, config Config, router MessageRouter, metrics Metrics, runtime *Runtime) Matchmaker {
 	cfg := BlugeInMemoryConfig()
 	indexWriter, err := bluge.OpenWriter(cfg)
 	if err != nil {
@@ -282,6 +285,10 @@ func NewLocalMatchmaker(logger, startupLogger *zap.Logger, config Config, router
 	}
 
 	ctx, ctxCancelFn := context.WithCancel(context.Background())
+	tickets := &dbMatchmakerTickets{db: db}
+	if err := tickets.clearNode(ctx, config.GetName()); err != nil {
+		startupLogger.Fatal("Failed to clear matchmaking tickets from the previous node process", zap.Error(err))
+	}
 
 	m := &LocalMatchmaker{
 		logger:  logger,
@@ -290,6 +297,7 @@ func NewLocalMatchmaker(logger, startupLogger *zap.Logger, config Config, router
 		router:  router,
 		metrics: metrics,
 		runtime: runtime,
+		tickets: tickets,
 
 		active:      atomic.NewUint32(1),
 		stopped:     atomic.NewBool(false),
@@ -337,8 +345,17 @@ func (m *LocalMatchmaker) Resume() {
 }
 
 func (m *LocalMatchmaker) Stop() {
-	m.stopped.Store(true)
+	if m.stopped.Swap(true) {
+		return
+	}
 	m.ctxCancelFn()
+	m.Lock()
+	defer m.Unlock()
+	if m.tickets != nil {
+		if err := m.tickets.clearNode(context.Background(), m.node); err != nil {
+			m.logger.Warn("Failed to clear local matchmaking tickets on shutdown", zap.Error(err))
+		}
+	}
 }
 
 func (m *LocalMatchmaker) OnMatchedEntries(fn func(entries [][]*MatchmakerEntry)) {
@@ -350,6 +367,9 @@ func (m *LocalMatchmaker) OnStatsUpdate(fn func(*api.MatchmakerStats)) {
 }
 
 func (m *LocalMatchmaker) Process() {
+	if m.stopped.Load() {
+		return
+	}
 	startTime := time.Now()
 	var activeIndexCount, indexCount int
 	defer func() {
@@ -362,11 +382,15 @@ func (m *LocalMatchmaker) Process() {
 	indexCount = len(m.indexes)
 
 	activeIndexesCopy := make(map[string]*MatchmakerIndex, activeIndexCount)
-	maps.Copy(activeIndexesCopy, m.activeIndexes)
 	var oldestTicketCreatedAt int64
 	indexesCopy := make(map[string]*MatchmakerIndex, indexCount)
 	for ticket, index := range m.indexes {
-		indexesCopy[ticket] = index
+		// Matching advances intervals while replication can read the live index.
+		copy := *index
+		indexesCopy[ticket] = &copy
+		if m.activeIndexes[ticket] != nil {
+			activeIndexesCopy[ticket] = &copy
+		}
 		if oldestTicketCreatedAt == 0 || index.CreatedAt < oldestTicketCreatedAt {
 			oldestTicketCreatedAt = index.CreatedAt
 		}
@@ -417,62 +441,60 @@ func (m *LocalMatchmaker) Process() {
 	}
 
 	m.Lock()
+	if m.stopped.Load() {
+		m.Unlock()
+		return
+	}
+	for ticket, snapshot := range indexesCopy {
+		if index := m.indexes[ticket]; index != nil {
+			index.Intervals = max(index.Intervals, snapshot.Intervals)
+		}
+	}
 
 	for _, ticket := range expiredActiveIndexes {
 		delete(m.activeIndexes, ticket)
 	}
 
-	for i := 0; i < len(matchedEntries); i++ {
-		// Check that the current matched entries are all still present and eligible for the match to be formed.
-		currentMatchedEntries := matchedEntries[i]
-		var incomplete bool
-		for _, entry := range currentMatchedEntries {
-			if _, found := m.indexes[entry.Ticket]; !found {
-				incomplete = true
+	completed := matchedEntries[:0]
+	var claimedTickets []string
+	for _, entries := range matchedEntries {
+		tickets := make(map[string]struct{}, len(entries))
+		for _, entry := range entries {
+			if _, present := m.indexes[entry.Ticket]; !present {
+				tickets = nil
 				break
 			}
+			tickets[entry.Ticket] = struct{}{}
 		}
-		if incomplete {
-			matchedEntries[i] = matchedEntries[len(matchedEntries)-1]
-			matchedEntries[len(matchedEntries)-1] = nil
-			matchedEntries = matchedEntries[:len(matchedEntries)-1]
-			i--
+		if len(tickets) == 0 {
 			continue
 		}
 
-		// Remove all entries/indexes that have just matched.
-		ticketsToDelete := make(map[string]struct{}, len(currentMatchedEntries))
-		for _, entry := range currentMatchedEntries {
-			if _, ok := ticketsToDelete[entry.Ticket]; !ok {
-				ticketsToDelete[entry.Ticket] = struct{}{}
-			}
-			delete(m.indexes, entry.Ticket)
-			delete(m.activeIndexes, entry.Ticket)
-			if m.runtime.matchmakerProcessorFunction == nil {
-				// Rev cache not used when custom matchmaking processor is registered.
-				m.revCache.Delete(entry.Ticket)
-			}
-
-			if sessionTickets, ok := m.sessionTickets[entry.Presence.SessionId]; ok {
-				if l := len(sessionTickets); l <= 1 {
-					delete(m.sessionTickets, entry.Presence.SessionId)
-				} else {
-					delete(sessionTickets, entry.Ticket)
+		ticketIDs := slices.Collect(maps.Keys(tickets))
+		if m.tickets != nil {
+			missing, err := m.tickets.claim(m.ctx, ticketIDs)
+			if err != nil || len(missing) != 0 {
+				if err != nil {
+					m.logger.Warn("Failed to claim matchmaking tickets", zap.Error(err))
 				}
-			}
-			if entry.PartyId != "" {
-				if partyTickets, ok := m.partyTickets[entry.PartyId]; ok {
-					if l := len(partyTickets); l <= 1 {
-						delete(m.partyTickets, entry.PartyId)
-					} else {
-						delete(partyTickets, entry.Ticket)
+				_ = m.removeTicketsLocked(missing)
+				for _, ticket := range ticketIDs {
+					if index := m.indexes[ticket]; index != nil && activeIndexesCopy[ticket] != nil {
+						// Unclaimed tickets can participate in another matching pass.
+						m.activeIndexes[ticket] = index
 					}
 				}
+				continue
 			}
+			claimedTickets = append(claimedTickets, ticketIDs...)
 		}
+		_ = m.removeTicketsLocked(ticketIDs)
+		completed = append(completed, entries)
 	}
 
 	m.Unlock()
+	m.broadcastRemovedTickets(claimedTickets)
+	matchedEntries = completed
 
 	if matchedEntriesCount := len(matchedEntries); matchedEntriesCount > 0 {
 		wg := &sync.WaitGroup{}
@@ -611,6 +633,10 @@ func (m *LocalMatchmaker) Add(ctx context.Context, presences []*MatchmakerPresen
 	}
 
 	m.Lock()
+	if m.stopped.Load() {
+		m.Unlock()
+		return "", 0, runtime.ErrMatchmakerNotAvailable
+	}
 
 	select {
 	case <-ctx.Done():
@@ -647,6 +673,16 @@ func (m *LocalMatchmaker) Add(ctx context.Context, presences []*MatchmakerPresen
 			m.Unlock()
 			m.logger.Error("error indexing matchmaker entries", zap.Error(err))
 			return "", 0, runtime.ErrMatchmakerIndex
+		}
+	}
+	if m.tickets != nil {
+		if err := m.tickets.register(ctx, m.node, ticket, slices.Collect(maps.Keys(sessionIDs))); err != nil {
+			if m.runtime.matchmakerProcessorFunction == nil {
+				_ = m.indexWriter.Delete(bluge.Identifier(ticket))
+			}
+			m.Unlock()
+			m.logger.Warn("Failed to register matchmaking ticket", zap.Error(err))
+			return "", 0, runtime.ErrMatchmakerNotAvailable
 		}
 	}
 
@@ -698,14 +734,31 @@ func (m *LocalMatchmaker) ReplaceFromNode(node string, extracts []*MatchmakerExt
 }
 
 func (m *LocalMatchmaker) insert(extracts []*MatchmakerExtract, replaceNode string) error {
+	m.Lock()
+	defer m.Unlock()
 	if m.stopped.Load() {
 		return nil
 	}
 
 	batch := bluge.NewBatch()
 	indexes := make(map[string]*MatchmakerIndex, len(extracts))
+	var active map[string]struct{}
+	if m.tickets != nil && len(extracts) != 0 {
+		ids := make([]string, 0, len(extracts))
+		for _, extract := range extracts {
+			ids = append(ids, extract.Ticket)
+		}
+		var err error
+		active, err = m.tickets.active(m.ctx, ids)
+		if err != nil {
+			return err
+		}
+	}
 
 	for _, extract := range extracts {
+		if _, ok := active[extract.Ticket]; m.tickets != nil && !ok {
+			continue
+		}
 		if _, duplicate := indexes[extract.Ticket]; duplicate {
 			return runtime.ErrMatchmakerIndex
 		}
@@ -783,9 +836,6 @@ func (m *LocalMatchmaker) insert(extracts []*MatchmakerExtract, replaceNode stri
 		}
 		indexes[extract.Ticket] = index
 	}
-
-	m.Lock()
-	defer m.Unlock()
 
 	var replaced []string
 	if replaceNode != "" {
@@ -877,6 +927,27 @@ func (m *LocalMatchmaker) Extract() []*MatchmakerExtract {
 
 	extracts := make([]*MatchmakerExtract, 0, 100)
 	m.Lock()
+	if m.tickets != nil {
+		// The source can also miss the winner's removal message. Reconcile its
+		// local tickets before publishing them in a snapshot.
+		var owned []string
+		for ticket, index := range m.indexes {
+			if index.Node == m.node {
+				owned = append(owned, ticket)
+			}
+		}
+		if len(owned) != 0 {
+			active, err := m.tickets.active(m.ctx, owned)
+			if err != nil {
+				m.logger.Warn("Failed to reconcile locally owned matchmaking tickets", zap.Error(err))
+			} else {
+				_ = m.removeTicketsLocked(slices.DeleteFunc(owned, func(ticket string) bool {
+					_, ok := active[ticket]
+					return ok
+				}))
+			}
+		}
+	}
 
 	for ticket, index := range m.indexes {
 		if index.Node != m.node {
@@ -913,354 +984,143 @@ func (m *LocalMatchmaker) Extract() []*MatchmakerExtract {
 
 func (m *LocalMatchmaker) RemoveSession(sessionID, ticket string) error {
 	m.Lock()
+	defer m.Unlock()
 
-	index, ok := m.indexes[ticket]
-	if !ok || index.PartyId != "" || index.SessionID != sessionID {
-		// Ticket did not exist, or the caller was not the ticket owner - for example a user attempting to remove a party ticket.
-		m.Unlock()
+	index := m.indexes[ticket]
+	if index == nil || index.PartyId != "" || index.SessionID != sessionID {
 		return runtime.ErrMatchmakerTicketNotFound
 	}
-	delete(m.indexes, ticket)
-
-	for _, entry := range index.Entries {
-		if sessionTickets, ok := m.sessionTickets[entry.Presence.SessionId]; ok {
-			if l := len(sessionTickets); l <= 1 {
-				delete(m.sessionTickets, entry.Presence.SessionId)
-			} else {
-				delete(sessionTickets, ticket)
-			}
-		}
-	}
-
-	if index.PartyId != "" {
-		if partyTickets, ok := m.partyTickets[index.PartyId]; ok {
-			if l := len(partyTickets); l <= 1 {
-				delete(m.partyTickets, index.PartyId)
-			} else {
-				delete(partyTickets, ticket)
-			}
-		}
-	}
-
-	delete(m.activeIndexes, ticket)
-
-	if m.runtime.matchmakerProcessorFunction == nil {
-		// Rev cache and index not used when custom matchmaking processor is registered.
-		m.revCache.Delete(ticket)
-
-		if err := m.indexWriter.Delete(bluge.Identifier(ticket)); err != nil {
-			m.Unlock()
-			m.logger.Error("error deleting matchmaker entries", zap.Error(err))
-			return runtime.ErrMatchmakerDelete
-		}
-	}
-
-	m.Unlock()
-	return nil
+	return m.cancelTicketLocked(ticket)
 }
 
 func (m *LocalMatchmaker) RemoveSessionAll(sessionID string) error {
-	batch := bluge.NewBatch()
-
 	m.Lock()
-
-	sessionTickets, ok := m.sessionTickets[sessionID]
-	if !ok {
-		// Session does not have any active matchmaking tickets.
-		m.Unlock()
-		return nil
-	}
-	delete(m.sessionTickets, sessionID)
-
-	for ticket := range sessionTickets {
-		if m.runtime.matchmakerProcessorFunction == nil {
-			// Index not used when custom matchmaking processor is registered.
-			batch.Delete(bluge.Identifier(ticket))
-		}
-
-		index, ok := m.indexes[ticket]
-		if !ok {
-			// Ticket did not exist, should not happen.
-			m.logger.Warn("matchmaker remove session all found ticket with no index", zap.String("ticket", ticket))
-			continue
-		}
-		delete(m.indexes, ticket)
-
-		delete(m.activeIndexes, ticket)
-		if m.runtime.matchmakerProcessorFunction == nil {
-			// Rev cache not used when custom matchmaking processor is registered.
-			m.revCache.Delete(ticket)
-		}
-
-		for _, entry := range index.Entries {
-			if entry.Presence.SessionId == sessionID {
-				// Already deleted above.
-				continue
-			}
-			if sessionTickets, ok := m.sessionTickets[entry.Presence.SessionId]; ok {
-				if l := len(sessionTickets); l <= 1 {
-					delete(m.sessionTickets, entry.Presence.SessionId)
-				} else {
-					delete(sessionTickets, ticket)
-				}
-			}
-		}
-
-		if index.PartyId != "" {
-			if partyTickets, ok := m.partyTickets[index.PartyId]; ok {
-				if l := len(partyTickets); l <= 1 {
-					delete(m.partyTickets, index.PartyId)
-				} else {
-					delete(partyTickets, ticket)
-				}
-			}
-		}
-	}
-
-	if m.runtime.matchmakerProcessorFunction == nil {
-		// Index not used when custom matchmaking processor is registered.
-		err := m.indexWriter.Batch(batch)
-		m.Unlock()
+	local := m.sessionTickets[sessionID]
+	tickets := slices.Collect(maps.Keys(local))
+	if m.tickets != nil {
+		removed, err := m.tickets.cancelSession(m.ctx, sessionID)
 		if err != nil {
-			m.logger.Error("error deleting matchmaker entries batch", zap.Error(err))
+			m.Unlock()
+			m.logger.Warn("Failed to cancel matchmaking tickets by session", zap.Error(err))
 			return runtime.ErrMatchmakerDelete
 		}
-	} else {
-		m.Unlock()
+		for ticket := range removed {
+			if _, ok := local[ticket]; !ok {
+				tickets = append(tickets, ticket)
+			}
+		}
 	}
-	return nil
+	err := m.removeTicketsLocked(tickets)
+	m.Unlock()
+	if m.tickets != nil {
+		m.broadcastRemovedTickets(tickets)
+	}
+	return err
 }
 
 func (m *LocalMatchmaker) RemoveParty(partyID, ticket string) error {
 	m.Lock()
+	defer m.Unlock()
 
-	index, ok := m.indexes[ticket]
-	if !ok || index.SessionID != "" || index.PartyId != partyID {
-		// Ticket did not exist, or the caller was not the ticket owner - for example a user attempting to remove a party ticket.
-		m.Unlock()
+	index := m.indexes[ticket]
+	if index == nil || index.SessionID != "" || index.PartyId != partyID {
 		return runtime.ErrMatchmakerTicketNotFound
 	}
-	delete(m.indexes, ticket)
+	return m.cancelTicketLocked(ticket)
+}
 
-	for _, entry := range index.Entries {
-		if sessionTickets, ok := m.sessionTickets[entry.Presence.SessionId]; ok {
-			if l := len(sessionTickets); l <= 1 {
-				delete(m.sessionTickets, entry.Presence.SessionId)
-			} else {
-				delete(sessionTickets, ticket)
-			}
-		}
+func (m *LocalMatchmaker) cancelTicketLocked(ticket string) error {
+	tickets := []string{ticket}
+	if m.tickets == nil {
+		return m.removeTicketsLocked(tickets)
 	}
 
-	if partyTickets, ok := m.partyTickets[partyID]; ok {
-		if l := len(partyTickets); l <= 1 {
-			delete(m.partyTickets, partyID)
-		} else {
-			delete(partyTickets, ticket)
-		}
+	removed, err := m.tickets.cancel(m.ctx, tickets)
+	if err != nil {
+		m.logger.Warn("Failed to cancel matchmaking ticket", zap.Error(err))
+		return runtime.ErrMatchmakerDelete
 	}
-
-	delete(m.activeIndexes, ticket)
-	if m.runtime.matchmakerProcessorFunction == nil {
-		// Rev cache and index not used when custom matchmaking processor is registered.
-		m.revCache.Delete(ticket)
-
-		if err := m.indexWriter.Delete(bluge.Identifier(ticket)); err != nil {
-			m.Unlock()
-			m.logger.Error("error deleting matchmaker entries", zap.Error(err))
-			return runtime.ErrMatchmakerDelete
-		}
+	_ = m.removeTicketsLocked(tickets)
+	if len(removed) == 0 {
+		return runtime.ErrMatchmakerTicketNotFound
 	}
-
-	m.Unlock()
 	return nil
 }
 
 func (m *LocalMatchmaker) RemovePartyAll(partyID string) error {
-	batch := bluge.NewBatch()
-
 	m.Lock()
+	defer m.Unlock()
 
-	partyTickets, ok := m.partyTickets[partyID]
-	if !ok {
-		// Party does not have any active matchmaking tickets.
-		m.Unlock()
-		return nil
-	}
-	delete(m.partyTickets, partyID)
-
-	for ticket := range partyTickets {
-		if m.runtime.matchmakerProcessorFunction == nil {
-			// Index not used when custom matchmaking processor is registered.
-			batch.Delete(bluge.Identifier(ticket))
+	tickets := slices.Collect(maps.Keys(m.partyTickets[partyID]))
+	if m.tickets != nil {
+		// Only the party host cancels its tickets in the shared store. A
+		// replicated membership change only updates the receiver's index.
+		var owned []string
+		for _, ticket := range tickets {
+			if index := m.indexes[ticket]; index != nil && index.Node == m.node {
+				owned = append(owned, ticket)
+			}
 		}
-
-		partyIndex, ok := m.indexes[ticket]
-		if !ok {
-			// Ticket did not exist, should not happen.
-			m.logger.Warn("matchmaker remove party all found ticket with no index", zap.String("ticket", ticket))
-			continue
-		}
-		delete(m.indexes, ticket)
-
-		delete(m.activeIndexes, ticket)
-
-		if m.runtime.matchmakerProcessorFunction == nil {
-			// Rev cache not used when custom matchmaking processor is registered.
-			m.revCache.Delete(ticket)
-		}
-
-		for _, entry := range partyIndex.Entries {
-			if sessionTickets, ok := m.sessionTickets[entry.Presence.SessionId]; ok {
-				if l := len(sessionTickets); l <= 1 {
-					delete(m.sessionTickets, entry.Presence.SessionId)
-				} else {
-					delete(sessionTickets, ticket)
-				}
+		if len(owned) != 0 {
+			if _, err := m.tickets.cancel(m.ctx, owned); err != nil {
+				m.logger.Warn("Failed to cancel matchmaking tickets by party", zap.Error(err))
+				return runtime.ErrMatchmakerDelete
 			}
 		}
 	}
+	return m.removeTicketsLocked(tickets)
+}
 
-	if m.runtime.matchmakerProcessorFunction == nil {
-		// Index not used when custom matchmaking processor is registered.
-		err := m.indexWriter.Batch(batch)
-		m.Unlock()
-		if err != nil {
-			m.logger.Error("error deleting matchmaker entries batch", zap.Error(err))
+func (m *LocalMatchmaker) RemoveAll(nodes map[string]bool) {
+	m.Lock()
+	defer m.Unlock()
+
+	var tickets []string
+	for ticket, index := range m.indexes {
+		if nodes[index.Node] {
+			tickets = append(tickets, ticket)
+		}
+	}
+	_ = m.removeTicketsLocked(tickets)
+}
+
+func (m *LocalMatchmaker) Remove(tickets []string) {
+	m.Lock()
+	defer m.Unlock()
+	_ = m.removeTicketsLocked(tickets)
+}
+
+func (m *LocalMatchmaker) removeTicketsLocked(tickets []string) error {
+	if len(tickets) == 0 {
+		return nil
+	}
+
+	batch := bluge.NewBatch()
+	var indexed bool
+	for _, ticket := range tickets {
+		if index := m.indexes[ticket]; index != nil {
+			if m.runtime.matchmakerProcessorFunction == nil {
+				batch.Delete(bluge.Identifier(ticket))
+				indexed = true
+			}
+			m.removeTicketLocked(ticket, index)
+		}
+	}
+	if indexed {
+		if err := m.indexWriter.Batch(batch); err != nil {
+			m.logger.Error("error deleting matchmaker entries", zap.Error(err))
 			return runtime.ErrMatchmakerDelete
 		}
-	} else {
-		m.Unlock()
 	}
 	return nil
 }
 
-func (m *LocalMatchmaker) RemoveAll(nodes map[string]bool) {
-	batch := bluge.NewBatch()
-
-	m.Lock()
-
-	var removedCount uint32
-	for ticket, index := range m.indexes {
-		if !nodes[index.Node] {
-			continue
-		}
-
-		if m.runtime.matchmakerProcessorFunction == nil {
-			// Index not used when custom matchmaking processor is registered.
-			batch.Delete(bluge.Identifier(ticket))
-		}
-
-		removedCount++
-		delete(m.indexes, ticket)
-
-		delete(m.activeIndexes, ticket)
-		if m.runtime.matchmakerProcessorFunction == nil {
-			// Rev cache not used when custom matchmaking processor is registered.
-			m.revCache.Delete(ticket)
-		}
-
-		if index.PartyId != "" {
-			partyTickets, ok := m.partyTickets[index.PartyId]
-			if ok {
-				if len(partyTickets) <= 1 {
-					delete(m.partyTickets, index.PartyId)
-				} else {
-					delete(partyTickets, ticket)
-				}
-			}
-		}
-
-		for _, entry := range index.Entries {
-			if sessionTickets, ok := m.sessionTickets[entry.Presence.SessionId]; ok {
-				if l := len(sessionTickets); l <= 1 {
-					delete(m.sessionTickets, entry.Presence.SessionId)
-				} else {
-					delete(sessionTickets, ticket)
-				}
-			}
-		}
-	}
-
-	if removedCount == 0 {
-		m.Unlock()
+func (m *LocalMatchmaker) broadcastRemovedTickets(tickets []string) {
+	if len(tickets) == 0 || m.router == nil {
 		return
 	}
-
-	if m.runtime.matchmakerProcessorFunction == nil {
-		// Index not used when custom matchmaking processor is registered.
-		err := m.indexWriter.Batch(batch)
-		m.Unlock()
-		if err != nil {
-			m.logger.Error("error deleting matchmaker entries batch", zap.Error(err))
-		}
-	} else {
-		m.Unlock()
-	}
-}
-
-func (m *LocalMatchmaker) Remove(tickets []string) {
-	batch := bluge.NewBatch()
-
-	m.Lock()
-
-	var removedCount uint32
-	for _, ticket := range tickets {
-		index, found := m.indexes[ticket]
-		if !found {
-			continue
-		}
-
-		if m.runtime.matchmakerProcessorFunction == nil {
-			// Index not used when custom matchmaking processor is registered.
-			batch.Delete(bluge.Identifier(ticket))
-		}
-
-		removedCount++
-		delete(m.indexes, ticket)
-
-		delete(m.activeIndexes, ticket)
-		if m.runtime.matchmakerProcessorFunction == nil {
-			// Rev cache not used when custom matchmaking processor is registered.
-			m.revCache.Delete(ticket)
-		}
-
-		if index.PartyId != "" {
-			partyTickets, ok := m.partyTickets[index.PartyId]
-			if ok {
-				if len(partyTickets) <= 1 {
-					delete(m.partyTickets, index.PartyId)
-				} else {
-					delete(partyTickets, ticket)
-				}
-			}
-		}
-
-		for _, entry := range index.Entries {
-			if sessionTickets, ok := m.sessionTickets[entry.Presence.SessionId]; ok {
-				if l := len(sessionTickets); l <= 1 {
-					delete(m.sessionTickets, entry.Presence.SessionId)
-				} else {
-					delete(sessionTickets, ticket)
-				}
-			}
-		}
-	}
-
-	if removedCount == 0 {
-		m.Unlock()
-		return
-	}
-
-	if m.runtime.matchmakerProcessorFunction == nil {
-		// Index not used when custom matchmaking processor is registered.
-		err := m.indexWriter.Batch(batch)
-		m.Unlock()
-		if err != nil {
-			m.logger.Error("error deleting matchmaker entries batch", zap.Error(err))
-		}
-	} else {
-		m.Unlock()
+	if peer, ok := m.router.GetPeer(); ok {
+		peer.MatchmakerRemove(tickets)
 	}
 }
 
