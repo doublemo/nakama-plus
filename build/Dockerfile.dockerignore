@@ -1,0 +1,8 @@
+.git
+.env
+.env.*
+data
+node_modules
+**/node_modules
+**/*.exe
+**/*.test

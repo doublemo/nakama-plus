@@ -1,0 +1,134 @@
+name: nakama-plus-cluster
+
+x-database-address: &database-address
+  "--database.address=postgres:${NAKAMA_POSTGRES_PASSWORD:-nakama-dev-postgres}@postgres:5432/nakama?sslmode=disable"
+
+x-nakama-dependencies: &nakama-dependencies
+  migrate:
+    condition: service_completed_successfully
+  redis:
+    condition: service_healthy
+
+x-nakama: &nakama
+  image: ${NAKAMA_IMAGE:-nakama-plus:local}
+  pull_policy: never
+  entrypoint:
+    - tini
+    - --
+    - /bin/sh
+    - -ec
+    - 'exec /nakama/nakama --name "$$HOSTNAME" "$$@"'
+    - nakama
+  command:
+    - *database-address
+    - "--database.max_open_conns=24"
+    - "--database.max_idle_conns=8"
+    - "--database.redis.enabled=true"
+    - "--database.redis.address=redis:6379"
+    - "--database.redis.password=${NAKAMA_REDIS_PASSWORD:-nakama-dev-redis}"
+    - "--database.redis.prefix=nakama-plus"
+    - "--cluster.gossip_bindaddr=0.0.0.0"
+    - "--cluster.gossip_bindport=7352"
+    - "--cluster.retransmit_mult=3"
+    # Including itself lets the first node bootstrap and discover surviving nodes after a restart.
+    - "--cluster.members=nakama-1:7352"
+    - "--cluster.members=nakama-2:7352"
+    - "--cluster.members=nakama-3:7352"
+    - "--cluster.secret_key=${NAKAMA_GOSSIP_KEY:-nakama-dev-gossip-key-0123456789}"
+    - "--socket.server_key=${NAKAMA_SERVER_KEY:-nakama-dev-server-key}"
+    - "--session.encryption_key=${NAKAMA_SESSION_KEY:-nakama-dev-session-key}"
+    - "--session.refresh_encryption_key=${NAKAMA_SESSION_REFRESH_KEY:-nakama-dev-refresh-key}"
+    - "--runtime.http_key=${NAKAMA_RUNTIME_HTTP_KEY:-nakama-dev-runtime-key}"
+    - "--console.password=${NAKAMA_CONSOLE_PASSWORD:-nakama-dev-console}"
+    - "--console.signing_key=${NAKAMA_CONSOLE_SIGNING_KEY:-nakama-dev-console-signing-key}"
+    - "--shutdown_grace_sec=10"
+  restart: unless-stopped
+  stop_grace_period: 25s
+  healthcheck:
+    test: ["CMD", "/nakama/nakama", "healthcheck"]
+    interval: 5s
+    timeout: 3s
+    retries: 12
+    start_period: 10s
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: nakama
+      POSTGRES_PASSWORD: ${NAKAMA_POSTGRES_PASSWORD:-nakama-dev-postgres}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "postgres", "-d", "nakama"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--requirepass", "${NAKAMA_REDIS_PASSWORD:-nakama-dev-redis}"]
+    environment:
+      REDISCLI_AUTH: ${NAKAMA_REDIS_PASSWORD:-nakama-dev-redis}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep -qx PONG"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  migrate:
+    image: ${NAKAMA_IMAGE:-nakama-plus:local}
+    build:
+      context: .
+      dockerfile: build/Dockerfile
+      args:
+        VERSION: ${NAKAMA_BUILD_VERSION:-3.37.0}
+        COMMIT: ${NAKAMA_BUILD_COMMIT:-local}
+    command: ["migrate", "up", *database-address]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  nakama-1:
+    <<: *nakama
+    hostname: nakama-1
+    depends_on: *nakama-dependencies
+    ports:
+      - "127.0.0.1:${NAKAMA_CONSOLE_1_PORT:-7351}:7351"
+
+  nakama-2:
+    <<: *nakama
+    hostname: nakama-2
+    depends_on: &follower-dependencies
+      <<: *nakama-dependencies
+      nakama-1:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${NAKAMA_CONSOLE_2_PORT:-7353}:7351"
+
+  nakama-3:
+    <<: *nakama
+    hostname: nakama-3
+    depends_on: *follower-dependencies
+    ports:
+      - "127.0.0.1:${NAKAMA_CONSOLE_3_PORT:-7354}:7351"
+
+  gateway:
+    image: haproxy:3.0-alpine
+    volumes:
+      - ./build/haproxy-cluster.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    ports:
+      - "${NAKAMA_BIND_ADDRESS:-127.0.0.1}:${NAKAMA_GRPC_PORT:-7349}:7349"
+      - "${NAKAMA_BIND_ADDRESS:-127.0.0.1}:${NAKAMA_HTTP_PORT:-7350}:7350"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:7350/healthcheck"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+
+volumes:
+  postgres-data:

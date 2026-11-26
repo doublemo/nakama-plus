@@ -46,6 +46,26 @@ For more detailed instructions have a look at our [Docker quickstart](https://he
 
 Nakama Docker images are maintained on [Docker Hub](https://hub.docker.com/r/heroiclabs/nakama/tags) and [prerelease](https://hub.docker.com/r/heroiclabs/nakama-prerelease/tags) images are occasionally published for cutting edge features of the server.
 
+### Nakama Plus cluster on one Docker host
+
+The [cluster Compose file](docker-compose-cluster.yml) builds Nakama Plus from this repository, runs the database migration as a one-shot service, and starts three named nodes with a shared PostgreSQL database and Redis session cache. HAProxy routes HTTP, WebSocket, and gRPC traffic to healthy nodes.
+
+```shell
+docker compose -f docker-compose-cluster.yml up -d --build --wait
+docker compose -f docker-compose-cluster.yml ps
+curl -f http://127.0.0.1:7350/healthcheck
+```
+
+| Service | Default address |
+| --- | --- |
+| HTTP and WebSocket gateway | `127.0.0.1:7350` |
+| gRPC gateway | `127.0.0.1:7349` |
+| Consoles for nodes 1–3 | `127.0.0.1:7351`, `127.0.0.1:7353`, `127.0.0.1:7354` |
+
+Sign in to a console as `admin` with the local password `nakama-dev-console` to see all three nodes on the status page. PostgreSQL, Redis, and the TCP/UDP gossip port are reachable on the Compose network. The PostgreSQL named volume survives `docker compose -f docker-compose-cluster.yml down`.
+
+The defaults are for local development. Before exposing the gateway with `NAKAMA_BIND_ADDRESS`, supply your environment's `NAKAMA_*_KEY` and `NAKAMA_*_PASSWORD` values and terminate TLS for client traffic. Use a gossip key of exactly 16, 24, or 32 bytes and a URL-unreserved PostgreSQL password such as a random hex string. If you load runtime modules, mount the same module directory at `/nakama/data/modules` on all three services. This Compose file runs on one host with one PostgreSQL and one Redis instance.
+
 ### Binaries
 
 You can run the servers with native binaries for your platform.
