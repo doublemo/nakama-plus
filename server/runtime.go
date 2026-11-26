@@ -1796,7 +1796,7 @@ func NewRuntime(ctx context.Context, logger, startupLogger *zap.Logger, db *sql.
 	}
 	if goBeforeReqFns.beforeValidatePurchaseAppleFunction != nil {
 		allBeforeReqFunctions.beforeValidatePurchaseAppleFunction = goBeforeReqFns.beforeValidatePurchaseAppleFunction
-		startupLogger.Info("Registered Go runtime Before function invocation", zap.String("id", "validateapple"))
+		startupLogger.Info("Registered Go runtime Before function invocation", zap.String("id", "validatepurchaseapple"))
 	}
 	if goBeforeReqFns.beforeValidatePurchaseGoogleFunction != nil {
 		allBeforeReqFunctions.beforeValidatePurchaseGoogleFunction = goBeforeReqFns.beforeValidatePurchaseGoogleFunction
@@ -2095,7 +2095,7 @@ func NewRuntime(ctx context.Context, logger, startupLogger *zap.Logger, db *sql.
 		startupLogger.Info("Registered JavaScript runtime After function invocation", zap.String("id", "listsubscriptions"))
 	}
 	if allAfterReqFunctions.afterListPartiesFunction != nil {
-		startupLogger.Info("Registered JavaScript runtime Before function invocation", zap.String("id", "listparties"))
+		startupLogger.Info("Registered JavaScript runtime After function invocation", zap.String("id", "listparties"))
 	}
 	if allAfterReqFunctions.afterEventFunction != nil {
 		startupLogger.Info("Registered JavaScript runtime After custom events function invocation")
@@ -2435,7 +2435,7 @@ func NewRuntime(ctx context.Context, logger, startupLogger *zap.Logger, db *sql.
 	}
 	if luaAfterReqFns.afterListPartiesFunction != nil {
 		allAfterReqFunctions.afterListPartiesFunction = luaAfterReqFns.afterListPartiesFunction
-		startupLogger.Info("Registered Lua runtime Before function invocation", zap.String("id", "listparties"))
+		startupLogger.Info("Registered Lua runtime After function invocation", zap.String("id", "listparties"))
 	}
 	if luaAfterReqFns.afterEventFunction != nil {
 		allAfterReqFunctions.afterEventFunction = luaAfterReqFns.afterEventFunction
@@ -2781,7 +2781,7 @@ func NewRuntime(ctx context.Context, logger, startupLogger *zap.Logger, db *sql.
 	}
 	if goAfterReqFns.afterListPartiesFunction != nil {
 		allAfterReqFunctions.afterListPartiesFunction = goAfterReqFns.afterListPartiesFunction
-		startupLogger.Info("Registered Go runtime Before function invocation", zap.String("id", "listparties"))
+		startupLogger.Info("Registered Go runtime After function invocation", zap.String("id", "listparties"))
 	}
 	if goAfterReqFns.afterEventFunction != nil {
 		allAfterReqFunctions.afterEventFunction = goAfterReqFns.afterEventFunction
