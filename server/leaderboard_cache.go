@@ -23,6 +23,7 @@ import (
 
 	"log"
 	"math"
+	"slices"
 	"sort"
 	"strconv"
 	"sync"
@@ -170,6 +171,7 @@ type LocalLeaderboardCache struct {
 	logger       *zap.Logger
 	db           *sql.DB
 	leaderboards map[string]*Leaderboard
+	revision     uint64
 
 	allList         []*Leaderboard
 	leaderboardList []*Leaderboard // Non-tournament only
@@ -196,6 +198,14 @@ func NewLocalLeaderboardCache(ctx context.Context, logger, startupLogger *zap.Lo
 }
 
 func (l *LocalLeaderboardCache) RefreshAllLeaderboards(ctx context.Context) error {
+	_, err := l.refreshAll(ctx)
+	return err
+}
+
+func (l *LocalLeaderboardCache) refreshAll(ctx context.Context) (bool, error) {
+	l.RLock()
+	revision := l.revision
+	l.RUnlock()
 	leaderboards := make(map[string]*Leaderboard)
 	tournamentList := make([]*Leaderboard, 0, 100)
 	leaderboardList := make([]*Leaderboard, 0, 100)
@@ -221,7 +231,7 @@ FROM leaderboard`
 		rows, err := l.db.QueryContext(ctx, query, params...)
 		if err != nil {
 			l.logger.Error("Error loading leaderboard cache from database", zap.Error(err))
-			return err
+			return false, err
 		}
 
 		var count int
@@ -247,7 +257,7 @@ FROM leaderboard`
 			if err != nil {
 				_ = rows.Close()
 				l.logger.Error("Error parsing leaderboard cache from database", zap.Error(err))
-				return err
+				return false, err
 			}
 
 			leaderboard := &Leaderboard{
@@ -274,7 +284,7 @@ FROM leaderboard`
 				if err != nil {
 					_ = rows.Close()
 					l.logger.Error("Error parsing leaderboard reset schedule from database", zap.Error(err))
-					return err
+					return false, err
 				}
 				leaderboard.ResetScheduleStr = resetSchedule.String
 				leaderboard.ResetSchedule = expr
@@ -293,7 +303,11 @@ FROM leaderboard`
 				leaderboardList = append(leaderboardList, leaderboard)
 			}
 		}
+		err = rows.Err()
 		_ = rows.Close()
+		if err != nil {
+			return false, err
+		}
 
 		if count < limit {
 			break
@@ -303,13 +317,42 @@ FROM leaderboard`
 	sort.Sort(OrderedTournaments(tournamentList))
 
 	l.Lock()
+	defer l.Unlock()
+	if revision != l.revision {
+		// A local operation or cluster delta changed the cache during the read.
+		return false, nil
+	}
+	if len(l.leaderboards) == len(leaderboards) &&
+		slices.EqualFunc(l.allList, allList, sameLeaderboardDefinition) &&
+		slices.EqualFunc(l.leaderboardList, leaderboardList, sameLeaderboardDefinition) &&
+		slices.EqualFunc(l.tournamentList, tournamentList, sameLeaderboardDefinition) {
+		same := true
+		for id, leaderboard := range leaderboards {
+			if !sameLeaderboardDefinition(l.leaderboards[id], leaderboard) {
+				same = false
+				break
+			}
+		}
+		if same {
+			return false, nil
+		}
+	}
 	l.leaderboards = leaderboards
 	l.allList = allList
 	l.tournamentList = tournamentList
 	l.leaderboardList = leaderboardList
-	l.Unlock()
+	l.revision++
 
-	return nil
+	return true, nil
+}
+
+func sameLeaderboardDefinition(a, b *Leaderboard) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	left, right := *a, *b
+	left.ResetSchedule, right.ResetSchedule = nil, nil
+	return left == right
 }
 
 func (l *LocalLeaderboardCache) Get(id string) *Leaderboard {
@@ -403,7 +446,7 @@ func (l *LocalLeaderboardCache) Create(ctx context.Context, id string, authorita
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == dbErrorUniqueViolation {
 			// Concurrent attempt at creating the leaderboard, to keep idempotency query the existing leaderboard data.
-			if err = l.db.QueryRowContext(ctx, "SELECT authoritative, sort_order, operator, COALESCE(reset_schedule, ''), metadata, create_time FROM leaderboard WHERE id = $1", id).Scan(&authoritative, &sortOrder, &operator, &resetSchedule, &metadata, &createTime); err != nil {
+			if err = l.db.QueryRowContext(ctx, "SELECT authoritative, sort_order, operator, COALESCE(reset_schedule, ''), metadata, create_time, enable_ranks FROM leaderboard WHERE id = $1", id).Scan(&authoritative, &sortOrder, &operator, &resetSchedule, &metadata, &createTime, &enableRanks); err != nil {
 				l.logger.Error("Error retrieving leaderboard", zap.Error(err))
 				return nil, false, err
 			}
@@ -440,6 +483,7 @@ func (l *LocalLeaderboardCache) Create(ctx context.Context, id string, authorita
 		return leaderboard, false, nil
 	}
 	l.leaderboards[id] = leaderboard
+	l.revision++
 	l.allList = append(l.allList, leaderboard)
 	l.leaderboardList = append(l.leaderboardList, leaderboard)
 	l.Unlock()
@@ -474,6 +518,7 @@ func (l *LocalLeaderboardCache) Insert(id string, authoritative bool, sortOrder,
 	l.Lock()
 	_, found := l.leaderboards[id]
 	l.leaderboards[id] = leaderboard
+	l.revision++
 
 	if found {
 		for idx, le := range l.allList {
@@ -672,6 +717,7 @@ func (l *LocalLeaderboardCache) CreateTournament(ctx context.Context, id string,
 		return leaderboard, false, nil
 	}
 	l.leaderboards[id] = leaderboard
+	l.revision++
 	l.allList = append(l.allList, leaderboard)
 	l.tournamentList = append(l.tournamentList, leaderboard)
 	sort.Sort(OrderedTournaments(l.tournamentList))
@@ -716,6 +762,7 @@ func (l *LocalLeaderboardCache) InsertTournament(id string, authoritative bool, 
 	l.Lock()
 	_, found := l.leaderboards[id]
 	l.leaderboards[id] = leaderboard
+	l.revision++
 
 	if found {
 		for idx, le := range l.allList {
@@ -818,6 +865,7 @@ func (l *LocalLeaderboardCache) Delete(ctx context.Context, rankCache Leaderboar
 	l.Lock()
 	// Then delete from cache.
 	delete(l.leaderboards, id)
+	l.revision++
 	for i, currentAll := range l.allList {
 		if currentAll.Id == id {
 			copy(l.allList[i:], l.allList[i+1:])
@@ -861,6 +909,7 @@ func (l *LocalLeaderboardCache) Remove(id string) {
 	l.Lock()
 	if leaderboard, ok := l.leaderboards[id]; ok {
 		delete(l.leaderboards, id)
+		l.revision++
 		for i, currentAll := range l.allList {
 			if currentAll.Id == id {
 				copy(l.allList[i:], l.allList[i+1:])

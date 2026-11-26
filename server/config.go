@@ -285,6 +285,9 @@ func ValidateConfig(logger *zap.Logger, c Config) map[string]string {
 	if c.GetLeaderboard().CallbackQueueWorkers < 1 {
 		logger.Fatal("Leaderboard callback queue workers must be >= 1", zap.Int("leaderboard.callback_queue_workers", c.GetLeaderboard().CallbackQueueWorkers))
 	}
+	if c.GetLeaderboard().CacheRefreshIntervalSec < 0 {
+		logger.Fatal("Leaderboard cache refresh interval must be >= 0", zap.Int("leaderboard.cache_refresh_interval_sec", c.GetLeaderboard().CacheRefreshIntervalSec))
+	}
 	if c.GetMatchmaker().MaxTickets < 1 {
 		logger.Fatal("Matchmaker maximum ticket count must be >= 1", zap.Int("matchmaker.max_tickets", c.GetMatchmaker().MaxTickets))
 	}
@@ -1296,10 +1299,11 @@ func NewConsoleConfig() *ConsoleConfig {
 
 // LeaderboardConfig is configuration relevant to the leaderboard system.
 type LeaderboardConfig struct {
-	BlacklistRankCache   []string `yaml:"blacklist_rank_cache" json:"blacklist_rank_cache" usage:"Disable rank cache for leaderboards with matching identifiers. To disable rank cache entirely, use '*', otherwise leave blank to enable rank cache."`
-	CallbackQueueSize    int      `yaml:"callback_queue_size" json:"callback_queue_size" usage:"Size of the leaderboard and tournament callback queue that sequences expiry/reset/end invocations. Default 65536."`
-	CallbackQueueWorkers int      `yaml:"callback_queue_workers" json:"callback_queue_workers" usage:"Number of workers to use for concurrent processing of leaderboard and tournament callbacks. Default 8."`
-	RankCacheWorkers     int      `yaml:"rank_cache_workers" json:"rank_cache_workers" usage:"The number of parallel workers to use while populating leaderboard rank cache from the database. Higher number of workers usually makes the process faster but at the cost of increased database load. Default 1."`
+	BlacklistRankCache      []string `yaml:"blacklist_rank_cache" json:"blacklist_rank_cache" usage:"Disable rank cache for leaderboards with matching identifiers. To disable rank cache entirely, use '*', otherwise leave blank to enable rank cache."`
+	CallbackQueueSize       int      `yaml:"callback_queue_size" json:"callback_queue_size" usage:"Size of the leaderboard and tournament callback queue that sequences expiry/reset/end invocations. Default 65536."`
+	CallbackQueueWorkers    int      `yaml:"callback_queue_workers" json:"callback_queue_workers" usage:"Number of workers to use for concurrent processing of leaderboard and tournament callbacks. Default 8."`
+	RankCacheWorkers        int      `yaml:"rank_cache_workers" json:"rank_cache_workers" usage:"The number of parallel workers to use while populating leaderboard rank cache from the database. Higher number of workers usually makes the process faster but at the cost of increased database load. Default 1."`
+	CacheRefreshIntervalSec int      `yaml:"cache_refresh_interval_sec" json:"cache_refresh_interval_sec" usage:"Seconds between leaderboard cache reconciliations against the shared database. Set to 0 to disable periodic refresh. Default 60."`
 }
 
 func (cfg *LeaderboardConfig) Clone() *LeaderboardConfig {
@@ -1319,10 +1323,11 @@ func (cfg *LeaderboardConfig) Clone() *LeaderboardConfig {
 
 func NewLeaderboardConfig() *LeaderboardConfig {
 	return &LeaderboardConfig{
-		BlacklistRankCache:   []string{},
-		CallbackQueueSize:    65536,
-		CallbackQueueWorkers: 8,
-		RankCacheWorkers:     1,
+		BlacklistRankCache:      []string{},
+		CallbackQueueSize:       65536,
+		CallbackQueueWorkers:    8,
+		RankCacheWorkers:        1,
+		CacheRefreshIntervalSec: 60,
 	}
 }
 
