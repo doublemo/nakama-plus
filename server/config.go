@@ -428,7 +428,7 @@ func ValidateConfig(logger *zap.Logger, c Config) map[string]string {
 	c.GetCluster().Validate(logger)
 
 	if k := c.GetMFA().StorageEncryptionKey; k != "" && len(k) != 32 {
-		logger.Fatal("MFA encryption key has to be 32 bits long")
+		logger.Fatal("MFA encryption key has to be 32 bytes long")
 	}
 
 	return configWarnings
@@ -1676,7 +1676,7 @@ func (cfg *MFAConfig) Clone() *MFAConfig {
 
 func NewMFAConfig() *MFAConfig {
 	return &MFAConfig{
-		StorageEncryptionKey: "the-key-has-to-be-32-bytes-long!", // Has to be 32 bit long.
+		StorageEncryptionKey: "the-key-has-to-be-32-bytes-long!", // Has to be 32 bytes long.
 		AdminAccountOn:       false,
 	}
 }
