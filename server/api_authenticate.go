@@ -109,7 +109,9 @@ func (s *ApiServer) AuthenticateApple(ctx context.Context, in *api.AuthenticateA
 
 	create := in.Create == nil || in.Create.Value
 
-	dbUserID, dbUsername, created, err := AuthenticateApple(ctx, logger, s.db, s.socialClient, s.config.GetSocial().Apple.BundleId, in.Account.Token, username, create)
+	importEmail := in.ImportEmail == nil || in.ImportEmail.Value
+
+	dbUserID, dbUsername, created, err := AuthenticateApple(ctx, logger, s.db, s.socialClient, s.config.GetSocial().Apple.BundleId, in.Account.Token, username, create, importEmail)
 	if err != nil {
 		return nil, err
 	}
@@ -435,7 +437,9 @@ func (s *ApiServer) AuthenticateFacebook(ctx context.Context, in *api.Authentica
 
 	create := in.Create == nil || in.Create.Value
 
-	dbUserID, dbUsername, created, err := AuthenticateFacebook(ctx, logger, s.db, s.socialClient, s.config.GetSocial().FacebookLimitedLogin.AppId, in.Account.Token, username, create)
+	importEmail := in.ImportEmail == nil || in.ImportEmail.Value
+
+	dbUserID, dbUsername, created, err := AuthenticateFacebook(ctx, logger, s.db, s.socialClient, s.config.GetSocial().FacebookLimitedLogin.AppId, in.Account.Token, username, create, importEmail)
 	if err != nil {
 		return nil, err
 	}
@@ -665,7 +669,9 @@ func (s *ApiServer) AuthenticateGoogle(ctx context.Context, in *api.Authenticate
 
 	create := in.Create == nil || in.Create.Value
 
-	dbUserID, dbUsername, created, err := AuthenticateGoogle(ctx, logger, s.db, s.socialClient, in.Account.Token, username, create)
+	importEmail := in.ImportEmail == nil || in.ImportEmail.Value
+
+	dbUserID, dbUsername, created, err := AuthenticateGoogle(ctx, logger, s.db, s.socialClient, in.Account.Token, username, create, importEmail)
 	if err != nil {
 		return nil, err
 	}

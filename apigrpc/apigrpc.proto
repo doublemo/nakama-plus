@@ -715,6 +715,38 @@ service Nakama {
     };
   }
 
+  // Link an Apple account with control over provider email import.
+  rpc LinkAppleWithOptions (api.LinkAppleRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      post: "/v2/account/link/apple/options",
+      body: "*"
+    };
+  }
+
+  // Link a Google account with control over provider email import.
+  rpc LinkGoogleWithOptions (api.LinkGoogleRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      post: "/v2/account/link/google/options",
+      body: "*"
+    };
+  }
+
+  // Validate a purchase with a registered IAP provider
+  rpc ValidatePurchase (api.ValidateIAPPurchaseRequest) returns (api.ValidateIAPPurchaseResponse) {
+    option (google.api.http) = {
+      post: "/v2/iap/purchase/{provider}",
+      body: "*"
+    };
+  }
+
+  // Validate a subscription with a registered IAP provider
+  rpc ValidateSubscription (api.ValidateIAPSubscriptionRequest) returns (api.ValidateIAPSubscriptionResponse) {
+    option (google.api.http) = {
+      post: "/v2/iap/subscription/{provider}",
+      body: "*"
+    };
+  }
+
   // Validate Apple IAP Receipt
   rpc ValidatePurchaseApple (api.ValidatePurchaseAppleRequest) returns (api.ValidatePurchaseResponse) {
     option (google.api.http) = {

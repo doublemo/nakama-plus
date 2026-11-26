@@ -11,7 +11,8 @@
   },
   "tags": [
     {
-      "name": "Console"
+      "name": "Console",
+      "description": "*\r\nThe developer console RPC protocol service built with GRPC."
     }
   ],
   "host": "127.0.0.1:7351",
@@ -2664,6 +2665,13 @@
             "in": "query",
             "required": false,
             "type": "string"
+          },
+          {
+            "name": "provider",
+            "description": "Optional IAP provider name, built-in store (APPLE_APP_STORE, GOOGLE_PLAY_STORE, HUAWEI_APP_GALLERY, FACEBOOK_INSTANT_STORE, SAMSUNG_GALAXY_STORE) or numeric store code to list purchases for.",
+            "in": "query",
+            "required": false,
+            "type": "string"
           }
         ],
         "tags": [
@@ -3367,6 +3375,13 @@
           {
             "name": "filter",
             "description": "Filter to use when searching for specific subscriptions.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "provider",
+            "description": "Optional IAP provider name, built-in store (APPLE_APP_STORE, GOOGLE_PLAY_STORE, HUAWEI_APP_GALLERY, FACEBOOK_INSTANT_STORE, SAMSUNG_GALAXY_STORE) or numeric store code to list subscriptions for.",
             "in": "query",
             "required": false,
             "type": "string"
@@ -4174,6 +4189,24 @@
       },
       "description": "Request to change a password."
     },
+    "console.AuthenticateRequest": {
+      "type": "object",
+      "properties": {
+        "username": {
+          "type": "string",
+          "description": "The username of the user."
+        },
+        "password": {
+          "type": "string",
+          "description": "The password of the user."
+        },
+        "mfa": {
+          "type": "string",
+          "description": "Multi-factor authentication code."
+        }
+      },
+      "description": "Authenticate a console user with username and password."
+    },
     "CallApiEndpointBody": {
       "type": "object",
       "properties": {
@@ -4348,30 +4381,6 @@
         }
       },
       "description": "The current server configuration and any associated warnings."
-    },
-    "Console.WriteStorageObjectBody": {
-      "type": "object",
-      "properties": {
-        "value": {
-          "type": "string",
-          "description": "Value."
-        },
-        "version": {
-          "type": "string",
-          "description": "Version for OCC."
-        },
-        "permission_read": {
-          "type": "integer",
-          "format": "int32",
-          "description": "Read permission value."
-        },
-        "permission_write": {
-          "type": "integer",
-          "format": "int32",
-          "description": "Write permission value."
-        }
-      },
-      "description": "Write a new storage object or update an existing one."
     },
     "ConsoleSession": {
       "type": "object",
@@ -4551,6 +4560,29 @@
       },
       "description": "An export of all information stored for a group."
     },
+    "console.GroupList": {
+      "type": "object",
+      "properties": {
+        "groups": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/Group"
+          },
+          "description": "A list of groups."
+        },
+        "total_count": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Approximate total number of groups."
+        },
+        "next_cursor": {
+          "type": "string",
+          "description": "Next cursor."
+        }
+      },
+      "description": "A list of groups."
+    },
     "GroupUser": {
       "type": "object",
       "properties": {
@@ -4641,6 +4673,141 @@
         }
       },
       "description": "The outcome of using a specific integration."
+    },
+    "console.Leaderboard": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "The ID of the leaderboard."
+        },
+        "title": {
+          "type": "string",
+          "description": "The title for the leaderboard."
+        },
+        "description": {
+          "type": "string",
+          "description": "The description of the leaderboard. May be blank."
+        },
+        "category": {
+          "type": "integer",
+          "format": "int64",
+          "description": "The category of the leaderboard. e.g. \"vip\" could be category 1."
+        },
+        "sort_order": {
+          "type": "integer",
+          "format": "int64",
+          "description": "ASC or DESC sort mode of scores in the leaderboard."
+        },
+        "size": {
+          "type": "integer",
+          "format": "int64",
+          "description": "The current number of players in the leaderboard."
+        },
+        "max_size": {
+          "type": "integer",
+          "format": "int64",
+          "description": "The maximum number of players for the leaderboard."
+        },
+        "max_num_score": {
+          "type": "integer",
+          "format": "int64",
+          "description": "The maximum score updates allowed per player for the current leaderboard."
+        },
+        "operator": {
+          "type": "integer",
+          "format": "int64",
+          "title": "The operator of the leaderboard"
+        },
+        "end_active": {
+          "type": "integer",
+          "format": "int64",
+          "description": "The UNIX time when the leaderboard stops being active until next reset. A computed value."
+        },
+        "reset_schedule": {
+          "type": "string",
+          "description": "Reset cron expression."
+        },
+        "metadata": {
+          "type": "string",
+          "description": "Additional information stored as a JSON object."
+        },
+        "create_time": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The UNIX time when the leaderboard was created."
+        },
+        "start_time": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The UNIX time when the leaderboard will start."
+        },
+        "end_time": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The UNIX time when the leaderboard will be stopped."
+        },
+        "duration": {
+          "type": "integer",
+          "format": "int64",
+          "description": "Duration of the tournament in seconds."
+        },
+        "start_active": {
+          "type": "integer",
+          "format": "int64",
+          "description": "The UNIX time when the leaderboard start being active. A computed value."
+        },
+        "join_required": {
+          "type": "boolean",
+          "description": "Join required."
+        },
+        "authoritative": {
+          "type": "boolean",
+          "description": "Authoritative."
+        },
+        "tournament": {
+          "type": "boolean",
+          "description": "Tournament."
+        },
+        "prev_reset": {
+          "type": "integer",
+          "format": "int64",
+          "description": "The UNIX time when the tournament was last reset. A computed value."
+        },
+        "next_reset": {
+          "type": "integer",
+          "format": "int64",
+          "description": "The UNIX time when the tournament is next playable. A computed value."
+        },
+        "node": {
+          "type": "string",
+          "title": "running on node"
+        }
+      },
+      "description": "A leaderboard."
+    },
+    "console.LeaderboardList": {
+      "type": "object",
+      "properties": {
+        "leaderboards": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/console.Leaderboard"
+          },
+          "description": "The list of leaderboards returned."
+        },
+        "total": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Total count of leaderboards and tournaments."
+        },
+        "cursor": {
+          "type": "string",
+          "description": "A cursor, if any."
+        }
+      },
+      "description": "A list of leaderboards."
     },
     "LeaderboardRecord": {
       "type": "object",
@@ -4785,6 +4952,19 @@
       },
       "description": "A list of templates."
     },
+    "console.MatchList": {
+      "type": "object",
+      "properties": {
+        "matches": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/MatchList.Match"
+          }
+        }
+      },
+      "description": "A list of realtime matches, with their node names."
+    },
     "MatchList.Match": {
       "type": "object",
       "properties": {
@@ -4889,6 +5069,27 @@
         }
       },
       "description": "The MultiTextValueFilterOption specifies the operation to apply to multi-value text fields.\r\nOnly a single operation can be used at one time."
+    },
+    "console.NotificationList": {
+      "type": "object",
+      "properties": {
+        "notifications": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/console.Notification"
+          },
+          "description": "List of notifications."
+        },
+        "next_cursor": {
+          "type": "string",
+          "description": "Next page cursor if any."
+        },
+        "prev_cursor": {
+          "type": "string",
+          "description": "Previous page cursor if any."
+        }
+      }
     },
     "NullValue": {
       "type": "string",
@@ -5078,6 +5279,13 @@
             "type": "string"
           },
           "title": "JavaScript registered authentication providers"
+        },
+        "go_iap_providers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "Go registered IAP providers"
         }
       },
       "title": "Runtime information"
@@ -6018,6 +6226,10 @@
         "seen_before": {
           "type": "boolean",
           "description": "Whether the purchase had already been validated by Nakama before."
+        },
+        "provider": {
+          "type": "string",
+          "description": "Name of the IAP provider that validated the purchase, empty for a built-in store. For IAP providers, store holds the provider's code."
         }
       },
       "description": "Validated Purchase stored by Nakama."
@@ -6081,6 +6293,10 @@
         "active": {
           "type": "boolean",
           "description": "Whether the subscription is currently active or not."
+        },
+        "provider": {
+          "type": "string",
+          "description": "Name of the IAP provider that validated the subscription, empty for a built-in store. For IAP providers, store holds the provider's code."
         }
       }
     },
@@ -6151,6 +6367,30 @@
         }
       },
       "description": "A warning for a configuration field."
+    },
+    "Console.WriteStorageObjectBody": {
+      "type": "object",
+      "properties": {
+        "value": {
+          "type": "string",
+          "description": "Value."
+        },
+        "version": {
+          "type": "string",
+          "description": "Version for OCC."
+        },
+        "permission_read": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Read permission value."
+        },
+        "permission_write": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Write permission value."
+        }
+      },
+      "description": "Write a new storage object or update an existing one."
     },
     "api.Account": {
       "type": "object",
@@ -6364,195 +6604,6 @@
       },
       "description": "Account information."
     },
-    "console.AuthenticateRequest": {
-      "type": "object",
-      "properties": {
-        "username": {
-          "type": "string",
-          "description": "The username of the user."
-        },
-        "password": {
-          "type": "string",
-          "description": "The password of the user."
-        },
-        "mfa": {
-          "type": "string",
-          "description": "Multi-factor authentication code."
-        }
-      },
-      "description": "Authenticate a console user with username and password."
-    },
-    "console.GroupList": {
-      "type": "object",
-      "properties": {
-        "groups": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/Group"
-          },
-          "description": "A list of groups."
-        },
-        "total_count": {
-          "type": "integer",
-          "format": "int32",
-          "description": "Approximate total number of groups."
-        },
-        "next_cursor": {
-          "type": "string",
-          "description": "Next cursor."
-        }
-      },
-      "description": "A list of groups."
-    },
-    "console.Leaderboard": {
-      "type": "object",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "The ID of the leaderboard."
-        },
-        "title": {
-          "type": "string",
-          "description": "The title for the leaderboard."
-        },
-        "description": {
-          "type": "string",
-          "description": "The description of the leaderboard. May be blank."
-        },
-        "category": {
-          "type": "integer",
-          "format": "int64",
-          "description": "The category of the leaderboard. e.g. \"vip\" could be category 1."
-        },
-        "sort_order": {
-          "type": "integer",
-          "format": "int64",
-          "description": "ASC or DESC sort mode of scores in the leaderboard."
-        },
-        "size": {
-          "type": "integer",
-          "format": "int64",
-          "description": "The current number of players in the leaderboard."
-        },
-        "max_size": {
-          "type": "integer",
-          "format": "int64",
-          "description": "The maximum number of players for the leaderboard."
-        },
-        "max_num_score": {
-          "type": "integer",
-          "format": "int64",
-          "description": "The maximum score updates allowed per player for the current leaderboard."
-        },
-        "operator": {
-          "type": "integer",
-          "format": "int64",
-          "title": "The operator of the leaderboard"
-        },
-        "end_active": {
-          "type": "integer",
-          "format": "int64",
-          "description": "The UNIX time when the leaderboard stops being active until next reset. A computed value."
-        },
-        "reset_schedule": {
-          "type": "string",
-          "description": "Reset cron expression."
-        },
-        "metadata": {
-          "type": "string",
-          "description": "Additional information stored as a JSON object."
-        },
-        "create_time": {
-          "type": "string",
-          "format": "date-time",
-          "description": "The UNIX time when the leaderboard was created."
-        },
-        "start_time": {
-          "type": "string",
-          "format": "date-time",
-          "description": "The UNIX time when the leaderboard will start."
-        },
-        "end_time": {
-          "type": "string",
-          "format": "date-time",
-          "description": "The UNIX time when the leaderboard will be stopped."
-        },
-        "duration": {
-          "type": "integer",
-          "format": "int64",
-          "description": "Duration of the tournament in seconds."
-        },
-        "start_active": {
-          "type": "integer",
-          "format": "int64",
-          "description": "The UNIX time when the leaderboard start being active. A computed value."
-        },
-        "join_required": {
-          "type": "boolean",
-          "description": "Join required."
-        },
-        "authoritative": {
-          "type": "boolean",
-          "description": "Authoritative."
-        },
-        "tournament": {
-          "type": "boolean",
-          "description": "Tournament."
-        },
-        "prev_reset": {
-          "type": "integer",
-          "format": "int64",
-          "description": "The UNIX time when the tournament was last reset. A computed value."
-        },
-        "next_reset": {
-          "type": "integer",
-          "format": "int64",
-          "description": "The UNIX time when the tournament is next playable. A computed value."
-        },
-        "node": {
-          "type": "string",
-          "title": "running on node"
-        }
-      },
-      "description": "A leaderboard."
-    },
-    "console.LeaderboardList": {
-      "type": "object",
-      "properties": {
-        "leaderboards": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/console.Leaderboard"
-          },
-          "description": "The list of leaderboards returned."
-        },
-        "total": {
-          "type": "integer",
-          "format": "int32",
-          "description": "Total count of leaderboards and tournaments."
-        },
-        "cursor": {
-          "type": "string",
-          "description": "A cursor, if any."
-        }
-      },
-      "description": "A list of leaderboards."
-    },
-    "console.MatchList": {
-      "type": "object",
-      "properties": {
-        "matches": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/MatchList.Match"
-          }
-        }
-      },
-      "description": "A list of realtime matches, with their node names."
-    },
     "console.Notification": {
       "type": "object",
       "properties": {
@@ -6589,27 +6640,6 @@
         "user_id": {
           "type": "string",
           "description": "User id."
-        }
-      }
-    },
-    "console.NotificationList": {
-      "type": "object",
-      "properties": {
-        "notifications": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/console.Notification"
-          },
-          "description": "List of notifications."
-        },
-        "next_cursor": {
-          "type": "string",
-          "description": "Next page cursor if any."
-        },
-        "prev_cursor": {
-          "type": "string",
-          "description": "Previous page cursor if any."
         }
       }
     },
