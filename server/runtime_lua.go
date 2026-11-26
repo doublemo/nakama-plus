@@ -214,6 +214,14 @@ func NewRuntimeProviderLua(ctx context.Context, logger, startupLogger *zap.Logge
 						}
 						return nil, 0
 					}
+				case "listparties":
+					beforeReqFunctions.beforeListPartiesFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.ListPartiesRequest) (*api.ListPartiesRequest, error, codes.Code) {
+						result, err, code := runtimeProviderLua.BeforeReq(ctx, id, logger, traceID, userID, username, vars, expiry, clientIP, clientPort, in)
+						if result == nil || err != nil {
+							return nil, err, code
+						}
+						return result.(*api.ListPartiesRequest), nil, 0
+					}
 				case "updateaccount":
 					beforeReqFunctions.beforeUpdateAccountFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.UpdateAccountRequest) (*api.UpdateAccountRequest, error, codes.Code) {
 						result, err, code := runtimeProviderLua.BeforeReq(ctx, id, logger, traceID, userID, username, vars, expiry, clientIP, clientPort, in)
@@ -382,6 +390,14 @@ func NewRuntimeProviderLua(ctx context.Context, logger, startupLogger *zap.Logge
 						}
 						return result.(*api.ImportFacebookFriendsRequest), nil, 0
 					}
+				case "importsteamfriends":
+					beforeReqFunctions.beforeImportSteamFriendsFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.ImportSteamFriendsRequest) (*api.ImportSteamFriendsRequest, error, codes.Code) {
+						result, err, code := runtimeProviderLua.BeforeReq(ctx, id, logger, traceID, userID, username, vars, expiry, clientIP, clientPort, in)
+						if result == nil || err != nil {
+							return nil, err, code
+						}
+						return result.(*api.ImportSteamFriendsRequest), nil, 0
+					}
 				case "creategroup":
 					beforeReqFunctions.beforeCreateGroupFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.CreateGroupRequest) (*api.CreateGroupRequest, error, codes.Code) {
 						result, err, code := runtimeProviderLua.BeforeReq(ctx, id, logger, traceID, userID, username, vars, expiry, clientIP, clientPort, in)
@@ -493,6 +509,14 @@ func NewRuntimeProviderLua(ctx context.Context, logger, startupLogger *zap.Logge
 							return nil, err, code
 						}
 						return result.(*api.DeleteLeaderboardRecordRequest), nil, 0
+					}
+				case "deletetournamentrecord":
+					beforeReqFunctions.beforeDeleteTournamentRecordFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.DeleteTournamentRecordRequest) (*api.DeleteTournamentRecordRequest, error, codes.Code) {
+						result, err, code := runtimeProviderLua.BeforeReq(ctx, id, logger, traceID, userID, username, vars, expiry, clientIP, clientPort, in)
+						if result == nil || err != nil {
+							return nil, err, code
+						}
+						return result.(*api.DeleteTournamentRecordRequest), nil, 0
 					}
 				case "listleaderboardrecords":
 					beforeReqFunctions.beforeListLeaderboardRecordsFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.ListLeaderboardRecordsRequest) (*api.ListLeaderboardRecordsRequest, error, codes.Code) {
@@ -871,6 +895,8 @@ func NewRuntimeProviderLua(ctx context.Context, logger, startupLogger *zap.Logge
 						}
 						return result.(*api.AnyRequest), nil, 0
 					}
+				default:
+					startupLogger.Warn("Lua runtime request hook id matches no API, the hook will not run", zap.String("id", shortID), zap.String("mode", RuntimeExecutionModeBefore.String()))
 				}
 			}
 		case RuntimeExecutionModeAfter:
@@ -888,6 +914,10 @@ func NewRuntimeProviderLua(ctx context.Context, logger, startupLogger *zap.Logge
 				case "getmatchmakerstats":
 					afterReqFunctions.afterGetMatchmakerStatsFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, out *api.MatchmakerStats) error {
 						return runtimeProviderLua.AfterReq(ctx, id, logger, traceID, userID, username, vars, expiry, clientIP, clientPort, out, nil)
+					}
+				case "listparties":
+					afterReqFunctions.afterListPartiesFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, out *api.PartyList, in *api.ListPartiesRequest) error {
+						return runtimeProviderLua.AfterReq(ctx, id, logger, traceID, userID, username, vars, expiry, clientIP, clientPort, out, in)
 					}
 				case "updateaccount":
 					afterReqFunctions.afterUpdateAccountFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.UpdateAccountRequest) error {
@@ -973,6 +1003,10 @@ func NewRuntimeProviderLua(ctx context.Context, logger, startupLogger *zap.Logge
 					afterReqFunctions.afterImportFacebookFriendsFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.ImportFacebookFriendsRequest) error {
 						return runtimeProviderLua.AfterReq(ctx, id, logger, traceID, userID, username, vars, expiry, clientIP, clientPort, nil, in)
 					}
+				case "importsteamfriends":
+					afterReqFunctions.afterImportSteamFriendsFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.ImportSteamFriendsRequest) error {
+						return runtimeProviderLua.AfterReq(ctx, id, logger, traceID, userID, username, vars, expiry, clientIP, clientPort, nil, in)
+					}
 				case "creategroup":
 					afterReqFunctions.afterCreateGroupFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, out *api.Group, in *api.CreateGroupRequest) error {
 						return runtimeProviderLua.AfterReq(ctx, id, logger, traceID, userID, username, vars, expiry, clientIP, clientPort, out, in)
@@ -1027,6 +1061,10 @@ func NewRuntimeProviderLua(ctx context.Context, logger, startupLogger *zap.Logge
 					}
 				case "deleteleaderboardrecord":
 					afterReqFunctions.afterDeleteLeaderboardRecordFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.DeleteLeaderboardRecordRequest) error {
+						return runtimeProviderLua.AfterReq(ctx, id, logger, traceID, userID, username, vars, expiry, clientIP, clientPort, nil, in)
+					}
+				case "deletetournamentrecord":
+					afterReqFunctions.afterDeleteTournamentRecordFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, in *api.DeleteTournamentRecordRequest) error {
 						return runtimeProviderLua.AfterReq(ctx, id, logger, traceID, userID, username, vars, expiry, clientIP, clientPort, nil, in)
 					}
 				case "listleaderboardrecords":
@@ -1198,7 +1236,7 @@ func NewRuntimeProviderLua(ctx context.Context, logger, startupLogger *zap.Logge
 						return runtimeProviderLua.AfterReq(ctx, id, logger, traceID, userID, username, vars, expiry, clientIP, clientPort, out, in)
 					}
 				case "validatesubscriptiongoogle":
-					afterReqFunctions.afterValidateSubscriptionAppleFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, out *api.ValidateSubscriptionResponse, in *api.ValidateSubscriptionAppleRequest) error {
+					afterReqFunctions.afterValidateSubscriptionGoogleFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, out *api.ValidateSubscriptionResponse, in *api.ValidateSubscriptionGoogleRequest) error {
 						return runtimeProviderLua.AfterReq(ctx, id, logger, traceID, userID, username, vars, expiry, clientIP, clientPort, out, in)
 					}
 				case "getsubscription":
@@ -1217,6 +1255,8 @@ func NewRuntimeProviderLua(ctx context.Context, logger, startupLogger *zap.Logge
 					afterReqFunctions.afterAnyFunction = func(ctx context.Context, logger *zap.Logger, traceID, userID, username string, vars map[string]string, expiry int64, clientIP, clientPort string, out *api.AnyResponseWriter, in *api.AnyRequest) error {
 						return runtimeProviderLua.AfterReq(ctx, id, logger, traceID, userID, username, vars, expiry, clientIP, clientPort, out, in)
 					}
+				default:
+					startupLogger.Warn("Lua runtime request hook id matches no API, the hook will not run", zap.String("id", shortID), zap.String("mode", RuntimeExecutionModeAfter.String()))
 				}
 			}
 		case RuntimeExecutionModeMatchmaker:
