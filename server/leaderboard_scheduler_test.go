@@ -156,10 +156,7 @@ func TestLeaderboardSchedulerFiresEveryResetDuringUpdates(t *testing.T) {
 		return nil
 	}}
 
-	// One worker: each callback calls cronexpr.Last, which writes to the shared schedule and trips -race across workers.
-	config := NewConfig(zap.NewNop())
-	config.GetLeaderboard().CallbackQueueWorkers = 1
-	ls := NewLocalLeaderboardScheduler(zap.NewNop(), nil, config, cache, &LocalLeaderboardRankCache{}).(*LocalLeaderboardScheduler)
+	ls := NewLocalLeaderboardScheduler(zap.NewNop(), nil, NewConfig(zap.NewNop()), cache, &LocalLeaderboardRankCache{}).(*LocalLeaderboardScheduler)
 	ls.callbacks = &testLeaderboardCallbackStore{claims: make(map[testLeaderboardCallbackKey]bool)}
 	ls.Start(rt)
 	t.Cleanup(ls.Stop)
@@ -197,10 +194,7 @@ func TestLeaderboardSchedulerSkipsResetsWhilePaused(t *testing.T) {
 		return nil
 	}}
 
-	// One worker: each callback calls cronexpr.Last, which writes to the shared schedule and trips -race across workers.
-	config := NewConfig(zap.NewNop())
-	config.GetLeaderboard().CallbackQueueWorkers = 1
-	ls := NewLocalLeaderboardScheduler(zap.NewNop(), nil, config, cache, &LocalLeaderboardRankCache{}).(*LocalLeaderboardScheduler)
+	ls := NewLocalLeaderboardScheduler(zap.NewNop(), nil, NewConfig(zap.NewNop()), cache, &LocalLeaderboardRankCache{}).(*LocalLeaderboardScheduler)
 	ls.callbacks = &testLeaderboardCallbackStore{claims: make(map[testLeaderboardCallbackKey]bool)}
 	ls.Start(rt)
 	t.Cleanup(ls.Stop)
