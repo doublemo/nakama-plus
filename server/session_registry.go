@@ -127,28 +127,8 @@ func (r *LocalSessionRegistry) Disconnect(ctx context.Context, sessionID uuid.UU
 		reasonOverride = reason[0]
 	}
 
-	session, ok := r.sessions.Load(sessionID)
-	if ok {
-		if ban {
-			session.Close("server-side session disconnect", runtime.PresenceReasonDisconnect,
-				&rtapi.Envelope{Message: &rtapi.Envelope_Notifications{
-					Notifications: &rtapi.Notifications{
-						Notifications: []*api.Notification{
-							{
-								Id:         uuid.Must(uuid.NewV4()).String(),
-								Subject:    "banned",
-								Content:    "{}",
-								Code:       NotificationCodeUserBanned,
-								SenderId:   "",
-								CreateTime: &timestamppb.Timestamp{Seconds: time.Now().Unix()},
-								Persistent: false,
-							},
-						},
-					},
-				}})
-		} else {
-			session.Close("server-side session disconnect", reasonOverride)
-		}
+	if session := r.Get(sessionID); session != nil {
+		closeDisconnectedSession(session, ban, reasonOverride)
 	}
 
 	if r.peer == nil {
@@ -164,6 +144,42 @@ func (r *LocalSessionRegistry) Disconnect(ctx context.Context, sessionID uuid.UU
 	},
 	}, true)
 	return nil
+}
+
+func closeDisconnectedSession(session Session, ban bool, reasonOverride runtime.PresenceReason) {
+	if ban {
+		session.Close("server-side session disconnect", runtime.PresenceReasonDisconnect,
+			&rtapi.Envelope{Message: &rtapi.Envelope_Notifications{
+				Notifications: &rtapi.Notifications{
+					Notifications: []*api.Notification{
+						{
+							Id:         uuid.Must(uuid.NewV4()).String(),
+							Subject:    "banned",
+							Content:    "{}",
+							Code:       NotificationCodeUserBanned,
+							SenderId:   "",
+							CreateTime: &timestamppb.Timestamp{Seconds: time.Now().Unix()},
+							Persistent: false,
+						},
+					},
+				},
+			}})
+	} else {
+		session.Close("server-side session disconnect", reasonOverride)
+	}
+}
+
+func (r *LocalSessionRegistry) broadcastBan(ids []uuid.UUID) {
+	if r.peer == nil || len(ids) == 0 {
+		return
+	}
+	values := make([]string, len(ids))
+	for i, id := range ids {
+		values[i] = id.String()
+	}
+	r.peer.BinaryLogBroadcast(&pb.BinaryLog{Payload: &pb.BinaryLog_Ban{
+		Ban: &pb.BanValue{Values: values},
+	}}, false)
 }
 
 func (r *LocalSessionRegistry) SingleSession(ctx context.Context, tracker Tracker, userID, sessionID uuid.UUID) {

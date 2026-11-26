@@ -87,12 +87,18 @@ func (b *LocalBinaryLog) SetVersionByNode(node string, stream peerLogStream, ver
 }
 
 func (s *LocalPeer) handleBinaryLog(v *pb.BinaryLog) {
-	s.replicationMu.Lock()
-	defer s.replicationMu.Unlock()
-
 	if v.GetNode() == "" || v.GetNode() == s.endpoint.Name() {
 		return
 	}
+	if ban := v.GetBan(); ban != nil {
+		// A ban log wakes up local reconciliation against current shared state.
+		s.onBan(v.Node, ban)
+		return
+	}
+
+	s.replicationMu.Lock()
+	defer s.replicationMu.Unlock()
+
 	logFields := []zap.Field{
 		zap.String("node", v.Node),
 		zap.Int64("version", v.Version),
@@ -111,9 +117,6 @@ func (s *LocalPeer) handleBinaryLog(v *pb.BinaryLog) {
 	}
 
 	switch payload := v.Payload.(type) {
-	case *pb.BinaryLog_Ban:
-		s.onBan(v.Node, payload.Ban)
-		s.logger.Debug("processed ban log", append(logFields, zap.Any("payload", payload.Ban))...)
 	case *pb.BinaryLog_Track:
 		if !s.applyTrackLog(v.Node, payload.Track, false) {
 			s.logger.Warn("Failed to apply track log", logFields...)

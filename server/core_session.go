@@ -31,13 +31,28 @@ var (
 	ErrRefreshTokenInvalid = errors.New("refresh token invalid")
 )
 
-func SessionRefresh(ctx context.Context, logger *zap.Logger, db *sql.DB, config Config, sessionCache SessionCache, token string) (uuid.UUID, string, map[string]string, string, int64, error) {
-	userID, _, vars, exp, tokenId, tokenIssuedAt, ok := parseToken([]byte(config.GetSession().RefreshEncryptionKey), token)
-	if !ok {
-		return uuid.Nil, "", nil, "", 0, status.Error(codes.Unauthenticated, "Refresh token invalid or expired.")
+func validateSessionToken(ctx context.Context, logger *zap.Logger, sessionCache SessionCache, userID uuid.UUID, token sessionTokenRef, refresh bool) error {
+	valid, err := sessionCache.validate(ctx, userID, token, refresh)
+	if err != nil {
+		logger.Error("Error checking session state.", zap.Error(err))
+		return status.Error(codes.Unavailable, "Session state unavailable.")
 	}
-	if !sessionCache.IsValidRefresh(userID, exp, tokenId) {
-		return uuid.Nil, "", nil, "", 0, status.Error(codes.Unauthenticated, "Refresh token invalid or expired.")
+	if !valid {
+		if refresh {
+			return status.Error(codes.Unauthenticated, "Refresh token invalid or expired.")
+		}
+		return status.Error(codes.Unauthenticated, "Auth token invalid")
+	}
+	return nil
+}
+
+func SessionRefresh(ctx context.Context, logger *zap.Logger, db *sql.DB, config Config, sessionCache SessionCache, token string) (uuid.UUID, string, map[string]string, string, int64, int64, error) {
+	userID, _, vars, exp, tokenId, tokenIssuedAt, version, ok := parseToken([]byte(config.GetSession().RefreshEncryptionKey), token)
+	if !ok {
+		return uuid.Nil, "", nil, "", 0, 0, status.Error(codes.Unauthenticated, "Refresh token invalid or expired.")
+	}
+	if err := validateSessionToken(ctx, logger, sessionCache, userID, sessionTokenRef{tokenId, exp, version}, true); err != nil {
+		return uuid.Nil, "", nil, "", 0, 0, err
 	}
 
 	// Look for an existing account.
@@ -49,49 +64,40 @@ func SessionRefresh(ctx context.Context, logger *zap.Logger, db *sql.DB, config 
 		if err == sql.ErrNoRows {
 			// Account not found and creation is never allowed for this type.
 			logger.With(zap.String("user_id", userID.String())).Warn("Refresh token user does not exist", zap.Error(err))
-			return uuid.Nil, "", nil, "", 0, status.Error(codes.NotFound, "User account not found.")
+			return uuid.Nil, "", nil, "", 0, 0, status.Error(codes.NotFound, "User account not found.")
 		}
 		logger.Error("Error looking up user by ID.", zap.Error(err), zap.String("id", userID.String()))
-		return uuid.Nil, "", nil, "", 0, status.Error(codes.Internal, "Error finding user account.")
+		return uuid.Nil, "", nil, "", 0, 0, status.Error(codes.Internal, "Error finding user account.")
 	}
 
 	// Check if it's disabled.
 	if dbDisableTime.Valid && dbDisableTime.Time.Unix() != 0 {
 		logger.Info("User account is disabled.", zap.String("id", userID.String()))
-		return uuid.Nil, "", nil, "", 0, status.Error(codes.PermissionDenied, "User account banned.")
+		return uuid.Nil, "", nil, "", 0, 0, status.Error(codes.PermissionDenied, "User account banned.")
 	}
 
-	return userID, dbUsername, vars, tokenId, tokenIssuedAt, nil
+	return userID, dbUsername, vars, tokenId, tokenIssuedAt, version, nil
 }
 
-func SessionLogout(config Config, sessionCache SessionCache, userID uuid.UUID, token, refreshToken string) error {
-	var maybeSessionExp int64
-	var maybeSessionTokenId string
+func SessionLogout(ctx context.Context, config Config, sessionCache SessionCache, userID uuid.UUID, token, refreshToken string) error {
+	var access, refresh sessionTokenRef
 	if token != "" {
 		var sessionUserID uuid.UUID
 		var ok bool
-		sessionUserID, _, _, maybeSessionExp, maybeSessionTokenId, _, ok = parseToken([]byte(config.GetSession().EncryptionKey), token)
+		sessionUserID, _, _, access.expiry, access.id, _, access.version, ok = parseToken([]byte(config.GetSession().EncryptionKey), token)
 		if !ok || sessionUserID != userID {
 			return ErrSessionTokenInvalid
 		}
 	}
 
-	var maybeRefreshExp int64
-	var maybeRefreshTokenId string
 	if refreshToken != "" {
 		var refreshUserID uuid.UUID
 		var ok bool
-		refreshUserID, _, _, maybeRefreshExp, maybeRefreshTokenId, _, ok = parseToken([]byte(config.GetSession().RefreshEncryptionKey), refreshToken)
+		refreshUserID, _, _, refresh.expiry, refresh.id, _, refresh.version, ok = parseToken([]byte(config.GetSession().RefreshEncryptionKey), refreshToken)
 		if !ok || refreshUserID != userID {
 			return ErrRefreshTokenInvalid
 		}
 	}
 
-	if maybeSessionTokenId == "" && maybeRefreshTokenId == "" {
-		sessionCache.RemoveAll(userID)
-		return nil
-	}
-
-	sessionCache.Remove(userID, maybeSessionExp, maybeSessionTokenId, maybeRefreshExp, maybeRefreshTokenId)
-	return nil
+	return sessionCache.revoke(ctx, userID, access, refresh)
 }

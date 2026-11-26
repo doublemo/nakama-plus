@@ -2049,8 +2049,11 @@ func (n *RuntimeJavascriptNakamaModule) authenticateTokenGenerate(r *goja.Runtim
 
 		tokenId := uuid.Must(uuid.NewV4()).String()
 		tokenIssuedAt := time.Now().Unix()
-		token, exp := generateTokenWithExpiry(n.config.GetSession().EncryptionKey, tokenId, tokenIssuedAt, userID, username, vars, exp)
-		n.sessionCache.Add(uid, exp, tokenId, 0, "")
+		version, err := n.sessionCache.issue(n.ctx, uid, false)
+		if err != nil {
+			panic(r.NewGoError(err))
+		}
+		token, exp := generateTokenWithExpiry(n.config.GetSession().EncryptionKey, tokenId, tokenIssuedAt, version, userID, username, vars, exp)
 
 		return r.ToValue(map[string]any{
 			"token": token,
@@ -3843,7 +3846,7 @@ func (n *RuntimeJavascriptNakamaModule) sessionLogout(r *goja.Runtime) func(goja
 			}
 		}
 
-		if err := SessionLogout(n.config, n.sessionCache, uid, tokenString, refreshTokenString); err != nil {
+		if err := SessionLogout(n.ctx, n.config, n.sessionCache, uid, tokenString, refreshTokenString); err != nil {
 			panic(r.NewGoError(fmt.Errorf("failed to logout: %s", err.Error())))
 		}
 

@@ -447,6 +447,11 @@ func ValidateConfigDatabase(logger *zap.Logger, c Config) {
 	if c.GetDatabase().DnsScanIntervalSec < 1 {
 		logger.Fatal("Database DNS scan interval seconds must be > 0", zap.Int("database.dns_scan_interval_sec", c.GetDatabase().DnsScanIntervalSec))
 	}
+	if cfg := c.GetDatabase().Redis; cfg != nil && cfg.Enabled {
+		if err := cfg.Validate(); err != nil {
+			logger.Fatal("Invalid Redis configuration", zap.String("param", "database.redis"), zap.Error(err))
+		}
+	}
 }
 
 func convertRuntimeEnv(logger *zap.Logger, existingEnv map[string]string, mergeEnv []string) map[string]string {
@@ -930,11 +935,12 @@ func NewSocketConfig() *SocketConfig {
 
 // DatabaseConfig is configuration relevant to the Database storage.
 type DatabaseConfig struct {
-	Addresses          []string `yaml:"address" json:"address" usage:"List of database servers (username:password@address:port/dbname). Default 'root@localhost:26257'."`
-	ConnMaxLifetimeMs  int      `yaml:"conn_max_lifetime_ms" json:"conn_max_lifetime_ms" usage:"Time in milliseconds to reuse a database connection before the connection is killed and a new one is created. Default 3600000 (1 hour)."`
-	MaxOpenConns       int      `yaml:"max_open_conns" json:"max_open_conns" usage:"Maximum number of allowed open connections to the database. Default 100."`
-	MaxIdleConns       int      `yaml:"max_idle_conns" json:"max_idle_conns" usage:"Maximum number of allowed open but unused connections to the database. Default 100."`
-	DnsScanIntervalSec int      `yaml:"dns_scan_interval_sec" json:"dns_scan_interval_sec" usage:"Number of seconds between scans looking for DNS resolution changes for the database hostname. Default 60."`
+	Redis              *RedisConfig `yaml:"redis" json:"redis" usage:"Shared Redis connection configuration."`
+	Addresses          []string     `yaml:"address" json:"address" usage:"List of database servers (username:password@address:port/dbname). Default 'root@localhost:26257'."`
+	ConnMaxLifetimeMs  int          `yaml:"conn_max_lifetime_ms" json:"conn_max_lifetime_ms" usage:"Time in milliseconds to reuse a database connection before the connection is killed and a new one is created. Default 3600000 (1 hour)."`
+	MaxOpenConns       int          `yaml:"max_open_conns" json:"max_open_conns" usage:"Maximum number of allowed open connections to the database. Default 100."`
+	MaxIdleConns       int          `yaml:"max_idle_conns" json:"max_idle_conns" usage:"Maximum number of allowed open but unused connections to the database. Default 100."`
+	DnsScanIntervalSec int          `yaml:"dns_scan_interval_sec" json:"dns_scan_interval_sec" usage:"Number of seconds between scans looking for DNS resolution changes for the database hostname. Default 60."`
 }
 
 func (cfg *DatabaseConfig) Clone() *DatabaseConfig {
@@ -943,6 +949,7 @@ func (cfg *DatabaseConfig) Clone() *DatabaseConfig {
 	}
 
 	cfgCopy := *cfg
+	cfgCopy.Redis = cfg.Redis.Clone()
 
 	if cfg.Addresses != nil {
 		cfgCopy.Addresses = make([]string, len(cfg.Addresses))
@@ -954,6 +961,7 @@ func (cfg *DatabaseConfig) Clone() *DatabaseConfig {
 
 func NewDatabaseConfig() *DatabaseConfig {
 	return &DatabaseConfig{
+		Redis:              NewRedisConfig(),
 		Addresses:          []string{"root@localhost:26257"},
 		ConnMaxLifetimeMs:  3600000,
 		MaxOpenConns:       100,

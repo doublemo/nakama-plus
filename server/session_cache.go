@@ -24,21 +24,15 @@ import (
 
 type SessionCache interface {
 	Stop()
+	validate(ctx context.Context, userID uuid.UUID, token sessionTokenRef, refresh bool) (bool, error)
+	issue(ctx context.Context, userID uuid.UUID, replace bool) (int64, error)
+	revoke(ctx context.Context, userID uuid.UUID, access, refresh sessionTokenRef) error
+}
 
-	// Check if a given user, expiry, and session token combination is valid.
-	IsValidSession(userID uuid.UUID, exp int64, tokenId string) bool
-	// Check if a given user, expiry, and refresh token combination is valid.
-	IsValidRefresh(userID uuid.UUID, exp int64, tokenId string) bool
-	// Add a valid session and/or refresh token for a given user.
-	Add(userID uuid.UUID, sessionExp int64, sessionTokenId string, refreshExp int64, refreshTokenId string)
-	// Remove a session and/or refresh token for a given user.
-	Remove(userID uuid.UUID, sessionExp int64, sessionTokenId string, refreshExp int64, refreshTokenId string)
-	// Remove all of a user's session and refresh tokens.
-	RemoveAll(userID uuid.UUID)
-	// Mark a set of users as banned.
-	Ban(userIDs []uuid.UUID)
-	// Unban a set of users.
-	Unban(userIDs []uuid.UUID)
+type sessionTokenRef struct {
+	id      string
+	expiry  int64
+	version int64
 }
 
 type sessionCacheUser struct {
@@ -59,7 +53,7 @@ type LocalSessionCache struct {
 	cache map[uuid.UUID]*sessionCacheUser
 }
 
-func NewLocalSessionCache(tokenExpirySec, refreshTokenExpirySec int64) SessionCache {
+func NewLocalSessionCache(tokenExpirySec, refreshTokenExpirySec int64) *LocalSessionCache {
 	ctx, ctxCancelFn := context.WithCancel(context.Background())
 
 	s := &LocalSessionCache{
@@ -107,6 +101,29 @@ func NewLocalSessionCache(tokenExpirySec, refreshTokenExpirySec int64) SessionCa
 
 func (s *LocalSessionCache) Stop() {
 	s.ctxCancelFn()
+}
+
+func (s *LocalSessionCache) validate(_ context.Context, userID uuid.UUID, token sessionTokenRef, refresh bool) (bool, error) {
+	if refresh {
+		return s.IsValidRefresh(userID, token.expiry, token.id), nil
+	}
+	return s.IsValidSession(userID, token.expiry, token.id), nil
+}
+
+func (s *LocalSessionCache) issue(_ context.Context, userID uuid.UUID, replace bool) (int64, error) {
+	if replace {
+		s.RemoveAll(userID)
+	}
+	return 0, nil
+}
+
+func (s *LocalSessionCache) revoke(_ context.Context, userID uuid.UUID, access, refresh sessionTokenRef) error {
+	if access.id == "" && refresh.id == "" {
+		s.RemoveAll(userID)
+	} else {
+		s.Remove(userID, access.expiry, access.id, refresh.expiry, refresh.id)
+	}
+	return nil
 }
 
 func (s *LocalSessionCache) IsValidSession(userID uuid.UUID, exp int64, tokenId string) bool {

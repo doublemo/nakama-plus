@@ -469,8 +469,13 @@ func (n *RuntimeGoNakamaModule) AuthenticateTokenGenerate(userID, username strin
 
 	tokenId := uuid.Must(uuid.NewV4()).String()
 	tokenIssuedAt := time.Now().Unix()
-	token, expiresAt := generateTokenWithExpiry(n.config.GetSession().EncryptionKey, tokenId, tokenIssuedAt, userID, username, vars, expiresAt)
-	n.sessionCache.Add(uid, expiresAt, tokenId, 0, "")
+	ctx, cancel := context.WithTimeout(context.Background(), sessionStateTimeout)
+	defer cancel()
+	version, err := n.sessionCache.issue(ctx, uid, false)
+	if err != nil {
+		return "", 0, err
+	}
+	token, expiresAt := generateTokenWithExpiry(n.config.GetSession().EncryptionKey, tokenId, tokenIssuedAt, version, userID, username, vars, expiresAt)
 	return token, expiresAt, nil
 }
 
@@ -1644,7 +1649,9 @@ func (n *RuntimeGoNakamaModule) SessionLogout(userID, token, refreshToken string
 		return errors.New("expects valid user id")
 	}
 
-	return SessionLogout(n.config, n.sessionCache, uid, token, refreshToken)
+	ctx, cancel := context.WithTimeout(context.Background(), sessionStateTimeout)
+	defer cancel()
+	return SessionLogout(ctx, n.config, n.sessionCache, uid, token, refreshToken)
 }
 
 // @group matches

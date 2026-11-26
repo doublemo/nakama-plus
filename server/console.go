@@ -82,7 +82,7 @@ type ConsoleServer struct {
 	metrics              Metrics
 	sessionCache         SessionCache
 	sessionRegistry      SessionRegistry
-	consoleSessionCache  SessionCache
+	consoleSessionCache  *LocalSessionCache
 	loginAttemptCache    LoginAttemptCache
 	statusRegistry       StatusRegistry
 	matchRegistry        MatchRegistry
@@ -105,7 +105,7 @@ type ConsoleServer struct {
 	satori               *satori.SatoriClient
 }
 
-func StartConsoleServer(logger *zap.Logger, startupLogger *zap.Logger, db *sql.DB, config Config, tracker Tracker, router MessageRouter, streamManager StreamManager, metrics Metrics, sessionRegistry SessionRegistry, sessionCache SessionCache, consoleSessionCache SessionCache, loginAttemptCache LoginAttemptCache, statusRegistry StatusRegistry, statusHandler StatusHandler, runtimeInfo *RuntimeInfo, matchRegistry MatchRegistry, configWarnings map[string]string, serverVersion string, leaderboardCache LeaderboardCache, leaderboardRankCache LeaderboardRankCache, leaderboardScheduler LeaderboardScheduler, storageIndex StorageIndex, api *ApiServer, runtime *Runtime, cookie string, registerConsoleRouter func(*mux.Router)) *ConsoleServer {
+func StartConsoleServer(logger *zap.Logger, startupLogger *zap.Logger, db *sql.DB, config Config, tracker Tracker, router MessageRouter, streamManager StreamManager, metrics Metrics, sessionRegistry SessionRegistry, sessionCache SessionCache, consoleSessionCache *LocalSessionCache, loginAttemptCache LoginAttemptCache, statusRegistry StatusRegistry, statusHandler StatusHandler, runtimeInfo *RuntimeInfo, matchRegistry MatchRegistry, configWarnings map[string]string, serverVersion string, leaderboardCache LeaderboardCache, leaderboardRankCache LeaderboardRankCache, leaderboardScheduler LeaderboardScheduler, storageIndex StorageIndex, api *ApiServer, runtime *Runtime, cookie string, registerConsoleRouter func(*mux.Router)) *ConsoleServer {
 	var gatewayContextTimeoutMs string
 	if config.GetConsole().IdleTimeoutMs > 500 {
 		// Ensure the GRPC Gateway timeout is just under the idle timeout (if possible) to ensure it has priority.
@@ -256,7 +256,7 @@ func StartConsoleServer(logger *zap.Logger, startupLogger *zap.Logger, db *sql.D
 			method = methods[0]
 		}
 		return func(w http.ResponseWriter, r *http.Request) {
-			r, success, code, message := checkAuthCustom(r, logger, config, r.Header.Get("Authorization"), method, path, sessionCache, loginAttemptCache)
+			r, success, code, message := checkAuthCustom(r, logger, config, r.Header.Get("Authorization"), method, path, consoleSessionCache, loginAttemptCache)
 			if !success {
 				w.Header().Set("content-type", "application/json")
 				w.WriteHeader(code)
@@ -516,7 +516,7 @@ func (s *ConsoleServer) Stop() {
 	s.grpcServer.GracefulStop()
 }
 
-func consoleAuthInterceptor(logger *zap.Logger, config Config, sessionCache SessionCache, loginAttmeptCache LoginAttemptCache) func(context.Context, any, *grpc.UnaryServerInfo, grpc.UnaryHandler) (any, error) {
+func consoleAuthInterceptor(logger *zap.Logger, config Config, sessionCache *LocalSessionCache, loginAttmeptCache LoginAttemptCache) func(context.Context, any, *grpc.UnaryServerInfo, grpc.UnaryHandler) (any, error) {
 	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 		if info.FullMethod == "/nakama.console.Console/Authenticate" {
 			// Skip authentication check for Login endpoint.
@@ -557,7 +557,7 @@ func consoleAuthInterceptor(logger *zap.Logger, config Config, sessionCache Sess
 	}
 }
 
-func checkAuth(ctx context.Context, logger *zap.Logger, config Config, auth, path string, sessionCache SessionCache, loginAttemptCache LoginAttemptCache) (context.Context, error) {
+func checkAuth(ctx context.Context, logger *zap.Logger, config Config, auth, path string, sessionCache *LocalSessionCache, loginAttemptCache LoginAttemptCache) (context.Context, error) {
 	const basicPrefix = "Basic "
 	const bearerPrefix = "Bearer "
 
@@ -646,7 +646,7 @@ func checkAuth(ctx context.Context, logger *zap.Logger, config Config, auth, pat
 	return ctx, status.Error(codes.Unauthenticated, "Console authentication required.")
 }
 
-func checkAuthCustom(r *http.Request, logger *zap.Logger, config Config, auth, method, path string, sessionCache SessionCache, loginAttemptCache LoginAttemptCache) (*http.Request, bool, int, string) {
+func checkAuthCustom(r *http.Request, logger *zap.Logger, config Config, auth, method, path string, sessionCache *LocalSessionCache, loginAttemptCache LoginAttemptCache) (*http.Request, bool, int, string) {
 	const basicPrefix = "Basic "
 	const bearerPrefix = "Bearer "
 

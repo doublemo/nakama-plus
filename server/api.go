@@ -449,13 +449,13 @@ func securityInterceptorFunc(logger *zap.Logger, config Config, sessionCache Ses
 				// Value of "authorization" or "grpc-authorization" was empty or repeated.
 				return nil, status.Error(codes.Unauthenticated, "Auth token invalid")
 			}
-			userID, username, vars, exp, tokenId, tokenIssuedAt, ok := parseBearerAuth([]byte(config.GetSession().EncryptionKey), auth[0])
+			userID, username, vars, exp, tokenId, tokenIssuedAt, version, ok := parseBearerAuth([]byte(config.GetSession().EncryptionKey), auth[0])
 			if !ok {
 				// Value of "authorization" or "grpc-authorization" was malformed or expired.
 				return nil, status.Error(codes.Unauthenticated, "Auth token invalid")
 			}
-			if !sessionCache.IsValidSession(userID, exp, tokenId) {
-				return nil, status.Error(codes.Unauthenticated, "Auth token invalid")
+			if err := validateSessionToken(ctx, logger, sessionCache, userID, sessionTokenRef{tokenId, exp, version}, false); err != nil {
+				return nil, err
 			}
 
 			ctx = populateCtx(ctx, userID, username, tokenId, vars, exp, tokenIssuedAt)
@@ -495,13 +495,13 @@ func securityInterceptorFunc(logger *zap.Logger, config Config, sessionCache Ses
 			// Value of "authorization" or "grpc-authorization" was empty or repeated.
 			return nil, status.Error(codes.Unauthenticated, "Auth token invalid")
 		}
-		userID, username, vars, exp, tokenId, tokenIssuedAt, ok := parseBearerAuth([]byte(config.GetSession().EncryptionKey), auth[0])
+		userID, username, vars, exp, tokenId, tokenIssuedAt, version, ok := parseBearerAuth([]byte(config.GetSession().EncryptionKey), auth[0])
 		if !ok {
 			// Value of "authorization" or "grpc-authorization" was malformed or expired.
 			return nil, status.Error(codes.Unauthenticated, "Auth token invalid")
 		}
-		if !sessionCache.IsValidSession(userID, exp, tokenId) {
-			return nil, status.Error(codes.Unauthenticated, "Auth token invalid")
+		if err := validateSessionToken(ctx, logger, sessionCache, userID, sessionTokenRef{tokenId, exp, version}, false); err != nil {
+			return nil, err
 		}
 		ctx = populateCtx(ctx, userID, username, tokenId, vars, exp, tokenIssuedAt)
 	default:
@@ -523,13 +523,13 @@ func securityInterceptorFunc(logger *zap.Logger, config Config, sessionCache Ses
 			// Value of "authorization" or "grpc-authorization" was empty or repeated.
 			return nil, status.Error(codes.Unauthenticated, "Auth token invalid")
 		}
-		userID, username, vars, exp, tokenId, tokenIssuedAt, ok := parseBearerAuth([]byte(config.GetSession().EncryptionKey), auth[0])
+		userID, username, vars, exp, tokenId, tokenIssuedAt, version, ok := parseBearerAuth([]byte(config.GetSession().EncryptionKey), auth[0])
 		if !ok {
 			// Value of "authorization" or "grpc-authorization" was malformed or expired.
 			return nil, status.Error(codes.Unauthenticated, "Auth token invalid")
 		}
-		if !sessionCache.IsValidSession(userID, exp, tokenId) {
-			return nil, status.Error(codes.Unauthenticated, "Auth token invalid")
+		if err := validateSessionToken(ctx, logger, sessionCache, userID, sessionTokenRef{tokenId, exp, version}, false); err != nil {
+			return nil, err
 		}
 		ctx = populateCtx(ctx, userID, username, tokenId, vars, exp, tokenIssuedAt)
 	}
@@ -566,7 +566,7 @@ func parseBasicAuth(auth string) (username, password string, ok bool) {
 	return before, after, true
 }
 
-func parseBearerAuth(hmacSecretByte []byte, auth string) (userID uuid.UUID, username string, vars map[string]string, exp int64, tokenId string, issuedAt int64, ok bool) {
+func parseBearerAuth(hmacSecretByte []byte, auth string) (userID uuid.UUID, username string, vars map[string]string, exp int64, tokenId string, issuedAt int64, version int64, ok bool) {
 	if auth == "" {
 		return
 	}
@@ -577,22 +577,22 @@ func parseBearerAuth(hmacSecretByte []byte, auth string) (userID uuid.UUID, user
 	return parseToken(hmacSecretByte, auth[len(prefix):])
 }
 
-func parseToken(hmacSecretByte []byte, tokenString string) (userID uuid.UUID, username string, vars map[string]string, exp int64, tokenId string, issuedAt int64, ok bool) {
+func parseToken(hmacSecretByte []byte, tokenString string) (userID uuid.UUID, username string, vars map[string]string, exp int64, tokenId string, issuedAt int64, version int64, ok bool) {
 	jwtToken, err := jwt.ParseWithClaims(tokenString, &SessionTokenClaims{}, func(token *jwt.Token) (any, error) {
 		return hmacSecretByte, nil
 	}, jwt.WithExpirationRequired(), jwt.WithValidMethods([]string{"HS256"}))
 	if err != nil {
 		return
 	}
-	claims, ok := jwtToken.Claims.(*SessionTokenClaims)
-	if !ok || !jwtToken.Valid {
+	claims, claimsOK := jwtToken.Claims.(*SessionTokenClaims)
+	if !claimsOK || !jwtToken.Valid {
 		return
 	}
 	userID, err = uuid.FromString(claims.UserId)
 	if err != nil {
 		return
 	}
-	return userID, claims.Username, claims.Vars, claims.ExpiresAt, claims.TokenId, claims.IssuedAt, true
+	return userID, claims.Username, claims.Vars, claims.ExpiresAt, claims.TokenId, claims.IssuedAt, claims.Version, claims.TokenId != ""
 }
 
 func compressHandler(h http.Handler) http.Handler {

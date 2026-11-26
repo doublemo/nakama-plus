@@ -72,6 +72,23 @@ When connected you'll see server output which describes all settings the server 
 > {"level":"info","ts":"2018-04-29T10:14:41.249+0100","msg":"Database connections","dsns":["root@127.0.0.1:26257"]} <br/>
 > ...
 
+### Cluster session validation cache
+
+To enable shared Redis and the game session validation caches, configure every Nakama node with the same Redis deployment and key prefix:
+
+```yaml
+database:
+  redis:
+    enabled: true
+    address: ["redis:6379"]
+    db: 0
+    prefix: "my-nakama-cluster"
+```
+
+Use a different prefix for each Nakama cluster sharing Redis. Set `allow_ssl: true` to use TLS, `master_name` for Sentinel, or `cluster_mode: true` for a Redis Cluster with a single seed address. Keep the database migration for session revocations applied. The shared database stores the authoritative state.
+
+Logout and ban publish invalidations to other nodes. An authorization decision may remain cached for up to three seconds if the notification is missed, including time spent in Redis and local caches. Cache misses and Redis errors fall back to the database. Established WebSocket and TCP connections retain their periodic database reconciliation.
+
 ## Usage
 
 Nakama supports a variety of protocols optimized for various gameplay or app use cases. For request/response it can use GRPC or the HTTP1.1+JSON fallback (REST). For realtime communication you can use WebSockets or rUDP.

@@ -1311,7 +1311,22 @@ func (s *LocalPeer) onResponseWriter(frame *pb.Frame) {
 	s.inbox.Send(frame)
 }
 
-func (s *LocalPeer) onBan(node string, presence *pb.BanValue) {}
+func (s *LocalPeer) onBan(node string, ban *pb.BanValue) {
+	userIDs := make(map[uuid.UUID]struct{}, len(ban.GetValues()))
+	for _, value := range ban.GetValues() {
+		if id, err := uuid.FromString(value); err == nil {
+			userIDs[id] = struct{}{}
+		}
+	}
+	if len(userIDs) == 0 {
+		return
+	}
+	ctx, cancel := context.WithTimeout(s.ctx, sessionStateTimeout)
+	defer cancel()
+	if err := reconcileSessionRevocations(ctx, s.db, s.sessionRegistry, userIDs); err != nil {
+		s.logger.Warn("Error checking sessions after peer ban.", zap.String("node", node), zap.Error(err))
+	}
+}
 
 func (s *LocalPeer) applyTrackLog(node string, presence *pb.Presence, update bool) bool {
 	if !s.replicationSourcePresent(node) {

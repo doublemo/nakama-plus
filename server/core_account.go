@@ -860,10 +860,11 @@ func DeleteAccount(ctx context.Context, logger *zap.Logger, db *sql.DB, config C
 	}
 
 	if deleted {
-		// Logout and disconnect.
-		if err := SessionLogout(config, sessionCache, userID, "", ""); err != nil {
-			return err
+		// The shared cache rejects deleted users directly.
+		if local, ok := sessionCache.(*LocalSessionCache); ok {
+			local.RemoveAll(userID)
 		}
+		invalidateSessionValidation(ctx, sessionCache, []uuid.UUID{userID})
 		for _, presence := range tracker.ListPresenceIDByStream(PresenceStream{Mode: StreamModeNotifications, Subject: userID}) {
 			if err := sessionRegistry.Disconnect(ctx, presence.SessionID, false); err != nil {
 				return err

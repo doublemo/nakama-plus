@@ -45,6 +45,8 @@ type sessionWS struct {
 	username   *atomic.String
 	vars       map[string]string
 	expiry     int64
+	token      sessionTokenRef
+	tokenReady atomic.Bool
 	clientIP   string
 	clientPort string
 	lang       string
@@ -79,7 +81,7 @@ type sessionWS struct {
 	closeMu                sync.Mutex
 }
 
-func NewSessionWS(logger *zap.Logger, config Config, format SessionFormat, sessionID, userID uuid.UUID, username, tokenId string, headers map[string][]string, vars map[string]string, tokenExpiry, tokenIssuedAt int64, clientIP, clientPort, lang string, protojsonMarshaler *protojson.MarshalOptions, protojsonUnmarshaler *protojson.UnmarshalOptions, conn *websocket.Conn, sessionRegistry SessionRegistry, statusRegistry StatusRegistry, matchmaker Matchmaker, tracker Tracker, metrics Metrics, pipeline *Pipeline, runtime *Runtime) Session {
+func NewSessionWS(logger *zap.Logger, config Config, format SessionFormat, sessionID, userID uuid.UUID, username, tokenId string, headers map[string][]string, vars map[string]string, tokenExpiry, tokenIssuedAt, tokenVersion int64, clientIP, clientPort, lang string, protojsonMarshaler *protojson.MarshalOptions, protojsonUnmarshaler *protojson.UnmarshalOptions, conn *websocket.Conn, sessionRegistry SessionRegistry, statusRegistry StatusRegistry, matchmaker Matchmaker, tracker Tracker, metrics Metrics, pipeline *Pipeline, runtime *Runtime) Session {
 	sessionLogger := logger.With(zap.String("uid", userID.String()), zap.String("sid", sessionID.String()))
 
 	sessionLogger.Info("New WebSocket session connected", zap.Uint8("format", uint8(format)))
@@ -102,6 +104,7 @@ func NewSessionWS(logger *zap.Logger, config Config, format SessionFormat, sessi
 		headers:    headers,
 		vars:       vars,
 		expiry:     tokenExpiry,
+		token:      sessionTokenRef{tokenId, tokenExpiry, tokenVersion},
 		clientIP:   clientIP,
 		clientPort: clientPort,
 		lang:       lang,
@@ -146,6 +149,13 @@ func (s *sessionWS) ID() uuid.UUID {
 
 func (s *sessionWS) UserID() uuid.UUID {
 	return s.userID
+}
+
+func (s *sessionWS) sessionToken() sessionTokenRef {
+	if !s.tokenReady.Load() {
+		return sessionTokenRef{}
+	}
+	return s.token
 }
 
 func (s *sessionWS) ClientIP() string {
@@ -209,6 +219,8 @@ func (s *sessionWS) Consume() {
 		}
 		return nil
 	})
+
+	s.tokenReady.Store(true)
 
 	// Start a routine to process outbound messages.
 	go s.processOutgoing()

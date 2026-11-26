@@ -15,10 +15,12 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/doublemo/nakama-common/api"
 	"github.com/gofrs/uuid/v5"
@@ -28,8 +30,7 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
-// End-to-end: after single-session logout, WebSocket must reject the same JWT using tokenId
-// blacklist semantics (see issue #2506). Requires Postgres (TEST_DB_URL or default local nakama DB).
+// Requires a migrated PostgreSQL database (TEST_DB_URL or default local nakama DB).
 func TestWebSocketRejectsSessionAfterLogout(t *testing.T) {
 	runtime, _, err := runtimeWithModules(t, map[string]string{})
 	if err != nil {
@@ -49,13 +50,37 @@ func TestWebSocketRejectsSessionAfterLogout(t *testing.T) {
 		}
 		t.Fatalf("expected websocket upgrade before logout: %v", err)
 	}
-	wsConn.Close()
+	defer wsConn.Close()
+	deadline := time.Now().Add(3 * time.Second)
+	for {
+		ready := false
+		apiServer.sessionRegistry.Range(func(session Session) bool {
+			ready = session.(*sessionWS).sessionToken().id != ""
+			return !ready
+		})
+		if ready {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("WebSocket session did not finish registration")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
 
 	_, err = client.SessionLogout(ctx, &api.SessionLogoutRequest{
 		Token: session.Token,
 	})
 	if err != nil {
 		t.Fatalf("session logout failed: %v", err)
+	}
+	if err := reconcileSessionRevocations(context.Background(), apiServer.db, apiServer.sessionRegistry, nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := wsConn.SetReadDeadline(time.Now().Add(3 * time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := wsConn.ReadMessage(); !websocket.IsCloseError(err, websocket.CloseNormalClosure) {
+		t.Fatalf("expected revoked socket to close, got %v", err)
 	}
 
 	_, err = client.GetAccount(ctx, &emptypb.Empty{})

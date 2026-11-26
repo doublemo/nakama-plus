@@ -60,7 +60,8 @@ func TestPeerSnapshotRepairsMissingDeltasAtSameVersion(t *testing.T) {
 
 	// A snapshot does not acknowledge deltas for data it cannot reconstruct.
 	receiver.handleBinaryLog(&pb.BinaryLog{
-		Node: "owner", Version: version - 1, Payload: &pb.BinaryLog_Ban{Ban: &pb.BanValue{}},
+		Node: "owner", Version: version - 1,
+		Payload: &pb.BinaryLog_MatchmakerRemoveAll{MatchmakerRemoveAll: &pb.MatchmakerExtract{Node: "other"}},
 	})
 	if got := receiver.binaryLog.GetVersionByNode("owner", peerLogOther); got != version-1 {
 		t.Fatalf("snapshot suppressed a delta outside its scope: version %d", got)

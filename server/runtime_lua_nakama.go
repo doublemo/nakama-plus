@@ -2497,8 +2497,12 @@ func (n *RuntimeLuaNakamaModule) authenticateTokenGenerate(l *lua.LState) int {
 
 	tokenId := uuid.Must(uuid.NewV4()).String()
 	tokenIssuedAt := time.Now().Unix()
-	token, exp := generateTokenWithExpiry(n.config.GetSession().EncryptionKey, tokenId, tokenIssuedAt, userID, username, varsMap, exp)
-	n.sessionCache.Add(uid, exp, tokenId, 0, "")
+	version, err := n.sessionCache.issue(l.Context(), uid, false)
+	if err != nil {
+		l.RaiseError("error generating session token: %v", err)
+		return 0
+	}
+	token, exp := generateTokenWithExpiry(n.config.GetSession().EncryptionKey, tokenId, tokenIssuedAt, version, userID, username, varsMap, exp)
 
 	l.Push(lua.LString(token))
 	l.Push(lua.LNumber(exp))
@@ -5147,7 +5151,7 @@ func (n *RuntimeLuaNakamaModule) sessionLogout(l *lua.LState) int {
 	token := l.OptString(2, "")
 	refreshToken := l.OptString(3, "")
 
-	if err := SessionLogout(n.config, n.sessionCache, uid, token, refreshToken); err != nil {
+	if err := SessionLogout(l.Context(), n.config, n.sessionCache, uid, token, refreshToken); err != nil {
 		l.RaiseError("failed to logout: %s", err.Error())
 	}
 	return 0

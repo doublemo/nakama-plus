@@ -233,12 +233,16 @@ func WaitForSocket(expected error, cfg *config) {
 func NewAPIServer(t *testing.T, runtime *Runtime) (*ApiServer, *Pipeline) {
 	db := NewDB(t)
 	router := &DummyMessageRouter{}
-	sessionCache := NewLocalSessionCache(3_600, 7_200)
+	sessionCache := NewDatabaseSessionCache(db)
 	sessionRegistry := NewLocalSessionRegistry(metrics)
 	statusRegistry := NewLocalStatusRegistry(logger, cfg, sessionRegistry, protojsonMarshaler)
-	tracker := &LocalTracker{sessionRegistry: sessionRegistry}
+	t.Cleanup(statusRegistry.Stop)
+	tracker := StartLocalTracker(logger, cfg, sessionRegistry, statusRegistry, metrics, protojsonMarshaler)
+	tracker.SetPeer(&partyStreamTestPeer{})
+	t.Cleanup(tracker.Stop)
+	matchmaker := &LocalMatchmaker{}
 	pipeline := NewPipeline(logger, cfg, db, protojsonMarshaler, protojsonUnmarshaler, sessionRegistry, statusRegistry, nil, nil, nil, tracker, router, runtime, metrics)
-	apiServer := StartApiServer(logger, logger, db, protojsonMarshaler, protojsonUnmarshaler, cfg, "3.0.0", nil, storageIdx, nil, nil, sessionRegistry, sessionCache, statusRegistry, nil, nil, nil, tracker, router, nil, metrics, pipeline, runtime)
+	apiServer := StartApiServer(logger, logger, db, protojsonMarshaler, protojsonUnmarshaler, cfg, "3.0.0", nil, storageIdx, nil, nil, sessionRegistry, sessionCache, statusRegistry, nil, nil, matchmaker, tracker, router, nil, metrics, pipeline, runtime)
 
 	WaitForSocket(nil, cfg)
 	return apiServer, pipeline

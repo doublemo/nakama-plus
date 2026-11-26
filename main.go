@@ -177,7 +177,16 @@ func main() {
 	// Start up server components.
 	metrics := server.NewLocalMetrics(logger, startupLogger, db, config)
 	sessionRegistry := server.NewLocalSessionRegistry(metrics)
-	sessionCache := server.NewLocalSessionCache(config.GetSession().TokenExpirySec, config.GetSession().RefreshTokenExpirySec)
+	sessionCache := server.NewDatabaseSessionCache(db)
+	var redisClient server.Redis
+	if redisConfig := config.GetDatabase().Redis; redisConfig != nil && redisConfig.Enabled {
+		redisClient, err = server.NewLocalRedisClient(ctx, startupLogger, redisConfig)
+		if err != nil {
+			startupLogger.Fatal("Could not configure Redis", zap.Error(err))
+		}
+		sessionCache = server.NewRedisSessionCache(redisClient, logger, sessionCache)
+	}
+	server.StartSessionRevocationReconciler(ctx, logger, db, sessionRegistry)
 	consoleSessionCache := server.NewLocalSessionCache(config.GetConsole().TokenExpirySec, 0)
 	loginAttemptCache := server.NewLocalLoginAttemptCache()
 	statusRegistry := server.NewLocalStatusRegistry(logger, config, sessionRegistry, jsonpbMarshaler)
@@ -270,6 +279,9 @@ func main() {
 	tracker.Stop()
 	statusRegistry.Stop()
 	sessionCache.Stop()
+	if redisClient != nil {
+		redisClient.Close()
+	}
 	sessionRegistry.Stop()
 	metrics.Stop(logger)
 	loginAttemptCache.Stop()

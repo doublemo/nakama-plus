@@ -79,14 +79,22 @@ func (s *ApiServer) RpcFuncHttp(w http.ResponseWriter, r *http.Request) {
 			}
 		} else {
 			var tokenId string
-			var tokenIssuedAt int64
-			userID, username, vars, expiry, tokenId, tokenIssuedAt, isTokenAuth = parseBearerAuth([]byte(s.config.GetSession().EncryptionKey), auth[0])
+			var tokenIssuedAt, version int64
+			userID, username, vars, expiry, tokenId, tokenIssuedAt, version, isTokenAuth = parseBearerAuth([]byte(s.config.GetSession().EncryptionKey), auth[0])
 			requestCtx = context.WithValue(requestCtx, ctxTokenIDKey{}, tokenId)
 			requestCtx = context.WithValue(requestCtx, ctxExpiryKey{}, expiry)
 			requestCtx = context.WithValue(requestCtx, ctxTokenIssuedAtKey{}, tokenIssuedAt)
 			requestCtx = context.WithValue(requestCtx, ctxVarsKey{}, vars)
 
-			if !isTokenAuth || !s.sessionCache.IsValidSession(userID, expiry, tokenId) {
+			if isTokenAuth {
+				if err := validateSessionToken(requestCtx, logger, s.sessionCache, userID, sessionTokenRef{tokenId, expiry, version}, false); status.Code(err) == codes.Unavailable {
+					http.Error(w, err.Error(), http.StatusServiceUnavailable)
+					return
+				} else if err != nil {
+					isTokenAuth = false
+				}
+			}
+			if !isTokenAuth {
 				// Auth token not valid or expired.
 				w.Header().Set("content-type", "application/json")
 				w.WriteHeader(http.StatusUnauthorized)

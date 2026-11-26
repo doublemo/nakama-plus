@@ -24,6 +24,8 @@ import (
 	"github.com/gofrs/uuid/v5"
 	"github.com/gorilla/websocket"
 	"go.uber.org/zap"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -72,9 +74,17 @@ func NewSocketWsAcceptor(logger *zap.Logger, config Config, sessionRegistry Sess
 			http.Error(w, "Missing or invalid token", http.StatusUnauthorized)
 			return
 		}
-		userID, username, vars, expiry, tokenId, issuedAt, ok := parseToken([]byte(config.GetSession().EncryptionKey), token)
-		if !ok || !sessionCache.IsValidSession(userID, expiry, tokenId) {
+		userID, username, vars, expiry, tokenId, issuedAt, version, ok := parseToken([]byte(config.GetSession().EncryptionKey), token)
+		if !ok {
 			http.Error(w, "Missing or invalid token", http.StatusUnauthorized)
+			return
+		}
+		if err := validateSessionToken(r.Context(), logger, sessionCache, userID, sessionTokenRef{tokenId, expiry, version}, false); err != nil {
+			if status.Code(err) == codes.Unavailable {
+				http.Error(w, "Session state unavailable", http.StatusServiceUnavailable)
+			} else {
+				http.Error(w, "Missing or invalid token", http.StatusUnauthorized)
+			}
 			return
 		}
 
@@ -104,7 +114,7 @@ func NewSocketWsAcceptor(logger *zap.Logger, config Config, sessionRegistry Sess
 		}
 
 		// Wrap the connection for application handling.
-		session := NewSessionWS(logger, config, format, sessionID, userID, username, tokenId, headers, vars, expiry, issuedAt, clientIP, clientPort, lang, protojsonMarshaler, protojsonUnmarshaler, conn, sessionRegistry, statusRegistry, matchmaker, tracker, metrics, pipeline, runtime)
+		session := NewSessionWS(logger, config, format, sessionID, userID, username, tokenId, headers, vars, expiry, issuedAt, version, clientIP, clientPort, lang, protojsonMarshaler, protojsonUnmarshaler, conn, sessionRegistry, statusRegistry, matchmaker, tracker, metrics, pipeline, runtime)
 
 		// Add to the session registry.
 		sessionRegistry.Add(session)

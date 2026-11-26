@@ -39,6 +39,14 @@ func (s *ConsoleServer) GetConfig(ctx context.Context, in *emptypb.Empty) (*cons
 	}
 	cfg.GetConsole().SigningKey = ObfuscationString
 	cfg.GetConsole().Password = ObfuscationString
+	if redis := cfg.GetDatabase().Redis; redis != nil {
+		if redis.Password != "" {
+			redis.Password = ObfuscationString
+		}
+		if redis.SentinelPassword != "" {
+			redis.SentinelPassword = ObfuscationString
+		}
+	}
 	for i, address := range cfg.GetDatabase().Addresses {
 		rawURL := fmt.Sprintf("postgresql://%s", address)
 		parsedURL, err := url.Parse(rawURL)

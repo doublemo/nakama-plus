@@ -200,7 +200,7 @@ func (s *ConsoleServer) dbInsertConsoleUser(ctx context.Context, logger *zap.Log
 	}
 
 	if updated {
-		s.sessionCache.RemoveAll(id)
+		s.consoleSessionCache.RemoveAll(id)
 	}
 
 	user := &console.User{

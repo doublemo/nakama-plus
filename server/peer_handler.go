@@ -106,28 +106,8 @@ func (s *LocalPeer) disconnect(w *pb.Disconnect) {
 		reasonOverride = runtime.PresenceReason(w.GetReason())
 	}
 
-	session := s.sessionRegistry.Get(uuid.FromStringOrNil(w.GetSessionID()))
-	if session != nil {
-		if w.Ban {
-			session.Close("server-side session disconnect", runtime.PresenceReasonDisconnect,
-				&rtapi.Envelope{Message: &rtapi.Envelope_Notifications{
-					Notifications: &rtapi.Notifications{
-						Notifications: []*api.Notification{
-							{
-								Id:         uuid.Must(uuid.NewV4()).String(),
-								Subject:    "banned",
-								Content:    "{}",
-								Code:       NotificationCodeUserBanned,
-								SenderId:   "",
-								CreateTime: &timestamppb.Timestamp{Seconds: time.Now().Unix()},
-								Persistent: false,
-							},
-						},
-					},
-				}})
-		} else {
-			session.Close("server-side session disconnect", reasonOverride)
-		}
+	if session := s.sessionRegistry.Get(uuid.FromStringOrNil(w.GetSessionID())); session != nil {
+		closeDisconnectedSession(session, w.Ban, reasonOverride)
 	}
 }
 

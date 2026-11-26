@@ -54,7 +54,7 @@ func (s *ApiServer) SessionRefresh(ctx context.Context, in *api.SessionRefreshRe
 		return nil, status.Error(codes.InvalidArgument, "Refresh token is required.")
 	}
 
-	userID, username, vars, tokenId, tokenIssuedAt, err := SessionRefresh(ctx, logger, s.db, s.config, s.sessionCache, in.Token)
+	userID, username, vars, tokenId, tokenIssuedAt, version, err := SessionRefresh(ctx, logger, s.db, s.config, s.sessionCache, in.Token)
 	if err != nil {
 		return nil, err
 	}
@@ -66,16 +66,8 @@ func (s *ApiServer) SessionRefresh(ctx context.Context, in *api.SessionRefreshRe
 	}
 	userIDStr := userID.String()
 
-	//newTokenId := uuid.Must(uuid.NewV4()).String()
-	//token, tokenExp := generateToken(s.config, newTokenId, userIDStr, username, useVars)
-	//refreshToken, refreshTokenExp := generateRefreshToken(s.config, newTokenId, userIDStr, username, useVars)
-	//s.sessionCache.Remove(userID, tokenExp, "", refreshTokenExp, tokenId)
-	//s.sessionCache.Add(userID, tokenExp, newTokenId, refreshTokenExp, newTokenId)
-	//session := &api.Session{Created: false, Token: token, RefreshToken: refreshToken}
-
-	token, tokenExp := generateToken(s.config, tokenId, tokenIssuedAt, userIDStr, username, useVars)
-	refreshToken, refreshTokenExp := generateRefreshToken(s.config, tokenId, tokenIssuedAt, userIDStr, username, useVars)
-	s.sessionCache.Add(userID, tokenExp, tokenId, refreshTokenExp, tokenId)
+	token, tokenExp := generateToken(s.config, tokenId, tokenIssuedAt, version, userIDStr, username, useVars)
+	refreshToken, _ := generateRefreshToken(s.config, tokenId, tokenIssuedAt, version, userIDStr, username, useVars)
 	session := &api.Session{Created: false, Token: token, RefreshToken: refreshToken}
 
 	// After hook.
@@ -118,7 +110,7 @@ func (s *ApiServer) SessionLogout(ctx context.Context, in *api.SessionLogoutRequ
 		}
 	}
 
-	if err := SessionLogout(s.config, s.sessionCache, userID, in.Token, in.RefreshToken); err != nil {
+	if err := SessionLogout(ctx, s.config, s.sessionCache, userID, in.Token, in.RefreshToken); err != nil {
 		if err == ErrSessionTokenInvalid {
 			return nil, status.Error(codes.InvalidArgument, "Session token invalid.")
 		}

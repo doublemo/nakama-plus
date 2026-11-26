@@ -163,14 +163,25 @@ func DeleteUser(ctx context.Context, tx *sql.Tx, userID uuid.UUID) (int64, error
 }
 
 func BanUsers(ctx context.Context, logger *zap.Logger, db *sql.DB, config Config, sessionCache SessionCache, sessionRegistry SessionRegistry, tracker Tracker, ids []uuid.UUID) error {
-	query := "UPDATE users SET disable_time = now() WHERE id = ANY($1::UUID[])"
-	_, err := db.ExecContext(ctx, query, ids)
+	err := ExecuteInTx(ctx, db, func(tx *sql.Tx) error {
+		if _, err := tx.ExecContext(ctx, `UPDATE users SET disable_time = now(), session_version = session_version + 1
+			WHERE id = ANY($1::UUID[])`, ids); err != nil {
+			return err
+		}
+		return clearSessionRevocations(ctx, tx, ids)
+	})
 	if err != nil {
 		logger.Error("Error banning user accounts.", zap.Error(err), zap.Any("ids", ids))
 		return err
 	}
 
-	sessionCache.Ban(ids)
+	if local, ok := sessionCache.(*LocalSessionCache); ok {
+		local.Ban(ids)
+	}
+	invalidateSessionValidation(ctx, sessionCache, ids)
+	if registry, ok := sessionRegistry.(*LocalSessionRegistry); ok {
+		registry.broadcastBan(ids)
+	}
 
 	for _, id := range ids {
 		// Disconnect.
@@ -192,8 +203,7 @@ func UnbanUsers(ctx context.Context, logger *zap.Logger, db *sql.DB, sessionCach
 		return err
 	}
 
-	sessionCache.Unban(ids)
-
+	invalidateSessionValidation(ctx, sessionCache, ids)
 	return nil
 }
 

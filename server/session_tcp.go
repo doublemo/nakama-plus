@@ -54,6 +54,7 @@ type sessionTcp struct {
 	clientPort *atomic.String
 	lang       *atomic.String
 	seq        *atomic.Uint64
+	token      atomic.Pointer[sessionTokenRef]
 
 	ctx         context.Context
 	ctxCancelFn context.CancelFunc
@@ -154,6 +155,13 @@ func (s *sessionTcp) ID() uuid.UUID {
 
 func (s *sessionTcp) UserID() uuid.UUID {
 	return uuid.FromStringOrNil(s.userID.Load())
+}
+
+func (s *sessionTcp) sessionToken() sessionTokenRef {
+	if token := s.token.Load(); token != nil {
+		return *token
+	}
+	return sessionTokenRef{}
 }
 
 func (s *sessionTcp) ClientIP() string {
@@ -612,8 +620,8 @@ func (s *sessionTcp) syn(data []byte) error {
 		return ErrSessionInvalidToken
 	}
 
-	userID, username, vars, expiry, _, _, ok := parseToken([]byte(s.config.GetSession().EncryptionKey), syn.Token)
-	if !ok || !s.sessionCache.IsValidSession(userID, expiry, syn.Token) {
+	userID, username, vars, expiry, tokenID, _, version, ok := parseToken([]byte(s.config.GetSession().EncryptionKey), syn.Token)
+	if !ok || validateSessionToken(s.ctx, logger, s.sessionCache, userID, sessionTokenRef{tokenID, expiry, version}, false) != nil {
 		return ErrSessionInvalidToken
 	}
 
@@ -688,6 +696,7 @@ func (s *sessionTcp) syn(data []byte) error {
 		// Kick any other sockets for this user.
 		go s.sessionRegistry.SingleSession(s.Context(), s.tracker, userID, s.id)
 	}
+	s.token.Store(&sessionTokenRef{tokenID, expiry, version})
 	return nil
 }
 
